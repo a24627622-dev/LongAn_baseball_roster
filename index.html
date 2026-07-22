@@ -1,179 +1,322 @@
 <!DOCTYPE html>
 <html lang="zh-TW">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>棒球排陣與打序小工具</title>
-  <!-- 載入 Tailwind CSS (響應式UI樣式庫) -->
-  <script src="https://cdn.tailwindcss.com"></script>
-  <!-- 載入 Vue.js 3 (前端互動框架) -->
-  <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
-  <!-- 載入 PapaParse (將 Google Sheet CSV 轉為 JSON 的解析器) -->
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>龍安棒球隊點名與先發陣容助手</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Vue 3 CDN -->
+    <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
+    <!-- PapaParse (CSV 解析) -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.3.2/papaparse.min.js"></script>
+    <style>
+        [v-cloak] { display: none; }
+    </style>
 </head>
-<body class="bg-slate-100 text-slate-800 font-sans pb-10">
+<body class="bg-slate-100 min-h-screen text-slate-800 pb-12">
+    <div id="app" v-cloak class="max-w-4xl mx-auto px-4 py-6">
+        
+        <!-- 頁首標題 -->
+        <header class="bg-blue-900 text-white rounded-2xl p-6 shadow-lg mb-6 flex justify-between items-center flex-wrap gap-4">
+            <div>
+                <h1 class="text-2xl font-bold flex items-center gap-2">
+                    <span>⚾</span> 龍安棒球隊點名與先發陣容助手
+                </h1>
+                <p class="text-blue-200 text-sm mt-1">教練專用版 - 自動連動 Google Sheet</p>
+            </div>
+            <button @click="fetchData" :disabled="loading" class="bg-blue-600 hover:bg-blue-500 text-white px-4 py-2 rounded-xl text-sm font-medium transition shadow flex items-center gap-2">
+                <span :class="{'animate-spin': loading}">🔄</span> 重新同步名單
+            </button>
+        </header>
 
-  <div id="app" class="max-w-md mx-auto p-4 md:max-w-2xl">
-    <!-- 頁頭標題 -->
-    <header class="bg-blue-900 text-white p-4 rounded-xl shadow-md mb-4 flex justify-between items-center">
-      <div>
-        <h1 class="text-xl font-bold">⚾ 棒球比賽點名與先發助手</h1>
-        <p class="text-xs text-blue-200">教練專用版</p>
-      </div>
-      <button @click="fetchRoster" class="bg-blue-700 hover:bg-blue-600 text-xs text-white px-3 py-1.5 rounded flex items-center gap-1">
-        🔄 重新同步名單
-      </button>
-    </header>
+        <!-- 載入中狀態 -->
+        <div v-if="loading" class="text-center py-12 bg-white rounded-2xl shadow">
+            <div class="inline-block animate-spin rounded-full h-12 w-12 border-4 border-blue-600 border-t-transparent mb-4"></div>
+            <p class="text-slate-500 font-medium">正在從 Google Sheet 載入隊員名單...</p>
+        </div>
 
-    <!-- 載入中提示 -->
-    <div v-if="loading" class="text-center py-10 text-slate-500">
-      <div class="animate-spin inline-block w-8 h-8 border-4 border-blue-600 border-t-transparent rounded-full mb-2"></div>
-      <p>正在從 Google Sheet 載入隊員名單...</p>
+        <!-- 載入成功後的內容 -->
+        <div v-else class="space-y-6">
+            
+            <!-- 區塊一：當日出席確認 -->
+            <section class="bg-white rounded-2xl p-6 shadow-sm border border-slate-200">
+                <div class="flex justify-between items-center mb-4 flex-wrap gap-2">
+                    <h2 class="text-xl font-bold flex items-center gap-2">
+                        <span>📋</span> 當日出席確認
+                    </h2>
+                    <div class="flex items-center gap-3">
+                        <span class="bg-blue-100 text-blue-800 text-sm px-3 py-1 rounded-full font-semibold">
+                            已出席：{{ attendedCount }} / {{ players.length }} 人
+                        </span>
+                        <button @click="selectAll" class="text-xs bg-slate-100 hover:bg-slate-200 px-3 py-1.5 rounded-lg border">全選</button>
+                        <button @click="resetAttendance" class="text-xs bg-slate-100 hover:bg-slate-200 px-3 py-1.5 rounded-lg border text-red-600">重設</button>
+                    </div>
+                </div>
+
+                <!-- 搜尋框 -->
+                <div class="mb-4">
+                    <input type="text" v-model="searchQuery" placeholder="搜尋背號或姓名..." class="w-full px-4 py-2 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500">
+                </div>
+
+                <!-- 球員點名卡片區 -->
+                <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3 max-h-80 overflow-y-auto p-1">
+                    <div v-for="player in filteredPlayers" :key="player.id" 
+                         @click="player.isAttended = !player.isAttended"
+                         :class="['p-3 rounded-xl border-2 cursor-pointer transition flex items-center justify-between', 
+                                  player.isAttended ? 'border-blue-500 bg-blue-50/50' : 'border-slate-200 bg-white hover:border-slate-300']">
+                        <div class="flex items-center gap-3">
+                            <div :class="['w-10 h-10 rounded-full flex items-center justify-center font-bold text-sm',
+                                          player.isAttended ? 'bg-blue-600 text-white' : 'bg-slate-200 text-slate-600']">
+                                {{ player['背號'] || '?' }}
+                            </div>
+                            <div>
+                                <div class="font-bold text-slate-800">{{ player['球員姓名'] }}</div>
+                                <div class="text-xs text-slate-400 space-x-1">
+                                    <span v-if="player['守位一']" class="bg-slate-100 px-1.5 py-0.5 rounded">{{ player['守位一'] }}</span>
+                                    <span v-if="player['守位二']" class="bg-slate-100 px-1.5 py-0.5 rounded">{{ player['守位二'] }}</span>
+                                    <span v-if="player['守位三']" class="bg-slate-100 px-1.5 py-0.5 rounded">{{ player['守位三'] }}</span>
+                                </div>
+                            </div>
+                        </div>
+                        <div :class="['w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold border',
+                                      player.isAttended ? 'bg-blue-600 border-blue-600 text-white' : 'border-slate-300 text-transparent']">
+                            ✓
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- 區塊二：當日先發打序與守位安排 -->
+            <section class="bg-white rounded-2xl p-6 shadow-sm border border-slate-200">
+                <div class="flex justify-between items-center mb-4 flex-wrap gap-2">
+                    <div>
+                        <h2 class="text-xl font-bold flex items-center gap-2">
+                            <span>⚾</span> 當日先發打序排定
+                        </h2>
+                        <p class="text-xs text-slate-500 mt-1">從已出席的 {{ attendedCount }} 位球員中選擇先發成員</p>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <button @click="addLineupSlot" class="text-xs bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-300 px-3 py-1.5 rounded-lg font-medium">
+                            + 新增打席 (例如 EP/DH)
+                        </button>
+                        <button @click="copyLineup" class="bg-emerald-600 hover:bg-emerald-500 text-white text-xs px-4 py-2 rounded-xl font-bold shadow flex items-center gap-1">
+                            <span>📋</span> 複製 LINE 先發打單
+                        </button>
+                    </div>
+                </div>
+
+                <!-- 守位衝突提示 -->
+                <div v-if="positionConflicts.length > 0" class="mb-4 p-3 bg-amber-50 border border-amber-200 rounded-xl text-amber-800 text-xs flex items-center gap-2">
+                    <span>⚠️</span>
+                    <span><strong>守位重複提示：</strong>以下守位被重複選擇了：{{ positionConflicts.join(', ') }}</span>
+                </div>
+
+                <!-- 打序列表 -->
+                <div class="space-y-2">
+                    <div v-for="(slot, index) in lineup" :key="index" class="flex items-center gap-2 bg-slate-50 p-2.5 rounded-xl border border-slate-200">
+                        <div class="w-8 h-8 rounded-lg bg-slate-800 text-white font-bold flex items-center justify-center text-sm">
+                            {{ index + 1 }}
+                        </div>
+
+                        <!-- 守位選擇 -->
+                        <select v-model="slot.position" class="bg-white border border-slate-300 rounded-lg px-2 py-1.5 text-sm font-semibold text-slate-700 focus:ring-2 focus:ring-blue-500">
+                            <option v-for="pos in positionOptions" :key="pos" :value="pos">{{ pos }}</option>
+                        </select>
+
+                        <!-- 球員選擇器（只列出已出席球員） -->
+                        <select v-model="slot.playerId" class="flex-1 bg-white border border-slate-300 rounded-lg px-3 py-1.5 text-sm font-medium text-slate-800 focus:ring-2 focus:ring-blue-500">
+                            <option value="">-- 請選擇先發球員 --</option>
+                            <option v-for="p in attendedPlayers" :key="p.id" :value="p.id" :disabled="isPlayerInLineup(p.id, index)">
+                                #{{ p['背號'] || '?' }} {{ p['球員姓名'] }} {{ getPlayerPositionsText(p) }} {{ isPlayerInLineup(p.id, index) ? '(已在先發)' : '' }}
+                            </option>
+                        </select>
+
+                        <!-- 清除或刪除按鈕 -->
+                        <button v-if="lineup.length > 9 && index >= 9" @click="removeLineupSlot(index)" class="text-slate-400 hover:text-red-500 px-2">
+                            ✕
+                        </button>
+                    </div>
+                </div>
+            </section>
+
+            <!-- 區塊三：板凳預備名單 -->
+            <section class="bg-white rounded-2xl p-6 shadow-sm border border-slate-200">
+                <h2 class="text-lg font-bold text-slate-700 mb-3 flex items-center gap-2">
+                    <span>🪑</span> 板凳預備成員 ({{ benchPlayers.length }} 人)
+                </h2>
+                <div v-if="benchPlayers.length === 0" class="text-xs text-slate-400 italic">
+                    所有出席球員皆已排入先發打席。
+                </div>
+                <div v-else class="flex flex-wrap gap-2">
+                    <div v-for="bp in benchPlayers" :key="bp.id" class="bg-slate-100 border border-slate-200 px-3 py-1.5 rounded-xl text-xs font-medium text-slate-700 flex items-center gap-1.5">
+                        <span class="font-bold text-blue-700">#{{ bp['背號'] || '?' }}</span>
+                        <span>{{ bp['球員姓名'] }}</span>
+                        <span class="text-slate-400 text-[10px]">{{ getPlayerPositionsText(bp) }}</span>
+                    </div>
+                </div>
+            </section>
+
+        </div>
     </div>
 
-    <!-- 主內容區 -->
-    <main v-else>
-      <!-- 狀態欄與搜尋 -->
-      <div class="bg-white p-4 rounded-xl shadow-sm border border-slate-200 mb-4">
-        <div class="flex justify-between items-center mb-3">
-          <h2 class="font-bold text-lg text-slate-700">當日出席確認</h2>
-          <span class="bg-blue-100 text-blue-800 text-xs font-semibold px-2.5 py-0.5 rounded-full">
-            已出席: {{ attendedPlayers.length }} / {{ players.length }} 人
-          </span>
-        </div>
+    <script>
+        const { createApp, ref, computed, onMounted } = Vue;
 
-        <!-- 搜尋與快速按鈕 -->
-        <div class="flex gap-2">
-          <input 
-            type="text" 
-            v-model="searchQuery" 
-            placeholder="搜尋背號或姓名..." 
-            class="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
-          >
-          <button @click="selectAll(true)" class="bg-slate-100 hover:bg-slate-200 text-xs px-3 py-2 rounded text-slate-600 whitespace-nowrap">全選</button>
-          <button @click="selectAll(false)" class="bg-slate-100 hover:bg-slate-200 text-xs px-3 py-2 rounded text-slate-600 whitespace-nowrap">重設</button>
-        </div>
-      </div>
+        createApp({
+            setup() {
+                // 發布為 CSV 的 Google Sheet 網址
+                const GOOGLE_SHEET_CSV_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vTPFOzsn5Wm6b2BHRtaWNNJfaue03uy6LxPVmaBHXSWyVOA2jT1Nm0dVzgt2aSLgntxza9-Lg3QUPCW/pub?output=csv';
 
-      <!-- 球員名單點名清單 (針對手機優化的網格按鈕卡片) -->
-      <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
-        <div 
-          v-for="player in filteredPlayers" 
-          :key="player['背號']"
-          @click="toggleAttendance(player)"
-          :class="[
-            'p-3 rounded-xl border flex items-center justify-between cursor-pointer transition-all select-none',
-            player.isAttended 
-              ? 'bg-blue-50 border-blue-500 shadow-sm' 
-              : 'bg-white border-slate-200 opacity-70 hover:opacity-100'
-          ]"
-        >
-          <div class="flex items-center gap-3">
-            <!-- 背號球衣 icon -->
-            <div :class="[
-              'w-10 h-10 rounded-full flex items-center justify-center font-black text-sm border-2',
-              player.isAttended ? 'bg-blue-600 text-white border-blue-600' : 'bg-slate-100 text-slate-500 border-slate-300'
-            ]">
-              {{ player['背號'] || '?' }}
-            </div>
-            
-            <!-- 球員基本資訊 -->
-            <div>
-              <div class="font-bold text-slate-800">{{ player['球員姓名'] }}</div>
-              <div class="text-xs text-slate-400 flex gap-1">
-                <span class="bg-slate-100 px-1.5 py-0.5 rounded text-slate-600" v-if="player['守位一']">{{ player['守位一'] }}</span>
-                <span class="bg-slate-100 px-1.5 py-0.5 rounded text-slate-600" v-if="player['守位二']">{{ player['守位二'] }}</span>
-                <span class="bg-slate-100 px-1.5 py-0.5 rounded text-slate-600" v-if="player['守位三']">{{ player['守位三'] }}</span>
-              </div>
-            </div>
-          </div>
+                const players = ref([]);
+                const loading = ref(true);
+                const searchQuery = ref('');
 
-          <!-- 勾選框 -->
-          <div :class="[
-            'w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold',
-            player.isAttended ? 'bg-blue-600 text-white' : 'border border-slate-300'
-          ]">
-            {{ player.isAttended ? '✓' : '' }}
-          </div>
-        </div>
-      </div>
-    </main>
-  </div>
+                // 可選守位
+                const positionOptions = ['P', 'C', '1B', '2B', '3B', 'SS', 'LF', 'CF', 'RF', 'DH', 'EP'];
 
-  <script>
-    const { createApp, ref, computed, onMounted } = Vue;
+                // 預設 9 人先發打席
+                const lineup = ref([
+                    { position: 'P', playerId: '' },
+                    { position: 'C', playerId: '' },
+                    { position: '1B', playerId: '' },
+                    { position: '2B', playerId: '' },
+                    { position: '3B', playerId: '' },
+                    { position: 'SS', playerId: '' },
+                    { position: 'LF', playerId: '' },
+                    { position: 'CF', playerId: '' },
+                    { position: 'RF', playerId: '' }
+                ]);
 
-    createApp({
-      setup() {
-        // ⚠️ 請替換為你在 Google Sheet「發布到網路」取得的 CSV 網址：
-const GOOGLE_SHEET_CSV_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vTPF0zsn5Wm6b2BHRtaWNNJfaue03uy6LxPVmaBHXSWyVOA2jT1Nm0dVzgt2aSLgntxza9-Lg3QUPCW/pub?output=csv';
-        const players = ref([]);
-        const loading = ref(true);
-        const searchQuery = ref('');
+                // 從 Google Sheet 讀取資料
+                const fetchData = () => {
+                    loading.value = true;
+                    Papa.parse(GOOGLE_SHEET_CSV_URL, {
+                        download: true,
+                        header: true,
+                        skipEmptyLines: true,
+                        complete: (results) => {
+                            players.value = results.data.map((item, index) => ({
+                                id: index + 1,
+                                ...item,
+                                isAttended: false
+                            }));
+                            loading.value = false;
+                        },
+                        error: (err) => {
+                            alert('載入失敗，請確認 Google Sheet 已發布為 CSV 並檢查網路狀態。');
+                            loading.value = false;
+                        }
+                    });
+                };
 
-        // 從 Google Sheet 抓取 CSV 並解析
-        const fetchRoster = () => {
-          loading.value = true;
-          Papa.parse(GOOGLE_SHEET_CSV_URL, {
-            download: true,
-            header: true,
-            skipEmptyLines: true,
-            complete: (results) => {
-              // 為每個球員加入 isAttended 屬性（預設未勾選）
-              players.value = results.data.map(p => ({
-                ...p,
-                isAttended: false
-              }));
-              loading.value = false;
-            },
-            error: (err) => {
-              alert('載入失敗，請確認 Google Sheet 已發布為 CSV 並檢查網路狀態。');
-              loading.value = false;
+                onMounted(() => {
+                    fetchData();
+                });
+
+                // 計算出席人數與名單
+                const attendedPlayers = computed(() => players.value.filter(p => p.isAttended));
+                const attendedCount = computed(() => attendedPlayers.value.length);
+
+                // 關鍵字過濾球員
+                const filteredPlayers = computed(() => {
+                    if (!searchQuery.value) return players.value;
+                    const q = searchQuery.value.toLowerCase();
+                    return players.value.filter(p => 
+                        (p['球員姓名'] && p['球員姓名'].toLowerCase().includes(q)) ||
+                        (p['背號'] && p['背號'].toString().includes(q))
+                    );
+                });
+
+                // 全選與重設
+                const selectAll = () => players.value.forEach(p => p.isAttended = true);
+                const resetAttendance = () => players.value.forEach(p => p.isAttended = false);
+
+                // 檢查球員是否已在先發名單中
+                const isPlayerInLineup = (playerId, currentSlotIndex) => {
+                    if (!playerId) return false;
+                    return lineup.value.some((slot, idx) => idx !== currentSlotIndex && slot.playerId === playerId);
+                };
+
+                // 取得球員守位字串 (P / C / OF)
+                const getPlayerPositionsText = (p) => {
+                    const pos = [p['守位一'], p['守位二'], p['守位三']].filter(Boolean);
+                    return pos.length > 0 ? `(${pos.join('/')})` : '';
+                };
+
+                // 新增/刪除打席
+                const addLineupSlot = () => lineup.value.push({ position: 'DH', playerId: '' });
+                const removeLineupSlot = (index) => lineup.value.splice(index, 1);
+
+                // 守位衝突檢查
+                const positionConflicts = computed(() => {
+                    const counts = {};
+                    lineup.value.forEach(slot => {
+                        if (slot.playerId && slot.position !== 'DH' && slot.position !== 'EP') {
+                            counts[slot.position] = (counts[slot.position] || 0) + 1;
+                        }
+                    });
+                    return Object.keys(counts).filter(pos => counts[pos] > 1);
+                });
+
+                // 板凳球員計算
+                const benchPlayers = computed(() => {
+                    const lineupPlayerIds = lineup.value.map(s => s.playerId).filter(Boolean);
+                    return attendedPlayers.value.filter(p => !lineupPlayerIds.includes(p.id));
+                });
+
+                // 複製 LINE 打單
+                const copyLineup = () => {
+                    const dateStr = new Date().toLocaleDateString('zh-TW', { month: 'numeric', day: 'numeric' });
+                    let text = `⚾ 龍安棒球隊 當日先發打單 (${dateStr})\n`;
+                    text += `-------------------------\n`;
+
+                    lineup.value.forEach((slot, idx) => {
+                        const player = players.value.find(p => p.id === slot.playerId);
+                        if (player) {
+                            text += `${idx + 1}. #${player['背號'] || '?'} ${player['球員姓名']} (${slot.position})\n`;
+                        } else {
+                            text += `${idx + 1}. (未定) (${slot.position})\n`;
+                        }
+                    });
+
+                    if (benchPlayers.value.length > 0) {
+                        text += `-------------------------\n🪑 板凳預備：\n`;
+                        benchPlayers.value.forEach(bp => {
+                            text += `#${bp['背號'] || '?'} ${bp['球員姓名']} `;
+                        });
+                        text += `\n`;
+                    }
+
+                    navigator.clipboard.writeText(text).then(() => {
+                        alert('先發打單已成功複製到剪貼簿！可直接貼到 LINE 群組。');
+                    }).catch(() => {
+                        alert('複製失敗，請手動選取文字。');
+                    });
+                };
+
+                return {
+                    players,
+                    loading,
+                    searchQuery,
+                    positionOptions,
+                    lineup,
+                    attendedPlayers,
+                    attendedCount,
+                    filteredPlayers,
+                    positionConflicts,
+                    benchPlayers,
+                    fetchData,
+                    selectAll,
+                    resetAttendance,
+                    isPlayerInLineup,
+                    getPlayerPositionsText,
+                    addLineupSlot,
+                    removeLineupSlot,
+                    copyLineup
+                };
             }
-          });
-        };
-
-        // 搜尋過濾
-        const filteredPlayers = computed(() => {
-          if (!searchQuery.value) return players.value;
-          const q = searchQuery.value.toLowerCase();
-          return players.value.filter(p => 
-            (p['球員姓名'] && p['球員姓名'].toLowerCase().includes(q)) ||
-            (p['背號'] && String(p['背號']).includes(q))
-          );
-        });
-
-        // 已出席人數清單
-        const attendedPlayers = computed(() => {
-          return players.value.filter(p => p.isAttended);
-        });
-
-        // 切換出席狀態
-        const toggleAttendance = (player) => {
-          player.isAttended = !player.isAttended;
-        };
-
-        // 全選 / 重設
-        const selectAll = (status) => {
-          players.value.forEach(p => p.isAttended = status);
-        };
-
-        onMounted(() => {
-          fetchRoster();
-        });
-
-        return {
-          players,
-          loading,
-          searchQuery,
-          filteredPlayers,
-          attendedPlayers,
-          toggleAttendance,
-          selectAll,
-          fetchRoster
-        };
-      }
-    }).mount('#app');
-  </script>
+        }).mount('#app');
+    </script>
 </body>
 </html>

@@ -65,11 +65,11 @@
                     </div>
                     <div>
                         <label class="block text-xs font-bold text-slate-600 mb-1">對手名稱 *</label>
-                        <input type="text" v-model="gameInfo.opponent" placeholder="例: 帝尚強" class="w-full px-3 py-1.5 border rounded-lg text-sm focus:ring-2 focus:ring-blue-500">
+                        <input type="text" v-model="gameInfo.opponent" placeholder="例: 同樂" class="w-full px-3 py-1.5 border rounded-lg text-sm focus:ring-2 focus:ring-blue-500">
                     </div>
                     <div class="sm:col-span-2">
                         <label class="block text-xs font-bold text-slate-600 mb-1">球場位置</label>
-                        <input type="text" v-model="gameInfo.location" placeholder="例: 龍安棒球場 A 場地" class="w-full px-3 py-1.5 border rounded-lg text-sm focus:ring-2 focus:ring-blue-500">
+                        <input type="text" v-model="gameInfo.location" placeholder="例: 基隆棒球場" class="w-full px-3 py-1.5 border rounded-lg text-sm focus:ring-2 focus:ring-blue-500">
                     </div>
                 </div>
 
@@ -164,34 +164,71 @@
                                 <span class="bg-blue-100 text-blue-800 font-bold px-2 py-0.5 rounded text-xs">{{ slot.starter.pos }}</span>
                                 <span class="font-bold text-slate-800">#{{ slot.starter.number }} {{ slot.starter.name }}</span>
                             </div>
-                            <select @change="handleSubstitution(index + 1, $event.target.value)" class="text-xs bg-white border rounded-lg px-2 py-1">
-                                <option value="">+ 更換替補 (代打/代跑/換守)</option>
-                                <option v-for="bp in benchPlayers" :key="bp.id" :value="bp.id">#{{ bp['背號'] }} {{ bp['球員姓名'] }}</option>
-                            </select>
+                            <button @click="openSubModal(index + 1)" class="text-xs bg-white hover:bg-slate-100 border border-slate-300 font-bold text-blue-700 px-3 py-1 rounded-lg shadow-sm">
+                                + 更換替補
+                            </button>
                         </div>
 
-                        <div v-for="sub in slot.substitutes" :key="sub.timestamp" class="ml-6 flex items-center gap-2 text-sm bg-amber-50/60 p-2 rounded-lg border border-amber-200/60">
-                            <span class="text-amber-600 font-bold">↳</span>
-                            <span class="bg-amber-100 text-amber-800 font-bold px-1.5 py-0.5 rounded text-xs">{{ sub.pos }}</span>
-                            <span class="font-bold text-slate-700">#{{ sub.number }} {{ sub.name }}</span>
+                        <div v-for="sub in slot.substitutes" :key="sub.timestamp" class="ml-6 flex items-center justify-between text-sm bg-amber-50/80 p-2 rounded-lg border border-amber-200/80">
+                            <div class="flex items-center gap-2">
+                                <span class="text-amber-600 font-bold">↳</span>
+                                <span class="bg-amber-100 text-amber-800 font-bold px-1.5 py-0.5 rounded text-xs">{{ sub.pos }}</span>
+                                <span class="font-bold text-slate-700">#{{ sub.number }} {{ sub.name }}</span>
+                            </div>
                             <span class="text-xs text-slate-400">({{ sub.reason }})</span>
                         </div>
                     </div>
                 </div>
 
-                <div v-if="pendingSubmissions.length > 0" class="p-3 bg-blue-50 border border-blue-200 rounded-xl text-xs text-blue-800">
-                    ℹ️ 目前有 <strong>{{ pendingSubmissions.length }}</strong> 筆新更換紀錄待更新上傳至 Google Sheet。
+                <div v-if="pendingSubmissions.length > 0" class="p-3 bg-blue-50 border border-blue-200 rounded-xl text-xs text-blue-800 flex items-center justify-between">
+                    <span>ℹ️ 目前有 <strong>{{ pendingSubmissions.length }}</strong> 筆新更換紀錄待更新上傳。</span>
+                    <span class="text-[10px] bg-blue-200 px-2 py-0.5 rounded text-blue-900 font-bold">累積接續寫入</span>
                 </div>
 
                 <div class="pt-4 flex justify-between items-center">
                     <button @click="goToStep(2)" class="text-slate-600 text-sm font-medium border px-4 py-2 rounded-xl">⬅ 檢視先發</button>
                     <button @click="uploadSubstitutionsToGAS" :disabled="saving || pendingSubmissions.length === 0" class="bg-purple-600 hover:bg-purple-500 disabled:bg-slate-300 text-white px-6 py-2.5 rounded-xl font-bold shadow flex items-center gap-2">
-                        <span>📤</span> {{ saving ? '更新中...' : '更換確認並更新上傳 GAS ➔' }}
+                        <span>📤</span> {{ saving ? '更新上傳中...' : '更換確認並更新上傳 GAS ➔' }}
                     </button>
                 </div>
             </section>
 
         </div>
+
+        <div v-if="subModal.open" class="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+            <div class="bg-white rounded-2xl p-6 max-w-md w-full shadow-2xl space-y-4">
+                <h3 class="text-lg font-bold text-slate-800 border-b pb-2 flex items-center gap-2">
+                    <span>🔄</span> 選擇第 {{ subModal.battingOrder }} 打席替補選手與守位
+                </h3>
+                
+                <div>
+                    <label class="block text-xs font-bold text-slate-600 mb-1">1. 選擇替補球員 (板凳成員)</label>
+                    <select v-model="subModal.selectedPlayerId" class="w-full border rounded-xl p-2.5 text-sm font-medium bg-slate-50">
+                        <option value="">-- 請選擇板凳球員 --</option>
+                        <option v-for="bp in benchPlayers" :key="bp.id" :value="bp.id">
+                            #{{ bp['背號'] || '?' }} {{ bp['球員姓名'] }} {{ getPlayerPositionsText(bp) }}
+                        </option>
+                    </select>
+                </div>
+
+                <div>
+                    <label class="block text-xs font-bold text-slate-600 mb-1">2. 選擇上場性質 / 守位</label>
+                    <select v-model="subModal.selectedPos" class="w-full border rounded-xl p-2.5 text-sm font-semibold bg-slate-50">
+                        <option value="PH">PH (代打)</option>
+                        <option value="PR">PR (代跑)</option>
+                        <option v-for="pos in positionOptions" :key="pos.code" :value="pos.code">
+                            {{ pos.label }}
+                        </option>
+                    </select>
+                </div>
+
+                <div class="flex justify-end gap-2 pt-2">
+                    <button @click="subModal.open = false" class="px-4 py-2 text-sm font-medium text-slate-600 border rounded-xl hover:bg-slate-100">取消</button>
+                    <button @click="confirmSubstitution" :disabled="!subModal.selectedPlayerId" class="px-5 py-2 text-sm font-bold text-white bg-blue-600 hover:bg-blue-500 disabled:bg-slate-300 rounded-xl shadow">確認更換</button>
+                </div>
+            </div>
+        </div>
+
     </div>
 
     <script>
@@ -199,10 +236,9 @@
 
         createApp({
             setup() {
-                // ⚠️ 請填入你測試成功的 Google Sheet CSV 發布網址
-                const GOOGLE_SHEET_CSV_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vTPF0zsn5Wm6b2BHRtaWNNJfaue03uy6LxPVmaBHXSWyVOA2jT1Nm0dVzgt2aSLgntxza9-Lg3QUPCW/pub?output=csv';
+                const GOOGLE_SHEET_CSV_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vTPFOzsn5Wm6b2BHRtaWNNJfaue03uy6LxPVmaBHXSWyVOA2jT1Nm0dVzgt2aSLgntxza9-Lg3QUPCW/pub?output=csv';
                 
-                // GAS API 網址
+                // 專屬 GAS 部署 API
                 const GOOGLE_APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxnxwpLSBT2Pm1y9-Rhsw1-tzN5TmQlvHWbw1zFoUlIWS5y8GYqnNkOiOwkJ6y0kEdp/exec';
 
                 const players = ref([]);
@@ -217,6 +253,14 @@
                     gameNum: '',
                     opponent: '',
                     location: ''
+                });
+
+                // 更換選手彈視窗控制
+                const subModal = ref({
+                    open: false,
+                    battingOrder: 1,
+                    selectedPlayerId: '',
+                    selectedPos: 'PH'
                 });
 
                 const positionOptions = [
@@ -257,7 +301,7 @@
                                 alert('載入失敗：取得的名單內容為空！');
                             }
                         },
-                        error: (err) => {
+                        error: () => {
                             if (!isFallback) {
                                 const fallbackUrl = 'https://api.allorigins.win/raw?url=' + encodeURIComponent(GOOGLE_SHEET_CSV_URL);
                                 parseCSV(fallbackUrl, true);
@@ -273,7 +317,7 @@
                     loading.value = true;
                     parseCSV(GOOGLE_SHEET_CSV_URL);
                     if (isManual) {
-                        setTimeout(() => alert('球員名單手動同步完成！'), 1200);
+                        setTimeout(() => alert('球員名單手動同步完成！'), 1000);
                     }
                 };
 
@@ -310,7 +354,6 @@
                 const addLineupSlot = () => lineup.value.push({ positionCode: 'DH', playerId: '' });
                 const goToStep = (step) => currentStep.value = step;
 
-                // 修正並明確定義 positionConflicts
                 const positionConflicts = computed(() => {
                     const counts = {};
                     lineup.value.forEach(slot => {
@@ -332,6 +375,7 @@
                     return attendedPlayers.value.filter(p => !usedIds.includes(p.id));
                 });
 
+                // 問題 1 修正：正確傳遞先發資料
                 const uploadStartersToGAS = () => {
                     saving.value = true;
                     const starterPayload = lineup.value.map(slot => {
@@ -346,8 +390,7 @@
 
                     fetch(GOOGLE_APPS_SCRIPT_URL, {
                         method: 'POST',
-                        mode: 'no-cors',
-                        headers: { 'Content-Type': 'application/json' },
+                        headers: { 'Content-Type': 'text/plain;charset=utf-8' },
                         body: JSON.stringify({
                             action: 'saveStarters',
                             gameInfo: gameInfo.value,
@@ -367,15 +410,23 @@
                     });
                 };
 
-                const handleSubstitution = (battingOrder, subPlayerId) => {
-                    if (!subPlayerId) return;
-                    const player = getPlayerObj(subPlayerId);
-                    const pos = prompt(`請輸入 ${player['球員姓名']} 上場的守位 (例如: PH, PR, SS, 1B):`, 'PH');
-                    if (!pos) return;
+                // 問題 2 修正：開啟替補選擇 UI Modal
+                const openSubModal = (battingOrder) => {
+                    subModal.value = {
+                        open: true,
+                        battingOrder: battingOrder,
+                        selectedPlayerId: '',
+                        selectedPos: 'PH'
+                    };
+                };
+
+                const confirmSubstitution = () => {
+                    const player = getPlayerObj(subModal.value.selectedPlayerId);
+                    if (!player) return;
 
                     const subRecord = {
-                        battingOrder: battingOrder,
-                        pos: pos.toUpperCase(),
+                        battingOrder: subModal.value.battingOrder,
+                        pos: subModal.value.selectedPos,
                         number: player['背號'] || '?',
                         name: player['球員姓名'],
                         id: player.id,
@@ -383,27 +434,28 @@
                         timestamp: new Date().getTime()
                     };
 
-                    activeLineup.value[battingOrder - 1].substitutes.push(subRecord);
+                    activeLineup.value[subModal.value.battingOrder - 1].substitutes.push(subRecord);
                     pendingSubmissions.value.push(subRecord);
+                    subModal.value.open = false; // 關閉彈視窗
                 };
 
+                // 問題 3 & 4 修正：接續向下寫入更換名單，不上傳重複舊資料
                 const uploadSubstitutionsToGAS = () => {
                     if (pendingSubmissions.value.length === 0) return;
                     saving.value = true;
 
                     fetch(GOOGLE_APPS_SCRIPT_URL, {
                         method: 'POST',
-                        mode: 'no-cors',
-                        headers: { 'Content-Type': 'application/json' },
+                        headers: { 'Content-Type': 'text/plain;charset=utf-8' },
                         body: JSON.stringify({
                             action: 'saveSubstitutions',
                             gameInfo: gameInfo.value,
-                            lineup: activeLineup.value
+                            substitutions: pendingSubmissions.value
                         })
                     }).then(() => {
                         saving.value = false;
-                        pendingSubmissions.value = [];
-                        alert('✅ 替補更換紀錄已依 Baseball Savant 格式更新至 Google Sheet！');
+                        pendingSubmissions.value = []; // 清空待上傳，防止重複發送
+                        alert('✅ 最新更換紀錄已成功「接續寫入」至 Google Sheet！');
                     }).catch(err => {
                         saving.value = false;
                         alert('更新失敗: ' + err);
@@ -423,13 +475,13 @@
                     navigator.clipboard.writeText(text).then(() => alert('已複製包含 ↳ 替補的完整打單！'));
                 };
 
-                // 將 positionConflicts 與所有需要的變數正確 return 回給樣板
                 return {
-                    players, loading, saving, searchQuery, currentStep, gameInfo,
+                    players, loading, saving, searchQuery, currentStep, gameInfo, subModal,
                     positionOptions, lineup, activeLineup, pendingSubmissions, positionConflicts,
                     attendedPlayers, attendedCount, filledLineupCount, filteredPlayers, benchPlayers,
                     fetchData, selectAll, resetAttendance, isPlayerInLineup, getPlayerPositionsText,
-                    addLineupSlot, goToStep, uploadStartersToGAS, handleSubstitution, uploadSubstitutionsToGAS, copyLineup
+                    addLineupSlot, goToStep, uploadStartersToGAS, openSubModal, confirmSubstitution,
+                    uploadSubstitutionsToGAS, copyLineup
                 };
             }
         }).mount('#app');

@@ -121,8 +121,8 @@
                     <div class="font-bold flex items-center gap-1">
                         <span>⚠️</span> 先發守位配置提示：
                     </div>
-                    <div v-if="positionConflicts.length > 0" class="text-red-600 font-semibold">
-                        • 重複選擇守位：{{ positionConflicts.join(', ') }}
+                    <div v-if="positionConflicts.length > 0" class="text-red-600 font-bold">
+                        • 重複選擇守位：{{ positionConflicts.join(', ') }} (無法上傳)
                     </div>
                     <div v-if="missingPositions.length > 0" class="text-amber-700">
                         • 尚缺守位未選擇：{{ missingPositions.join(', ') }}
@@ -146,8 +146,13 @@
 
                 <div class="pt-4 flex justify-between items-center">
                     <button @click="goToStep(1)" class="text-slate-600 text-sm font-medium border px-4 py-2 rounded-xl">⬅ 返回點名</button>
-                    <button @click="uploadStartersToGAS" :disabled="saving || filledLineupCount < 9" class="bg-emerald-600 hover:bg-emerald-500 disabled:bg-slate-300 text-white px-6 py-2.5 rounded-xl font-bold shadow flex items-center gap-2">
-                        <span>📤</span> {{ saving ? '上傳中...' : '確認先發並上傳 GAS ➔' }}
+                    
+                    <button @click="uploadStartersToGAS" 
+                            :disabled="saving || filledLineupCount < 9 || positionConflicts.length > 0" 
+                            class="bg-emerald-600 hover:bg-emerald-500 disabled:bg-slate-300 disabled:cursor-not-allowed text-white px-6 py-2.5 rounded-xl font-bold shadow flex items-center gap-2 transition">
+                        <span>📤</span> 
+                        <span v-if="positionConflicts.length > 0">⚠️ 守位重複無法上傳</span>
+                        <span v-else>{{ saving ? '上傳中...' : '確認先發並上傳 GAS ➔' }}</span>
                     </button>
                 </div>
             </section>
@@ -225,33 +230,48 @@
                     </div>
                 </div>
 
-                <div v-if="allSubmissionsHistory.length > 0" class="bg-purple-50 border border-purple-200 rounded-2xl overflow-hidden transition shadow-sm">
-                    <div @click="isHistoryCollapsed = !isHistoryCollapsed" class="p-4 flex justify-between items-center cursor-pointer select-none bg-purple-100/70 hover:bg-purple-100">
-                        <div class="flex items-center gap-2">
-                            <span class="text-base">📋</span>
-                            <h3 class="font-bold text-sm text-purple-900">
-                                守位變更紀錄 (共 {{ allSubmissionsHistory.length }} 筆)
-                            </h3>
-                            <span v-if="hasUnsavedChanges" class="bg-amber-500 text-white text-[10px] font-bold px-2 py-0.5 rounded-full">有待上傳新紀錄</span>
-                        </div>
-                        <div class="flex items-center gap-2">
-                            <button @click.stop="copyLeagueReport" class="text-xs bg-purple-600 hover:bg-purple-500 text-white font-bold px-3 py-1 rounded-lg shadow">
-                                複製大會報備單
-                            </button>
-                            <span class="text-purple-700 font-bold text-sm">{{ isHistoryCollapsed ? '▼ 展開' : '▲ 折疊' }}</span>
-                        </div>
+                <div v-if="currentBatchPending.length > 0" class="bg-amber-50 border border-amber-300 rounded-2xl p-4 space-y-2 shadow-sm">
+                    <div class="flex justify-between items-center">
+                        <h3 class="font-bold text-xs text-amber-900 flex items-center gap-1.5">
+                            <span>📢</span> 第 {{ uploadedBatches.length + 1 }} 次更換報備單 (待上傳 {{ currentBatchPending.length }} 筆)
+                        </h3>
+                        <button @click="copyText(currentLeagueReportText, '當前報備單')" class="text-xs bg-amber-600 hover:bg-amber-500 text-white font-bold px-3 py-1 rounded-lg shadow">
+                            複製本次報備單
+                        </button>
                     </div>
+                    <pre class="bg-white p-3 rounded-xl border text-xs text-slate-800 font-mono whitespace-pre-wrap leading-relaxed">{{ currentLeagueReportText }}</pre>
+                </div>
 
-                    <div v-show="!isHistoryCollapsed" class="p-4 pt-2 border-t border-purple-200/60 space-y-2">
-                        <pre class="bg-white p-3 rounded-xl border text-xs text-slate-800 font-mono whitespace-pre-wrap leading-relaxed">{{ leagueReportText }}</pre>
+                <div v-if="uploadedBatches.length > 0" class="space-y-2 pt-2">
+                    <h4 class="text-xs font-bold text-slate-500">📜 歷史已上傳報備紀錄：</h4>
+                    <div v-for="batch in uploadedBatches" :key="batch.batchId" class="bg-purple-50 border border-purple-200 rounded-2xl overflow-hidden transition shadow-sm">
+                        <div @click="batch.isCollapsed = !batch.isCollapsed" class="p-3.5 flex justify-between items-center cursor-pointer select-none bg-purple-100/70 hover:bg-purple-100">
+                            <div class="flex items-center gap-2">
+                                <span class="text-xs">📋</span>
+                                <h3 class="font-bold text-xs text-purple-900">
+                                    第 {{ batch.batchId }} 次變更報備紀錄 (已同步 GAS)
+                                </h3>
+                            </div>
+                            <div class="flex items-center gap-2">
+                                <button @click.stop="copyText(batch.text, `第 ${batch.batchId} 次報備單`)" class="text-[11px] bg-purple-600 hover:bg-purple-500 text-white font-bold px-2.5 py-0.5 rounded shadow">
+                                    複製此單
+                                </button>
+                                <span class="text-purple-700 font-bold text-xs">{{ batch.isCollapsed ? '▼ 展開' : '▲ 折疊' }}</span>
+                            </div>
+                        </div>
+
+                        <div v-show="!batch.isCollapsed" class="p-3 border-t border-purple-200/60 bg-white">
+                            <pre class="text-xs text-slate-800 font-mono whitespace-pre-wrap leading-relaxed">{{ batch.text }}</pre>
+                        </div>
                     </div>
                 </div>
 
                 <div class="pt-4 flex justify-between items-center flex-wrap gap-3">
                     <button @click="goToStep(2)" class="text-slate-600 text-sm font-medium border px-4 py-2 rounded-xl">⬅ 檢視先發</button>
                     
-                    <button @click="uploadSubstitutionsToGAS" :disabled="saving || !hasUnsavedChanges" class="bg-purple-600 hover:bg-purple-500 disabled:bg-slate-300 text-white px-6 py-2.5 rounded-xl font-bold shadow flex items-center gap-2">
-                        <span>📤</span> {{ saving ? '更新上傳中...' : (hasUnsavedChanges ? '更換確認並更新上傳 GAS ➔' : '紀錄已同步至 GAS') }}
+                    <button @click="uploadSubstitutionsToGAS" :disabled="saving || currentBatchPending.length === 0" 
+                            class="bg-purple-600 hover:bg-purple-500 disabled:bg-slate-300 disabled:cursor-not-allowed text-white px-6 py-2.5 rounded-xl font-bold shadow flex items-center gap-2 transition">
+                        <span>📤</span> {{ saving ? '更新上傳中...' : (currentBatchPending.length > 0 ? '更換確認並更新上傳 GAS ➔' : '無新更換需上傳') }}
                     </button>
                 </div>
             </section>
@@ -339,8 +359,6 @@
                     selectedPosCode: 'PH'
                 });
 
-                const isHistoryCollapsed = ref(false); // 歷史紀錄折疊狀態
-
                 const positionOptions = [
                     { code: 'C', label: 'C (1)', num: 1 },
                     { code: 'P', label: 'P (2)', num: 2 },
@@ -366,10 +384,11 @@
 
                 const activeLineup = ref([]);
                 
-                // 需求 2：保留完整變更歷史（不隨上傳後刪除）
-                const allSubmissionsHistory = ref([]);
-                // 標記是否有尚未上傳 GAS 的新更動
-                const hasUnsavedChanges = ref(false);
+                // 需求 2 修正：
+                // currentBatchPending: 當前待上傳的這批更動紀錄
+                const currentBatchPending = ref([]);
+                // uploadedBatches: 歷史已上傳的更動紀錄（獨立批次歸檔）
+                const uploadedBatches = ref([]);
 
                 const getPosLabel = (code) => {
                     if (code === 'PH') return 'PH (代打)';
@@ -378,7 +397,6 @@
                     return found ? found.label : code;
                 };
 
-                // 需求 1 判斷：是否不換球員且守位與原本完全相同
                 const isSamePositionSelected = computed(() => {
                     if (!subModal.value.open) return false;
                     if (subModal.value.selectedPlayerOption === 'SAME_PLAYER') {
@@ -459,6 +477,7 @@
                 const addLineupSlot = () => lineup.value.push({ positionCode: 'DH', playerId: '' });
                 const goToStep = (step) => currentStep.value = step;
 
+                // 先發守位重複計算
                 const positionConflicts = computed(() => {
                     const counts = {};
                     lineup.value.forEach(slot => {
@@ -517,14 +536,14 @@
                     };
                 });
 
-                // 大會報備變更紀錄 (先換人、後換守位)
-                const leagueReportText = computed(() => {
-                    if (allSubmissionsHistory.value.length === 0) return '';
+                // 計算「當前待上傳」的報備單文字
+                const currentLeagueReportText = computed(() => {
+                    if (currentBatchPending.value.length === 0) return '';
 
                     const playerChanges = [];
                     const positionChanges = [];
 
-                    allSubmissionsHistory.value.forEach(sub => {
+                    currentBatchPending.value.forEach(sub => {
                         if (sub.isPlayerChange) {
                             playerChanges.push(`${sub.prevNumber}號 換 ${sub.number}號`);
                         } else {
@@ -545,14 +564,19 @@
                     return result;
                 });
 
-                const copyLeagueReport = () => {
-                    if (!leagueReportText.value) return;
-                    navigator.clipboard.writeText(leagueReportText.value).then(() => {
-                        alert('已成功複製大會報備單！\n\n' + leagueReportText.value);
+                const copyText = (text, name) => {
+                    if (!text) return;
+                    navigator.clipboard.writeText(text).then(() => {
+                        alert(`已成功複製【${name}】！\n\n` + text);
                     });
                 };
 
                 const uploadStartersToGAS = () => {
+                    if (positionConflicts.value.length > 0) {
+                        alert('⚠️ 守位重複衝突，請修正守位後再試！');
+                        return;
+                    }
+
                     saving.value = true;
                     const starterPayload = lineup.value.map(slot => {
                         const p = getPlayerObj(slot.playerId);
@@ -579,8 +603,8 @@
                             starter: s,
                             substitutes: []
                         }));
-                        allSubmissionsHistory.value = [];
-                        hasUnsavedChanges.value = false;
+                        currentBatchPending.value = [];
+                        uploadedBatches.value = [];
                         alert('✅ 先發陣容已成功上傳！');
                         goToStep(3);
                     }).catch(err => {
@@ -600,12 +624,12 @@
                         battingOrder: battingOrder,
                         currentActivePlayer: currentActive,
                         selectedPlayerOption: 'SAME_PLAYER',
-                        selectedPosCode: currentActive.pos // 預設代入目前守位
+                        selectedPosCode: currentActive.pos
                     };
                 };
 
                 const confirmSubstitution = () => {
-                    if (isSamePositionSelected.value) return; // 衝突禁止執行
+                    if (isSamePositionSelected.value) return;
 
                     let player = null;
                     let reason = '比賽中更換';
@@ -641,13 +665,13 @@
                     };
 
                     activeLineup.value[subModal.value.battingOrder - 1].substitutes.push(subRecord);
-                    allSubmissionsHistory.value.push(subRecord); // 寫入永久歷史紀錄
-                    hasUnsavedChanges.value = true; // 標記有新紀錄需上傳
+                    currentBatchPending.value.push(subRecord); // 寫入「當前待上傳這批」
                     subModal.value.open = false;
                 };
 
+                // 需求 2 修正：上傳後將當前批次存入歷史歸檔，並重置當前待上傳單
                 const uploadSubstitutionsToGAS = () => {
-                    if (!hasUnsavedChanges.value) return;
+                    if (currentBatchPending.value.length === 0) return;
                     saving.value = true;
 
                     fetch(GOOGLE_APPS_SCRIPT_URL, {
@@ -660,8 +684,18 @@
                         })
                     }).then(() => {
                         saving.value = false;
-                        hasUnsavedChanges.value = false; // 上傳成功，解除待上傳狀態 (但歷史紀錄保留!)
-                        alert('✅ 替補/守位變更紀錄已成功更新至 Google Sheet！');
+                        
+                        // 1. 將當前報備文字歸檔到歷史批次中（預設折疊）
+                        uploadedBatches.value.push({
+                            batchId: uploadedBatches.value.length + 1,
+                            text: currentLeagueReportText.value,
+                            isCollapsed: true
+                        });
+
+                        // 2. 清空「當前待上傳」，讓下次更換開新報備單
+                        currentBatchPending.value = [];
+
+                        alert('✅ 更換紀錄已成功同步至 Google Sheet！報備單已自動歸檔。');
                     }).catch(err => {
                         saving.value = false;
                         alert('更新失敗: ' + err);
@@ -682,10 +716,11 @@
                 };
 
                 return {
-                    players, loading, saving, searchQuery, currentStep, gameInfo, subModal, isHistoryCollapsed,
-                    positionOptions, lineup, activeLineup, allSubmissionsHistory, hasUnsavedChanges, positionConflicts, missingPositions, positionNotice,
+                    players, loading, saving, searchQuery, currentStep, gameInfo, subModal,
+                    positionOptions, lineup, activeLineup, currentBatchPending, uploadedBatches,
+                    positionConflicts, missingPositions, positionNotice,
                     attendedPlayers, attendedCount, filledLineupCount, filteredPlayers, benchPlayers, activeDefenseNotice,
-                    leagueReportText, isSamePositionSelected, copyLeagueReport,
+                    currentLeagueReportText, isSamePositionSelected, copyText,
                     fetchData, selectAll, resetAttendance, isPlayerInLineup, getPlayerPositionsText,
                     addLineupSlot, goToStep, uploadStartersToGAS, openSubModal, confirmSubstitution,
                     uploadSubstitutionsToGAS, copyLineup

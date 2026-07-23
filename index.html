@@ -115,7 +115,7 @@
                 <div class="flex justify-between items-center flex-wrap gap-2">
                     <div>
                         <h2 class="text-xl font-bold flex items-center gap-2"><span>⚾</span> 排定先發陣容</h2>
-                        <p class="text-xs text-slate-500 mt-1">守位代號：P(1), C(2), 1B(3), 2B(4), 3B(5), SS(6), LF(7), CF(8), RF(9)</p>
+                        <p class="text-xs text-slate-500 mt-1">守位代號：C(1), P(2), 1B(3), 2B(4), 3B(5), SS(6), LF(7), CF(8), RF(9)</p>
                     </div>
                     <button @click="addLineupSlot" class="text-xs bg-emerald-50 text-emerald-700 border border-emerald-300 px-3 py-1.5 rounded-lg font-medium">+ 新增打席 (DH/EP)</button>
                 </div>
@@ -161,7 +161,7 @@
                         <div class="flex items-center justify-between">
                             <div class="flex items-center gap-2">
                                 <span class="w-6 h-6 rounded-full bg-slate-800 text-white text-xs font-bold flex items-center justify-center">{{ index + 1 }}</span>
-                                <span class="bg-blue-100 text-blue-800 font-bold px-2 py-0.5 rounded text-xs">{{ slot.starter.pos }}</span>
+                                <span class="bg-blue-100 text-blue-800 font-bold px-2 py-0.5 rounded text-xs">{{ slot.starter.posLabel }}</span>
                                 <span class="font-bold text-slate-800">#{{ slot.starter.number }} {{ slot.starter.name }}</span>
                             </div>
                             <button @click="openSubModal(index + 1)" class="text-xs bg-white hover:bg-slate-100 border border-slate-300 font-bold text-blue-700 px-3 py-1 rounded-lg shadow-sm">
@@ -172,7 +172,7 @@
                         <div v-for="sub in slot.substitutes" :key="sub.timestamp" class="ml-6 flex items-center justify-between text-sm bg-amber-50/80 p-2 rounded-lg border border-amber-200/80">
                             <div class="flex items-center gap-2">
                                 <span class="text-amber-600 font-bold">↳</span>
-                                <span class="bg-amber-100 text-amber-800 font-bold px-1.5 py-0.5 rounded text-xs">{{ sub.pos }}</span>
+                                <span class="bg-amber-100 text-amber-800 font-bold px-1.5 py-0.5 rounded text-xs">{{ sub.posLabel }}</span>
                                 <span class="font-bold text-slate-700">#{{ sub.number }} {{ sub.name }}</span>
                             </div>
                             <span class="text-xs text-slate-400">({{ sub.reason }})</span>
@@ -182,7 +182,7 @@
 
                 <div v-if="pendingSubmissions.length > 0" class="p-3 bg-blue-50 border border-blue-200 rounded-xl text-xs text-blue-800 flex items-center justify-between">
                     <span>ℹ️ 目前有 <strong>{{ pendingSubmissions.length }}</strong> 筆新更換紀錄待更新上傳。</span>
-                    <span class="text-[10px] bg-blue-200 px-2 py-0.5 rounded text-blue-900 font-bold">累積接續寫入</span>
+                    <span class="text-[10px] bg-blue-200 px-2 py-0.5 rounded text-blue-900 font-bold">按打順對齊插入</span>
                 </div>
 
                 <div class="pt-4 flex justify-between items-center">
@@ -213,7 +213,7 @@
 
                 <div>
                     <label class="block text-xs font-bold text-slate-600 mb-1">2. 選擇上場性質 / 守位</label>
-                    <select v-model="subModal.selectedPos" class="w-full border rounded-xl p-2.5 text-sm font-semibold bg-slate-50">
+                    <select v-model="subModal.selectedPosCode" class="w-full border rounded-xl p-2.5 text-sm font-semibold bg-slate-50">
                         <option value="PH">PH (代打)</option>
                         <option value="PR">PR (代跑)</option>
                         <option v-for="pos in positionOptions" :key="pos.code" :value="pos.code">
@@ -236,9 +236,7 @@
 
         createApp({
             setup() {
-                const GOOGLE_SHEET_CSV_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vTPF0zsn5Wm6b2BHRtaWNNJfaue03uy6LxPVmaBHXSWyVOA2jT1Nm0dVzgt2aSLgntxza9-Lg3QUPCW/pub?output=csv';
-                
-                // 專屬 GAS 部署 API
+                const GOOGLE_SHEET_CSV_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vTPFOzsn5Wm6b2BHRtaWNNJfaue03uy6LxPVmaBHXSWyVOA2jT1Nm0dVzgt2aSLgntxza9-Lg3QUPCW/pub?output=csv';
                 const GOOGLE_APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxnxwpLSBT2Pm1y9-Rhsw1-tzN5TmQlvHWbw1zFoUlIWS5y8GYqnNkOiOwkJ6y0kEdp/exec';
 
                 const players = ref([]);
@@ -255,32 +253,44 @@
                     location: ''
                 });
 
-                // 更換選手彈視窗控制
                 const subModal = ref({
                     open: false,
                     battingOrder: 1,
                     selectedPlayerId: '',
-                    selectedPos: 'PH'
+                    selectedPosCode: 'PH'
                 });
 
+                // 依捕手 C=1、投手 P=2 排序的守位選單
                 const positionOptions = [
-                    { code: 'P', label: 'P (1)' }, { code: 'C', label: 'C (2)' },
-                    { code: '1B', label: '1B (3)' }, { code: '2B', label: '2B (4)' },
-                    { code: '3B', label: '3B (5)' }, { code: 'SS', label: 'SS (6)' },
-                    { code: 'LF', label: 'LF (7)' }, { code: 'CF', label: 'CF (8)' },
-                    { code: 'RF', label: 'RF (9)' }, { code: 'DH', label: 'DH (10)' }
+                    { code: 'C', label: 'C (1)', num: 1 },
+                    { code: 'P', label: 'P (2)', num: 2 },
+                    { code: '1B', label: '1B (3)', num: 3 },
+                    { code: '2B', label: '2B (4)', num: 4 },
+                    { code: '3B', label: '3B (5)', num: 5 },
+                    { code: 'SS', label: 'SS (6)', num: 6 },
+                    { code: 'LF', label: 'LF (7)', num: 7 },
+                    { code: 'CF', label: 'CF (8)', num: 8 },
+                    { code: 'RF', label: 'RF (9)', num: 9 },
+                    { code: 'DH', label: 'DH (10)', num: 10 }
                 ];
 
                 const lineup = ref([
-                    { positionCode: 'SS', playerId: '' }, { positionCode: '2B', playerId: '' },
-                    { positionCode: 'CF', playerId: '' }, { positionCode: '1B', playerId: '' },
-                    { positionCode: 'LF', playerId: '' }, { positionCode: '3B', playerId: '' },
-                    { positionCode: 'RF', playerId: '' }, { positionCode: 'C', playerId: '' },
-                    { positionCode: 'P', playerId: '' }
+                    { positionCode: 'CF', playerId: '' }, { positionCode: '3B', playerId: '' },
+                    { positionCode: 'SS', playerId: '' }, { positionCode: 'C', playerId: '' },
+                    { positionCode: 'RF', playerId: '' }, { positionCode: 'P', playerId: '' },
+                    { positionCode: '1B', playerId: '' }, { positionCode: '2B', playerId: '' },
+                    { positionCode: 'LF', playerId: '' }
                 ]);
 
                 const activeLineup = ref([]);
                 const pendingSubmissions = ref([]);
+
+                const getPosLabel = (code) => {
+                    if (code === 'PH') return 'PH (代打)';
+                    if (code === 'PR') return 'PR (代跑)';
+                    const found = positionOptions.find(p => p.code === code);
+                    return found ? found.label : code;
+                };
 
                 const parseCSV = (url, isFallback = false) => {
                     Papa.parse(url, {
@@ -307,7 +317,7 @@
                                 parseCSV(fallbackUrl, true);
                             } else {
                                 loading.value = false;
-                                alert('無法載入 Google Sheet 資料，請確認【發布到網路】為 CSV 格式！');
+                                alert('無法載入 Google Sheet 資料，請確認發布狀態！');
                             }
                         }
                     });
@@ -375,13 +385,13 @@
                     return attendedPlayers.value.filter(p => !usedIds.includes(p.id));
                 });
 
-                // 問題 1 修正：正確傳遞先發資料
                 const uploadStartersToGAS = () => {
                     saving.value = true;
                     const starterPayload = lineup.value.map(slot => {
                         const p = getPlayerObj(slot.playerId);
                         return {
                             pos: slot.positionCode,
+                            posLabel: getPosLabel(slot.positionCode),
                             number: p['背號'] || '?',
                             name: p['球員姓名'],
                             id: p.id
@@ -410,13 +420,12 @@
                     });
                 };
 
-                // 問題 2 修正：開啟替補選擇 UI Modal
                 const openSubModal = (battingOrder) => {
                     subModal.value = {
                         open: true,
                         battingOrder: battingOrder,
                         selectedPlayerId: '',
-                        selectedPos: 'PH'
+                        selectedPosCode: 'PH'
                     };
                 };
 
@@ -426,7 +435,8 @@
 
                     const subRecord = {
                         battingOrder: subModal.value.battingOrder,
-                        pos: subModal.value.selectedPos,
+                        pos: subModal.value.selectedPosCode,
+                        posLabel: getPosLabel(subModal.value.selectedPosCode),
                         number: player['背號'] || '?',
                         name: player['球員姓名'],
                         id: player.id,
@@ -436,10 +446,9 @@
 
                     activeLineup.value[subModal.value.battingOrder - 1].substitutes.push(subRecord);
                     pendingSubmissions.value.push(subRecord);
-                    subModal.value.open = false; // 關閉彈視窗
+                    subModal.value.open = false;
                 };
 
-                // 問題 3 & 4 修正：接續向下寫入更換名單，不上傳重複舊資料
                 const uploadSubstitutionsToGAS = () => {
                     if (pendingSubmissions.value.length === 0) return;
                     saving.value = true;
@@ -450,12 +459,12 @@
                         body: JSON.stringify({
                             action: 'saveSubstitutions',
                             gameInfo: gameInfo.value,
-                            substitutions: pendingSubmissions.value
+                            activeLineup: activeLineup.value
                         })
                     }).then(() => {
                         saving.value = false;
-                        pendingSubmissions.value = []; // 清空待上傳，防止重複發送
-                        alert('✅ 最新更換紀錄已成功「接續寫入」至 Google Sheet！');
+                        pendingSubmissions.value = [];
+                        alert('✅ 替補更換紀錄已更新至 Google Sheet！');
                     }).catch(err => {
                         saving.value = false;
                         alert('更新失敗: ' + err);
@@ -465,10 +474,10 @@
                 const copyLineup = () => {
                     let text = `⚾ 龍安棒球隊 先發打單 (${gameInfo.value.date} vs ${gameInfo.value.opponent})\n📍 場地: ${gameInfo.value.location || '未定'}\n-------------------------\n`;
                     activeLineup.value.forEach((slot, idx) => {
-                        text += `${idx + 1}. ${slot.starter.pos} #${slot.starter.number} ${slot.starter.name}\n`;
+                        text += `${idx + 1}. ${slot.starter.posLabel} #${slot.starter.number} ${slot.starter.name}\n`;
                         if (slot.substitutes) {
                             slot.substitutes.forEach(sub => {
-                                text += `   ↳ ${sub.pos} #${sub.number} ${sub.name}\n`;
+                                text += `   ↳ ${sub.posLabel} #${sub.number} ${sub.name}\n`;
                             });
                         }
                     });

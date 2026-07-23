@@ -42,7 +42,7 @@
 
         <div v-if="loading" class="text-center py-12 bg-white rounded-2xl shadow">
             <div class="inline-block animate-spin rounded-full h-12 w-12 border-4 border-blue-600 border-t-transparent mb-4"></div>
-            <p class="text-slate-500 font-medium">資料處理中，請稍候...</p>
+            <p class="text-slate-500 font-medium">正在載入隊員名單，請稍候...</p>
         </div>
 
         <div v-else>
@@ -120,7 +120,7 @@
                     <button @click="addLineupSlot" class="text-xs bg-emerald-50 text-emerald-700 border border-emerald-300 px-3 py-1.5 rounded-lg font-medium">+ 新增打席 (DH/EP)</button>
                 </div>
 
-                <div v-if="positionConflicts.length > 0" class="p-3 bg-amber-50 border border-amber-200 rounded-xl text-amber-800 text-xs">
+                <div v-if="positionConflicts && positionConflicts.length > 0" class="p-3 bg-amber-50 border border-amber-200 rounded-xl text-amber-800 text-xs">
                     ⚠️ <strong>守位重複提示：</strong> {{ positionConflicts.join(', ') }} 重複選擇了！
                 </div>
 
@@ -199,9 +199,10 @@
 
         createApp({
             setup() {
+                // ⚠️ 請填入你測試成功的 Google Sheet CSV 發布網址
                 const GOOGLE_SHEET_CSV_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vTPF0zsn5Wm6b2BHRtaWNNJfaue03uy6LxPVmaBHXSWyVOA2jT1Nm0dVzgt2aSLgntxza9-Lg3QUPCW/pub?output=csv';
                 
-                // 你的專屬 Google Apps Script 部署網址
+                // GAS API 網址
                 const GOOGLE_APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxnxwpLSBT2Pm1y9-Rhsw1-tzN5TmQlvHWbw1zFoUlIWS5y8GYqnNkOiOwkJ6y0kEdp/exec';
 
                 const players = ref([]);
@@ -237,22 +238,43 @@
                 const activeLineup = ref([]);
                 const pendingSubmissions = ref([]);
 
-                // 手動同步球員名單邏輯
-                const fetchData = (isManual = false) => {
-                    if (players.value.length > 0 && !isManual) return;
-                    loading.value = true;
-                    Papa.parse(GOOGLE_SHEET_CSV_URL, {
+                const parseCSV = (url, isFallback = false) => {
+                    Papa.parse(url, {
                         download: true,
                         header: true,
                         skipEmptyLines: true,
                         complete: (results) => {
-                            players.value = results.data.map((item, index) => ({
-                                id: index + 1, ...item, isAttended: false
-                            }));
-                            loading.value = false;
-                            if (isManual) alert('球員名單已成功同步！');
+                            if (results.data && results.data.length > 0) {
+                                players.value = results.data.map((item, index) => ({
+                                    id: index + 1, ...item, isAttended: false
+                                }));
+                                loading.value = false;
+                            } else if (!isFallback) {
+                                const fallbackUrl = 'https://api.allorigins.win/raw?url=' + encodeURIComponent(GOOGLE_SHEET_CSV_URL);
+                                parseCSV(fallbackUrl, true);
+                            } else {
+                                loading.value = false;
+                                alert('載入失敗：取得的名單內容為空！');
+                            }
+                        },
+                        error: (err) => {
+                            if (!isFallback) {
+                                const fallbackUrl = 'https://api.allorigins.win/raw?url=' + encodeURIComponent(GOOGLE_SHEET_CSV_URL);
+                                parseCSV(fallbackUrl, true);
+                            } else {
+                                loading.value = false;
+                                alert('無法載入 Google Sheet 資料，請確認【發布到網路】為 CSV 格式！');
+                            }
                         }
                     });
+                };
+
+                const fetchData = (isManual = false) => {
+                    loading.value = true;
+                    parseCSV(GOOGLE_SHEET_CSV_URL);
+                    if (isManual) {
+                        setTimeout(() => alert('球員名單手動同步完成！'), 1200);
+                    }
                 };
 
                 onMounted(() => fetchData(false));
@@ -288,6 +310,7 @@
                 const addLineupSlot = () => lineup.value.push({ positionCode: 'DH', playerId: '' });
                 const goToStep = (step) => currentStep.value = step;
 
+                // 修正並明確定義 positionConflicts
                 const positionConflicts = computed(() => {
                     const counts = {};
                     lineup.value.forEach(slot => {
@@ -302,12 +325,13 @@
                     const usedIds = [];
                     activeLineup.value.forEach(slot => {
                         if (slot.starter.id) usedIds.push(slot.starter.id);
-                        slot.substitutes.forEach(sub => usedIds.push(sub.id));
+                        if (slot.substitutes) {
+                            slot.substitutes.forEach(sub => usedIds.push(sub.id));
+                        }
                     });
                     return attendedPlayers.value.filter(p => !usedIds.includes(p.id));
                 });
 
-                // 先發名單確認並上傳 GAS
                 const uploadStartersToGAS = () => {
                     saving.value = true;
                     const starterPayload = lineup.value.map(slot => {
@@ -343,7 +367,6 @@
                     });
                 };
 
-                // 處理替補換人
                 const handleSubstitution = (battingOrder, subPlayerId) => {
                     if (!subPlayerId) return;
                     const player = getPlayerObj(subPlayerId);
@@ -364,7 +387,6 @@
                     pendingSubmissions.value.push(subRecord);
                 };
 
-                // 更換名單確認並更新上傳 GAS
                 const uploadSubstitutionsToGAS = () => {
                     if (pendingSubmissions.value.length === 0) return;
                     saving.value = true;
@@ -392,16 +414,19 @@
                     let text = `⚾ 龍安棒球隊 先發打單 (${gameInfo.value.date} vs ${gameInfo.value.opponent})\n📍 場地: ${gameInfo.value.location || '未定'}\n-------------------------\n`;
                     activeLineup.value.forEach((slot, idx) => {
                         text += `${idx + 1}. ${slot.starter.pos} #${slot.starter.number} ${slot.starter.name}\n`;
-                        slot.substitutes.forEach(sub => {
-                            text += `   ↳ ${sub.pos} #${sub.number} ${sub.name}\n`;
-                        });
+                        if (slot.substitutes) {
+                            slot.substitutes.forEach(sub => {
+                                text += `   ↳ ${sub.pos} #${sub.number} ${sub.name}\n`;
+                            });
+                        }
                     });
                     navigator.clipboard.writeText(text).then(() => alert('已複製包含 ↳ 替補的完整打單！'));
                 };
 
+                // 將 positionConflicts 與所有需要的變數正確 return 回給樣板
                 return {
                     players, loading, saving, searchQuery, currentStep, gameInfo,
-                    positionOptions, lineup, activeLineup, pendingSubmissions,
+                    positionOptions, lineup, activeLineup, pendingSubmissions, positionConflicts,
                     attendedPlayers, attendedCount, filledLineupCount, filteredPlayers, benchPlayers,
                     fetchData, selectAll, resetAttendance, isPlayerInLineup, getPlayerPositionsText,
                     addLineupSlot, goToStep, uploadStartersToGAS, handleSubstitution, uploadSubstitutionsToGAS, copyLineup

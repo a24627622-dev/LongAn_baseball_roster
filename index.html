@@ -50,26 +50,23 @@
             <section v-if="currentStep === 1" class="bg-white rounded-2xl p-6 shadow-sm border border-slate-200 space-y-4">
                 <h2 class="text-xl font-bold flex items-center gap-2"><span>📅</span> 賽事資訊與今日點名</h2>
                 
-                <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3 p-4 bg-slate-50 rounded-xl border">
+                <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 p-4 bg-slate-50 rounded-xl border">
                     <div>
                         <label class="block text-xs font-bold text-slate-600 mb-1">比賽日期 *</label>
                         <input type="date" v-model="gameInfo.date" class="w-full px-3 py-1.5 border rounded-lg text-sm focus:ring-2 focus:ring-blue-500">
                     </div>
                     <div>
-                        <label class="block text-xs font-bold text-slate-600 mb-1">開賽時間</label>
-                        <input type="time" v-model="gameInfo.time" class="w-full px-3 py-1.5 border rounded-lg text-sm focus:ring-2 focus:ring-blue-500">
-                    </div>
-                    <div>
-                        <label class="block text-xs font-bold text-slate-600 mb-1">場次 / 盃賽名稱</label>
-                        <input type="text" v-model="gameInfo.gameNum" placeholder="例: 常規賽 G1" class="w-full px-3 py-1.5 border rounded-lg text-sm focus:ring-2 focus:ring-blue-500">
+                        <label class="block text-xs font-bold text-slate-600 mb-1">當日場次 *</label>
+                        <select v-model="gameInfo.gameNum" class="w-full px-3 py-1.5 border rounded-lg text-sm font-semibold bg-white focus:ring-2 focus:ring-blue-500">
+                            <option value="G1">G1 (第一場)</option>
+                            <option value="G2">G2 (第二場)</option>
+                            <option value="G3">G3 (第三場)</option>
+                            <option value="G4">G4 (第四場)</option>
+                        </select>
                     </div>
                     <div>
                         <label class="block text-xs font-bold text-slate-600 mb-1">對手名稱 *</label>
                         <input type="text" v-model="gameInfo.opponent" placeholder="例: 同樂" class="w-full px-3 py-1.5 border rounded-lg text-sm focus:ring-2 focus:ring-blue-500">
-                    </div>
-                    <div class="sm:col-span-2">
-                        <label class="block text-xs font-bold text-slate-600 mb-1">球場位置</label>
-                        <input type="text" v-model="gameInfo.location" placeholder="例: 基隆棒球場" class="w-full px-3 py-1.5 border rounded-lg text-sm focus:ring-2 focus:ring-blue-500">
                     </div>
                 </div>
 
@@ -120,8 +117,16 @@
                     <button @click="addLineupSlot" class="text-xs bg-emerald-50 text-emerald-700 border border-emerald-300 px-3 py-1.5 rounded-lg font-medium">+ 新增打席 (DH/EP)</button>
                 </div>
 
-                <div v-if="positionConflicts && positionConflicts.length > 0" class="p-3 bg-amber-50 border border-amber-200 rounded-xl text-amber-800 text-xs">
-                    ⚠️ <strong>守位重複提示：</strong> {{ positionConflicts.join(', ') }} 重複選擇了！
+                <div v-if="positionNotice" class="p-3 bg-amber-50 border border-amber-200 rounded-xl text-amber-800 text-xs space-y-1">
+                    <div class="font-bold flex items-center gap-1">
+                        <span>⚠️</span> 守位配置提示：
+                    </div>
+                    <div v-if="positionConflicts.length > 0" class="text-red-600 font-semibold">
+                        • 重複選擇守位：{{ positionConflicts.join(', ') }}
+                    </div>
+                    <div v-if="missingPositions.length > 0" class="text-amber-700">
+                        • 尚缺守位未選擇：{{ missingPositions.join(', ') }}
+                    </div>
                 </div>
 
                 <div class="space-y-2">
@@ -236,7 +241,7 @@
 
         createApp({
             setup() {
-                const GOOGLE_SHEET_CSV_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vTPF0zsn5Wm6b2BHRtaWNNJfaue03uy6LxPVmaBHXSWyVOA2jT1Nm0dVzgt2aSLgntxza9-Lg3QUPCW/pub?output=csv';
+                const GOOGLE_SHEET_CSV_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vTPFOzsn5Wm6b2BHRtaWNNJfaue03uy6LxPVmaBHXSWyVOA2jT1Nm0dVzgt2aSLgntxza9-Lg3QUPCW/pub?output=csv';
                 const GOOGLE_APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxnxwpLSBT2Pm1y9-Rhsw1-tzN5TmQlvHWbw1zFoUlIWS5y8GYqnNkOiOwkJ6y0kEdp/exec';
 
                 const players = ref([]);
@@ -245,12 +250,11 @@
                 const searchQuery = ref('');
                 const currentStep = ref(1);
 
+                // 精簡賽事資訊 model
                 const gameInfo = ref({
                     date: new Date().toISOString().split('T')[0],
-                    time: '14:00',
-                    gameNum: '',
-                    opponent: '',
-                    location: ''
+                    gameNum: 'G1',
+                    opponent: ''
                 });
 
                 const subModal = ref({
@@ -260,7 +264,6 @@
                     selectedPosCode: 'PH'
                 });
 
-                // 依捕手 C=1、投手 P=2 排序的守位選單
                 const positionOptions = [
                     { code: 'C', label: 'C (1)', num: 1 },
                     { code: 'P', label: 'P (2)', num: 2 },
@@ -273,6 +276,8 @@
                     { code: 'RF', label: 'RF (9)', num: 9 },
                     { code: 'DH', label: 'DH (10)', num: 10 }
                 ];
+
+                const requiredPositions = ['C', 'P', '1B', '2B', '3B', 'SS', 'LF', 'CF', 'RF'];
 
                 const lineup = ref([
                     { positionCode: 'CF', playerId: '' }, { positionCode: '3B', playerId: '' },
@@ -368,11 +373,21 @@
                     const counts = {};
                     lineup.value.forEach(slot => {
                         if (slot.playerId && slot.positionCode !== 'DH') {
-                            counts[slot.positionCode] = (counts[slot.positionCode] || 0) + 1;
+                            const label = getPosLabel(slot.positionCode);
+                            counts[label] = (counts[label] || 0) + 1;
                         }
                     });
-                    return Object.keys(counts).filter(code => counts[code] > 1);
+                    return Object.keys(counts).filter(label => counts[label] > 1);
                 });
+
+                const missingPositions = computed(() => {
+                    const selectedCodes = lineup.value.filter(s => s.playerId).map(s => s.positionCode);
+                    return requiredPositions
+                        .filter(code => !selectedCodes.includes(code))
+                        .map(code => getPosLabel(code));
+                });
+
+                const positionNotice = computed(() => positionConflicts.value.length > 0 || missingPositions.value.length > 0);
 
                 const benchPlayers = computed(() => {
                     const usedIds = [];
@@ -412,7 +427,7 @@
                             starter: s,
                             substitutes: []
                         }));
-                        alert('✅ 先發陣容已成功上傳至 Google Sheet！進入比賽更換模式。');
+                        alert('✅ 先發陣容已成功上傳！');
                         goToStep(3);
                     }).catch(err => {
                         saving.value = false;
@@ -472,7 +487,7 @@
                 };
 
                 const copyLineup = () => {
-                    let text = `⚾ 龍安棒球隊 先發打單 (${gameInfo.value.date} vs ${gameInfo.value.opponent})\n📍 場地: ${gameInfo.value.location || '未定'}\n-------------------------\n`;
+                    let text = `⚾ 龍安棒球隊 先發打單 (${gameInfo.value.date} ${gameInfo.value.gameNum} vs ${gameInfo.value.opponent})\n-------------------------\n`;
                     activeLineup.value.forEach((slot, idx) => {
                         text += `${idx + 1}. ${slot.starter.posLabel} #${slot.starter.number} ${slot.starter.name}\n`;
                         if (slot.substitutes) {
@@ -486,7 +501,7 @@
 
                 return {
                     players, loading, saving, searchQuery, currentStep, gameInfo, subModal,
-                    positionOptions, lineup, activeLineup, pendingSubmissions, positionConflicts,
+                    positionOptions, lineup, activeLineup, pendingSubmissions, positionConflicts, missingPositions, positionNotice,
                     attendedPlayers, attendedCount, filledLineupCount, filteredPlayers, benchPlayers,
                     fetchData, selectAll, resetAttendance, isPlayerInLineup, getPlayerPositionsText,
                     addLineupSlot, goToStep, uploadStartersToGAS, openSubModal, confirmSubstitution,

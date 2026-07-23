@@ -225,23 +225,33 @@
                     </div>
                 </div>
 
-                <div v-if="pendingSubmissions.length > 0" class="p-4 bg-purple-50 border border-purple-200 rounded-2xl space-y-2">
-                    <div class="flex justify-between items-center">
-                        <h3 class="font-bold text-xs text-purple-900 flex items-center gap-1.5">
-                            <span>📢</span> 大會報備變更紀錄 (待更新 {{ pendingSubmissions.length }} 筆)
-                        </h3>
-                        <button @click="copyLeagueReport" class="text-xs bg-purple-600 hover:bg-purple-500 text-white font-bold px-3 py-1 rounded-lg shadow">
-                            複製大會報備單
-                        </button>
+                <div v-if="allSubmissionsHistory.length > 0" class="bg-purple-50 border border-purple-200 rounded-2xl overflow-hidden transition shadow-sm">
+                    <div @click="isHistoryCollapsed = !isHistoryCollapsed" class="p-4 flex justify-between items-center cursor-pointer select-none bg-purple-100/70 hover:bg-purple-100">
+                        <div class="flex items-center gap-2">
+                            <span class="text-base">📋</span>
+                            <h3 class="font-bold text-sm text-purple-900">
+                                守位變更紀錄 (共 {{ allSubmissionsHistory.length }} 筆)
+                            </h3>
+                            <span v-if="hasUnsavedChanges" class="bg-amber-500 text-white text-[10px] font-bold px-2 py-0.5 rounded-full">有待上傳新紀錄</span>
+                        </div>
+                        <div class="flex items-center gap-2">
+                            <button @click.stop="copyLeagueReport" class="text-xs bg-purple-600 hover:bg-purple-500 text-white font-bold px-3 py-1 rounded-lg shadow">
+                                複製大會報備單
+                            </button>
+                            <span class="text-purple-700 font-bold text-sm">{{ isHistoryCollapsed ? '▼ 展開' : '▲ 折疊' }}</span>
+                        </div>
                     </div>
-                    <pre class="bg-white p-3 rounded-xl border text-xs text-slate-800 font-mono whitespace-pre-wrap leading-relaxed">{{ leagueReportText }}</pre>
+
+                    <div v-show="!isHistoryCollapsed" class="p-4 pt-2 border-t border-purple-200/60 space-y-2">
+                        <pre class="bg-white p-3 rounded-xl border text-xs text-slate-800 font-mono whitespace-pre-wrap leading-relaxed">{{ leagueReportText }}</pre>
+                    </div>
                 </div>
 
                 <div class="pt-4 flex justify-between items-center flex-wrap gap-3">
                     <button @click="goToStep(2)" class="text-slate-600 text-sm font-medium border px-4 py-2 rounded-xl">⬅ 檢視先發</button>
                     
-                    <button @click="uploadSubstitutionsToGAS" :disabled="saving || pendingSubmissions.length === 0" class="bg-purple-600 hover:bg-purple-500 disabled:bg-slate-300 text-white px-6 py-2.5 rounded-xl font-bold shadow flex items-center gap-2">
-                        <span>📤</span> {{ saving ? '更新上傳中...' : '更換確認並更新上傳 GAS ➔' }}
+                    <button @click="uploadSubstitutionsToGAS" :disabled="saving || !hasUnsavedChanges" class="bg-purple-600 hover:bg-purple-500 disabled:bg-slate-300 text-white px-6 py-2.5 rounded-xl font-bold shadow flex items-center gap-2">
+                        <span>📤</span> {{ saving ? '更新上傳中...' : (hasUnsavedChanges ? '更換確認並更新上傳 GAS ➔' : '紀錄已同步至 GAS') }}
                     </button>
                 </div>
             </section>
@@ -285,9 +295,16 @@
                     </select>
                 </div>
 
+                <div v-if="isSamePositionSelected" class="p-2.5 bg-red-50 border border-red-200 rounded-xl text-xs text-red-600 font-bold flex items-center gap-1.5">
+                    <span>⚠️</span> 選擇的新守位與目前守位相同，無需變更！
+                </div>
+
                 <div class="flex justify-end gap-2 pt-2">
                     <button @click="subModal.open = false" class="px-4 py-2 text-sm font-medium text-slate-600 border rounded-xl hover:bg-slate-100">取消</button>
-                    <button @click="confirmSubstitution" class="px-5 py-2 text-sm font-bold text-white bg-blue-600 hover:bg-blue-500 rounded-xl shadow">確認更換</button>
+                    <button @click="confirmSubstitution" :disabled="isSamePositionSelected" 
+                            class="px-5 py-2 text-sm font-bold text-white bg-blue-600 hover:bg-blue-500 disabled:bg-slate-300 disabled:cursor-not-allowed rounded-xl shadow transition">
+                        確認更換
+                    </button>
                 </div>
             </div>
         </div>
@@ -322,6 +339,8 @@
                     selectedPosCode: 'PH'
                 });
 
+                const isHistoryCollapsed = ref(false); // 歷史紀錄折疊狀態
+
                 const positionOptions = [
                     { code: 'C', label: 'C (1)', num: 1 },
                     { code: 'P', label: 'P (2)', num: 2 },
@@ -346,7 +365,11 @@
                 ]);
 
                 const activeLineup = ref([]);
-                const pendingSubmissions = ref([]);
+                
+                // 需求 2：保留完整變更歷史（不隨上傳後刪除）
+                const allSubmissionsHistory = ref([]);
+                // 標記是否有尚未上傳 GAS 的新更動
+                const hasUnsavedChanges = ref(false);
 
                 const getPosLabel = (code) => {
                     if (code === 'PH') return 'PH (代打)';
@@ -354,6 +377,15 @@
                     const found = positionOptions.find(p => p.code === code);
                     return found ? found.label : code;
                 };
+
+                // 需求 1 判斷：是否不換球員且守位與原本完全相同
+                const isSamePositionSelected = computed(() => {
+                    if (!subModal.value.open) return false;
+                    if (subModal.value.selectedPlayerOption === 'SAME_PLAYER') {
+                        return subModal.value.selectedPosCode === subModal.value.currentActivePlayer.pos;
+                    }
+                    return false;
+                });
 
                 const parseCSV = (url, isFallback = false) => {
                     Papa.parse(url, {
@@ -485,17 +517,16 @@
                     };
                 });
 
-                // 需求 2：計算大會報備變更紀錄 (邏輯：先換人、後換守位)
+                // 大會報備變更紀錄 (先換人、後換守位)
                 const leagueReportText = computed(() => {
-                    if (pendingSubmissions.value.length === 0) return '';
+                    if (allSubmissionsHistory.value.length === 0) return '';
 
                     const playerChanges = [];
                     const positionChanges = [];
 
-                    pendingSubmissions.value.forEach(sub => {
+                    allSubmissionsHistory.value.forEach(sub => {
                         if (sub.isPlayerChange) {
                             playerChanges.push(`${sub.prevNumber}號 換 ${sub.number}號`);
-                            // 如果新換上的人不是單純代打/代跑，而是直接上場守備，也視情況可列入或維持代打
                         } else {
                             positionChanges.push(`${sub.number}號 從 ${sub.prevPosLabel} 換 ${sub.posLabel}`);
                         }
@@ -517,7 +548,7 @@
                 const copyLeagueReport = () => {
                     if (!leagueReportText.value) return;
                     navigator.clipboard.writeText(leagueReportText.value).then(() => {
-                        alert('已成功複製大會報備文字！\n\n' + leagueReportText.value);
+                        alert('已成功複製大會報備單！\n\n' + leagueReportText.value);
                     });
                 };
 
@@ -548,6 +579,8 @@
                             starter: s,
                             substitutes: []
                         }));
+                        allSubmissionsHistory.value = [];
+                        hasUnsavedChanges.value = false;
                         alert('✅ 先發陣容已成功上傳！');
                         goToStep(3);
                     }).catch(err => {
@@ -567,11 +600,13 @@
                         battingOrder: battingOrder,
                         currentActivePlayer: currentActive,
                         selectedPlayerOption: 'SAME_PLAYER',
-                        selectedPosCode: 'PH'
+                        selectedPosCode: currentActive.pos // 預設代入目前守位
                     };
                 };
 
                 const confirmSubstitution = () => {
+                    if (isSamePositionSelected.value) return; // 衝突禁止執行
+
                     let player = null;
                     let reason = '比賽中更換';
                     let isPlayerChange = true;
@@ -606,12 +641,13 @@
                     };
 
                     activeLineup.value[subModal.value.battingOrder - 1].substitutes.push(subRecord);
-                    pendingSubmissions.value.push(subRecord);
+                    allSubmissionsHistory.value.push(subRecord); // 寫入永久歷史紀錄
+                    hasUnsavedChanges.value = true; // 標記有新紀錄需上傳
                     subModal.value.open = false;
                 };
 
                 const uploadSubstitutionsToGAS = () => {
-                    if (pendingSubmissions.value.length === 0) return;
+                    if (!hasUnsavedChanges.value) return;
                     saving.value = true;
 
                     fetch(GOOGLE_APPS_SCRIPT_URL, {
@@ -624,7 +660,7 @@
                         })
                     }).then(() => {
                         saving.value = false;
-                        pendingSubmissions.value = [];
+                        hasUnsavedChanges.value = false; // 上傳成功，解除待上傳狀態 (但歷史紀錄保留!)
                         alert('✅ 替補/守位變更紀錄已成功更新至 Google Sheet！');
                     }).catch(err => {
                         saving.value = false;
@@ -646,10 +682,10 @@
                 };
 
                 return {
-                    players, loading, saving, searchQuery, currentStep, gameInfo, subModal,
-                    positionOptions, lineup, activeLineup, pendingSubmissions, positionConflicts, missingPositions, positionNotice,
+                    players, loading, saving, searchQuery, currentStep, gameInfo, subModal, isHistoryCollapsed,
+                    positionOptions, lineup, activeLineup, allSubmissionsHistory, hasUnsavedChanges, positionConflicts, missingPositions, positionNotice,
                     attendedPlayers, attendedCount, filledLineupCount, filteredPlayers, benchPlayers, activeDefenseNotice,
-                    leagueReportText, copyLeagueReport,
+                    leagueReportText, isSamePositionSelected, copyLeagueReport,
                     fetchData, selectAll, resetAttendance, isPlayerInLineup, getPlayerPositionsText,
                     addLineupSlot, goToStep, uploadStartersToGAS, openSubModal, confirmSubstitution,
                     uploadSubstitutionsToGAS, copyLineup

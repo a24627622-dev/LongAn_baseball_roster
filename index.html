@@ -119,7 +119,7 @@
 
                 <div v-if="positionNotice" class="p-3 bg-amber-50 border border-amber-200 rounded-xl text-amber-800 text-xs space-y-1">
                     <div class="font-bold flex items-center gap-1">
-                        <span>⚠️</span> 守位配置提示：
+                        <span>⚠️</span> 先發守位配置提示：
                     </div>
                     <div v-if="positionConflicts.length > 0" class="text-red-600 font-semibold">
                         • 重複選擇守位：{{ positionConflicts.join(', ') }}
@@ -161,6 +161,25 @@
                     <button @click="copyLineup" class="bg-blue-600 text-white text-xs px-3 py-2 rounded-xl font-bold shadow">複製 LINE 打單</button>
                 </div>
 
+                <div :class="['p-3.5 rounded-xl text-xs space-y-1 border transition', 
+                             activeDefenseNotice.isComplete ? 'bg-emerald-50 border-emerald-200 text-emerald-800' : 'bg-amber-50 border-amber-200 text-amber-900']">
+                    <div class="font-bold flex items-center gap-1 text-sm">
+                        <span>{{ activeDefenseNotice.isComplete ? '✅' : '⚠️' }}</span> 
+                        目前場上守備配置狀態 (代打/代跑不佔守位)：
+                    </div>
+                    <div v-if="activeDefenseNotice.isComplete" class="font-medium text-emerald-700">
+                        九個標準守備位置均已妥善安排球員。
+                    </div>
+                    <div v-else class="space-y-0.5">
+                        <div v-if="activeDefenseNotice.conflicts.length > 0" class="text-red-600 font-bold">
+                            • 重複守位：{{ activeDefenseNotice.conflicts.join(', ') }}
+                        </div>
+                        <div v-if="activeDefenseNotice.missing.length > 0" class="text-amber-800 font-semibold">
+                            • 尚缺守位 (需安排守備)：{{ activeDefenseNotice.missing.join(', ') }}
+                        </div>
+                    </div>
+                </div>
+
                 <div class="space-y-3">
                     <div v-for="(slot, index) in activeLineup" :key="index" class="bg-slate-50 p-3 rounded-xl border space-y-2">
                         <div class="flex items-center justify-between">
@@ -170,14 +189,17 @@
                                 <span class="font-bold text-slate-800">#{{ slot.starter.number }} {{ slot.starter.name }}</span>
                             </div>
                             <button @click="openSubModal(index + 1)" class="text-xs bg-white hover:bg-slate-100 border border-slate-300 font-bold text-blue-700 px-3 py-1 rounded-lg shadow-sm">
-                                + 更換替補
+                                + 更換/調守位
                             </button>
                         </div>
 
                         <div v-for="sub in slot.substitutes" :key="sub.timestamp" class="ml-6 flex items-center justify-between text-sm bg-amber-50/80 p-2 rounded-lg border border-amber-200/80">
                             <div class="flex items-center gap-2">
                                 <span class="text-amber-600 font-bold">↳</span>
-                                <span class="bg-amber-100 text-amber-800 font-bold px-1.5 py-0.5 rounded text-xs">{{ sub.posLabel }}</span>
+                                <span :class="['font-bold px-1.5 py-0.5 rounded text-xs', 
+                                              ['PH','PR'].includes(sub.pos) ? 'bg-purple-100 text-purple-800' : 'bg-amber-100 text-amber-800']">
+                                    {{ sub.posLabel }}
+                                </span>
                                 <span class="font-bold text-slate-700">#{{ sub.number }} {{ sub.name }}</span>
                             </div>
                             <span class="text-xs text-slate-400">({{ sub.reason }})</span>
@@ -185,8 +207,26 @@
                     </div>
                 </div>
 
+                <div class="bg-slate-50 border border-slate-200 rounded-2xl p-4 space-y-2">
+                    <div class="flex justify-between items-center">
+                        <h3 class="font-bold text-sm text-slate-700 flex items-center gap-1.5">
+                            <span>🛋️</span> 目前板凳預備球員 ({{ benchPlayers.length }} 人)
+                        </h3>
+                        <span class="text-xs text-slate-400">當前尚未上場之出席成員</span>
+                    </div>
+                    <div v-if="benchPlayers.length === 0" class="text-xs text-slate-400 py-3 text-center bg-white rounded-xl border border-dashed">
+                        目前板凳無預備球員 (全員皆已上場或無其餘出席隊員)
+                    </div>
+                    <div v-else class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2">
+                        <div v-for="bp in benchPlayers" :key="bp.id" class="bg-white border rounded-xl p-2 text-xs flex items-center justify-between shadow-sm">
+                            <span class="font-bold text-slate-800">#{{ bp['背號'] || '?' }} {{ bp['球員姓名'] }}</span>
+                            <span class="text-[10px] text-slate-400">{{ getPlayerPositionsText(bp) }}</span>
+                        </div>
+                    </div>
+                </div>
+
                 <div v-if="pendingSubmissions.length > 0" class="p-3 bg-blue-50 border border-blue-200 rounded-xl text-xs text-blue-800 flex items-center justify-between">
-                    <span>ℹ️ 目前有 <strong>{{ pendingSubmissions.length }}</strong> 筆新更換紀錄待更新上傳。</span>
+                    <span>ℹ️ 目前有 <strong>{{ pendingSubmissions.length }}</strong> 筆新更換/守位調整紀錄待更新。</span>
                     <span class="text-[10px] bg-blue-200 px-2 py-0.5 rounded text-blue-900 font-bold">按打順對齊插入</span>
                 </div>
 
@@ -203,13 +243,16 @@
         <div v-if="subModal.open" class="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
             <div class="bg-white rounded-2xl p-6 max-w-md w-full shadow-2xl space-y-4">
                 <h3 class="text-lg font-bold text-slate-800 border-b pb-2 flex items-center gap-2">
-                    <span>🔄</span> 選擇第 {{ subModal.battingOrder }} 打席替補選手與守位
+                    <span>🔄</span> 第 {{ subModal.battingOrder }} 打席更換 / 守位調整
                 </h3>
                 
                 <div>
-                    <label class="block text-xs font-bold text-slate-600 mb-1">1. 選擇替補球員 (板凳成員)</label>
-                    <select v-model="subModal.selectedPlayerId" class="w-full border rounded-xl p-2.5 text-sm font-medium bg-slate-50">
-                        <option value="">-- 請選擇板凳球員 --</option>
+                    <label class="block text-xs font-bold text-slate-600 mb-1">1. 選擇替補球員或調整守位</label>
+                    <select v-model="subModal.selectedPlayerOption" class="w-full border rounded-xl p-2.5 text-sm font-medium bg-slate-50">
+                        <option value="SAME_PLAYER" class="font-bold text-blue-800">
+                            🔄 [不更動球員] #{{ subModal.currentActivePlayer.number }} {{ subModal.currentActivePlayer.name }} (僅調整守位)
+                        </option>
+                        <option disabled>---------------------------------</option>
                         <option v-for="bp in benchPlayers" :key="bp.id" :value="bp.id">
                             #{{ bp['背號'] || '?' }} {{ bp['球員姓名'] }} {{ getPlayerPositionsText(bp) }}
                         </option>
@@ -217,10 +260,10 @@
                 </div>
 
                 <div>
-                    <label class="block text-xs font-bold text-slate-600 mb-1">2. 選擇上場性質 / 守位</label>
+                    <label class="block text-xs font-bold text-slate-600 mb-1">2. 選擇上場性質 / 新守位</label>
                     <select v-model="subModal.selectedPosCode" class="w-full border rounded-xl p-2.5 text-sm font-semibold bg-slate-50">
-                        <option value="PH">PH (代打)</option>
-                        <option value="PR">PR (代跑)</option>
+                        <option value="PH">PH (代打 - 不計守備位置)</option>
+                        <option value="PR">PR (代跑 - 不計守備位置)</option>
                         <option v-for="pos in positionOptions" :key="pos.code" :value="pos.code">
                             {{ pos.label }}
                         </option>
@@ -229,7 +272,7 @@
 
                 <div class="flex justify-end gap-2 pt-2">
                     <button @click="subModal.open = false" class="px-4 py-2 text-sm font-medium text-slate-600 border rounded-xl hover:bg-slate-100">取消</button>
-                    <button @click="confirmSubstitution" :disabled="!subModal.selectedPlayerId" class="px-5 py-2 text-sm font-bold text-white bg-blue-600 hover:bg-blue-500 disabled:bg-slate-300 rounded-xl shadow">確認更換</button>
+                    <button @click="confirmSubstitution" class="px-5 py-2 text-sm font-bold text-white bg-blue-600 hover:bg-blue-500 rounded-xl shadow">確認更換</button>
                 </div>
             </div>
         </div>
@@ -250,7 +293,6 @@
                 const searchQuery = ref('');
                 const currentStep = ref(1);
 
-                // 精簡賽事資訊 model
                 const gameInfo = ref({
                     date: new Date().toISOString().split('T')[0],
                     gameNum: 'G1',
@@ -260,7 +302,8 @@
                 const subModal = ref({
                     open: false,
                     battingOrder: 1,
-                    selectedPlayerId: '',
+                    currentActivePlayer: {},
+                    selectedPlayerOption: 'SAME_PLAYER',
                     selectedPosCode: 'PH'
                 });
 
@@ -369,6 +412,7 @@
                 const addLineupSlot = () => lineup.value.push({ positionCode: 'DH', playerId: '' });
                 const goToStep = (step) => currentStep.value = step;
 
+                // 先發守位重複檢查
                 const positionConflicts = computed(() => {
                     const counts = {};
                     lineup.value.forEach(slot => {
@@ -380,6 +424,7 @@
                     return Object.keys(counts).filter(label => counts[label] > 1);
                 });
 
+                // 先發守位缺漏檢查
                 const missingPositions = computed(() => {
                     const selectedCodes = lineup.value.filter(s => s.playerId).map(s => s.positionCode);
                     return requiredPositions
@@ -389,6 +434,7 @@
 
                 const positionNotice = computed(() => positionConflicts.value.length > 0 || missingPositions.value.length > 0);
 
+                // 板凳球員計算
                 const benchPlayers = computed(() => {
                     const usedIds = [];
                     activeLineup.value.forEach(slot => {
@@ -398,6 +444,36 @@
                         }
                     });
                     return attendedPlayers.value.filter(p => !usedIds.includes(p.id));
+                });
+
+                // 新增功能 3：計算「比賽中場上動態守備配置」 (PH/PR 不佔守位)
+                const activeDefenseNotice = computed(() => {
+                    const counts = {};
+                    activeLineup.value.forEach(slot => {
+                        // 取得該打席目前場上的球員紀錄 (無替補則為先發，有替補則為最後一個替補)
+                        const currentActive = (slot.substitutes && slot.substitutes.length > 0)
+                            ? slot.substitutes[slot.substitutes.length - 1]
+                            : slot.starter;
+
+                        // 代打 (PH)、代跑 (PR) 不屬於九大守備位置，不列入守位計算
+                        if (currentActive && currentActive.pos && !['PH', 'PR', 'DH'].includes(currentActive.pos)) {
+                            counts[currentActive.pos] = (counts[currentActive.pos] || 0) + 1;
+                        }
+                    });
+
+                    const conflicts = Object.keys(counts)
+                        .filter(code => counts[code] > 1)
+                        .map(code => getPosLabel(code));
+
+                    const missing = requiredPositions
+                        .filter(code => !counts[code])
+                        .map(code => getPosLabel(code));
+
+                    return {
+                        isComplete: conflicts.length === 0 && missing.length === 0,
+                        conflicts: conflicts,
+                        missing: missing
+                    };
                 });
 
                 const uploadStartersToGAS = () => {
@@ -436,26 +512,41 @@
                 };
 
                 const openSubModal = (battingOrder) => {
+                    const currentSlot = activeLineup.value[battingOrder - 1];
+                    const currentActive = (currentSlot.substitutes && currentSlot.substitutes.length > 0)
+                        ? currentSlot.substitutes[currentSlot.substitutes.length - 1]
+                        : currentSlot.starter;
+
                     subModal.value = {
                         open: true,
                         battingOrder: battingOrder,
-                        selectedPlayerId: '',
+                        currentActivePlayer: currentActive,
+                        selectedPlayerOption: 'SAME_PLAYER',
                         selectedPosCode: 'PH'
                     };
                 };
 
                 const confirmSubstitution = () => {
-                    const player = getPlayerObj(subModal.value.selectedPlayerId);
+                    let player = null;
+                    let reason = '比賽中更換';
+
+                    if (subModal.value.selectedPlayerOption === 'SAME_PLAYER') {
+                        player = subModal.value.currentActivePlayer;
+                        reason = '守位變更';
+                    } else {
+                        player = getPlayerObj(subModal.value.selectedPlayerOption);
+                    }
+
                     if (!player) return;
 
                     const subRecord = {
                         battingOrder: subModal.value.battingOrder,
                         pos: subModal.value.selectedPosCode,
                         posLabel: getPosLabel(subModal.value.selectedPosCode),
-                        number: player['背號'] || '?',
-                        name: player['球員姓名'],
+                        number: player.number || player['背號'] || '?',
+                        name: player.name || player['球員姓名'],
                         id: player.id,
-                        reason: '比賽中更換',
+                        reason: reason,
                         timestamp: new Date().getTime()
                     };
 
@@ -479,7 +570,7 @@
                     }).then(() => {
                         saving.value = false;
                         pendingSubmissions.value = [];
-                        alert('✅ 替補更換紀錄已更新至 Google Sheet！');
+                        alert('✅ 替補/守位變更紀錄已成功更新至 Google Sheet！');
                     }).catch(err => {
                         saving.value = false;
                         alert('更新失敗: ' + err);
@@ -502,7 +593,7 @@
                 return {
                     players, loading, saving, searchQuery, currentStep, gameInfo, subModal,
                     positionOptions, lineup, activeLineup, pendingSubmissions, positionConflicts, missingPositions, positionNotice,
-                    attendedPlayers, attendedCount, filledLineupCount, filteredPlayers, benchPlayers,
+                    attendedPlayers, attendedCount, filledLineupCount, filteredPlayers, benchPlayers, activeDefenseNotice,
                     fetchData, selectAll, resetAttendance, isPlayerInLineup, getPlayerPositionsText,
                     addLineupSlot, goToStep, uploadStartersToGAS, openSubModal, confirmSubstitution,
                     uploadSubstitutionsToGAS, copyLineup

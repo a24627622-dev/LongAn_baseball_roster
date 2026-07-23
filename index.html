@@ -201,7 +201,7 @@
             setup() {
                 const GOOGLE_SHEET_CSV_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vTPFOzsn5Wm6b2BHRtaWNNJfaue03uy6LxPVmaBHXSWyVOA2jT1Nm0dVzgt2aSLgntxza9-Lg3QUPCW/pub?output=csv';
                 
-                // ⚠️ 請修改為你在 Apps Script 部署取得的 Web App URL
+                // 你的專屬 Google Apps Script 部署網址
                 const GOOGLE_APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxnxwpLSBT2Pm1y9-Rhsw1-tzN5TmQlvHWbw1zFoUlIWS5y8GYqnNkOiOwkJ6y0kEdp/exec';
 
                 const players = ref([]);
@@ -237,7 +237,7 @@
                 const activeLineup = ref([]);
                 const pendingSubmissions = ref([]);
 
-                // 需求 1：手動同步球員名單邏輯
+                // 手動同步球員名單邏輯
                 const fetchData = (isManual = false) => {
                     if (players.value.length > 0 && !isManual) return;
                     loading.value = true;
@@ -307,7 +307,7 @@
                     return attendedPlayers.value.filter(p => !usedIds.includes(p.id));
                 });
 
-                // 需求 3：先發名單確認並上傳 GAS
+                // 先發名單確認並上傳 GAS
                 const uploadStartersToGAS = () => {
                     saving.value = true;
                     const starterPayload = lineup.value.map(slot => {
@@ -364,7 +364,7 @@
                     pendingSubmissions.value.push(subRecord);
                 };
 
-                // 需求 4：更換名單確認並更新上傳 GAS
+                // 更換名單確認並更新上傳 GAS
                 const uploadSubstitutionsToGAS = () => {
                     if (pendingSubmissions.value.length === 0) return;
                     saving.value = true;

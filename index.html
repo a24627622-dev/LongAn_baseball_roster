@@ -4,8 +4,11 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>龍安棒球隊點名與先發陣容助手</title>
+    <!-- Tailwind CSS CDN -->
     <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Vue 3 CDN -->
     <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
+    <!-- PapaParse (CSV 解析) -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.3.2/papaparse.min.js"></script>
     <style>
         [v-cloak] { display: none; }
@@ -14,6 +17,7 @@
 <body class="bg-slate-100 min-h-screen text-slate-800 pb-12">
     <div id="app" v-cloak class="max-w-4xl mx-auto px-4 py-6">
         
+        <!-- 頂部標題 -->
         <header class="bg-blue-900 text-white rounded-2xl p-6 shadow-lg mb-6 flex justify-between items-center flex-wrap gap-4">
             <div>
                 <h1 class="text-2xl font-bold flex items-center gap-2">
@@ -26,6 +30,7 @@
             </button>
         </header>
 
+        <!-- 步驟指示列 -->
         <div class="bg-white rounded-2xl p-4 shadow-sm border border-slate-200 mb-6 flex justify-between items-center text-xs sm:text-sm font-bold">
             <div :class="['flex-1 text-center py-2 rounded-xl transition', currentStep === 1 ? 'bg-blue-600 text-white shadow' : 'text-slate-400']">
                 1. 賽事資訊與點名 ({{ attendedCount }}人)
@@ -40,6 +45,7 @@
             </div>
         </div>
 
+        <!-- 載入動畫 -->
         <div v-if="loading" class="text-center py-12 bg-white rounded-2xl shadow">
             <div class="inline-block animate-spin rounded-full h-12 w-12 border-4 border-blue-600 border-t-transparent mb-4"></div>
             <p class="text-slate-500 font-medium">正在載入隊員名單，請稍候...</p>
@@ -47,6 +53,7 @@
 
         <div v-else>
             
+            <!-- 【步驟 1】：賽事資訊與點名 -->
             <section v-if="currentStep === 1" class="bg-white rounded-2xl p-6 shadow-sm border border-slate-200 space-y-4">
                 <h2 class="text-xl font-bold flex items-center gap-2"><span>📅</span> 賽事資訊與今日點名</h2>
                 
@@ -108,13 +115,13 @@
                 </div>
             </section>
 
+            <!-- 【步驟 2】：排定先發 -->
             <section v-if="currentStep === 2" class="bg-white rounded-2xl p-6 shadow-sm border border-slate-200 space-y-4">
                 <div class="flex justify-between items-center flex-wrap gap-2">
                     <div>
-                        <h2 class="text-xl font-bold flex items-center gap-2"><span>⚾</span> 排定先發陣容</h2>
-                        <p class="text-xs text-slate-500 mt-1">守位代號：C(1), P(2), 1B(3), 2B(4), 3B(5), SS(6), LF(7), CF(8), RF(9)</p>
+                        <h2 class="text-xl font-bold flex items-center gap-2"><span>⚾</span> 排定先發陣容 (標準九人)</h2>
+                        <p class="text-xs text-slate-500 mt-1">守位代號：C(1), P(2), 1B(3), 2B(4), 3B(5), SS(6), LF(7), CF(8), RF(9), DH(10)</p>
                     </div>
-                    <button @click="addLineupSlot" class="text-xs bg-emerald-50 text-emerald-700 border border-emerald-300 px-3 py-1.5 rounded-lg font-medium">+ 新增打席 (DH/EP)</button>
                 </div>
 
                 <div v-if="positionNotice" class="p-3 bg-amber-50 border border-amber-200 rounded-xl text-amber-800 text-xs space-y-1">
@@ -129,9 +136,29 @@
                     </div>
                 </div>
 
+                <!-- 需求 1 修正：先發投手下拉選單已排除 DH 本人 -->
+                <div v-if="hasDHInLineup" class="p-3.5 bg-blue-50 border border-blue-200 rounded-xl space-y-2">
+                    <div class="flex justify-between items-center">
+                        <label class="block text-xs font-bold text-blue-900 flex items-center gap-1">
+                            <span>⚾</span> 選擇先發投手 (打席含 DH 指定打擊，請指派不上場打擊之先發投手) *
+                        </label>
+                        <span class="text-[10px] bg-blue-200 text-blue-900 px-2 py-0.5 rounded font-bold">DH 制啟動</span>
+                    </div>
+                    <select v-model="independentPitcherId" class="w-full bg-white border rounded-lg px-3 py-2 text-sm font-semibold text-slate-800">
+                        <option value="">-- 請選擇獨立先發投手 --</option>
+                        <!-- 已自動過濾掉 DH 球員 -->
+                        <option v-for="p in availablePitcherCandidates" :key="p.id" :value="p.id">
+                            #{{ p['背號'] || '?' }} {{ p['球員姓名'] }} {{ getPlayerPositionsText(p) }}
+                        </option>
+                    </select>
+                </div>
+
+                <!-- 需求 3 修正：「第 X 棒」取代原先的「第 X 打席」 -->
                 <div class="space-y-2">
                     <div v-for="(slot, index) in lineup" :key="index" class="flex items-center gap-2 bg-slate-50 p-2.5 rounded-xl border">
-                        <div class="w-7 h-7 rounded-lg bg-slate-800 text-white font-bold flex items-center justify-center text-xs">{{ index + 1 }}</div>
+                        <div class="px-2 py-1 rounded-lg bg-slate-800 text-white font-bold text-xs whitespace-nowrap">
+                            第 {{ index + 1 }} 棒
+                        </div>
                         <select v-model="slot.positionCode" class="bg-white border rounded-lg px-2 py-1.5 text-sm font-semibold">
                             <option v-for="pos in positionOptions" :key="pos.code" :value="pos.code">{{ pos.label }}</option>
                         </select>
@@ -148,15 +175,17 @@
                     <button @click="goToStep(1)" class="text-slate-600 text-sm font-medium border px-4 py-2 rounded-xl">⬅ 返回點名</button>
                     
                     <button @click="uploadStartersToGAS" 
-                            :disabled="saving || filledLineupCount < 9 || positionConflicts.length > 0" 
+                            :disabled="saving || filledLineupCount < 9 || positionConflicts.length > 0 || (hasDHInLineup && !independentPitcherId)" 
                             class="bg-emerald-600 hover:bg-emerald-500 disabled:bg-slate-300 disabled:cursor-not-allowed text-white px-6 py-2.5 rounded-xl font-bold shadow flex items-center gap-2 transition">
                         <span>📤</span> 
                         <span v-if="positionConflicts.length > 0">⚠️ 守位重複無法上傳</span>
+                        <span v-else-if="hasDHInLineup && !independentPitcherId">⚠️ 請選擇先發投手</span>
                         <span v-else>{{ saving ? '上傳中...' : '確認先發並上傳 GAS ➔' }}</span>
                     </button>
                 </div>
             </section>
 
+            <!-- 【步驟 3】：比賽更換 -->
             <section v-if="currentStep === 3" class="bg-white rounded-2xl p-6 shadow-sm border border-slate-200 space-y-6">
                 <div class="flex justify-between items-center flex-wrap gap-2">
                     <div>
@@ -166,11 +195,17 @@
                     <button @click="copyLineup" class="bg-blue-600 text-white text-xs px-3 py-2 rounded-xl font-bold shadow">複製 LINE 打單</button>
                 </div>
 
+                <!-- 需求 2 提示：取消 DH 警示 -->
+                <div v-if="isDHCancelled" class="p-3 bg-red-50 border border-red-200 rounded-xl text-red-700 text-xs font-bold flex items-center gap-2">
+                    <span>⚠️</span> 比賽進行中已取消 DH 指定打擊（回歸投手需要打擊模式），後續不可再選 DH 守位！
+                </div>
+
+                <!-- 守備位置動態檢查 -->
                 <div :class="['p-3.5 rounded-xl text-xs space-y-1 border transition', 
                              activeDefenseNotice.isComplete ? 'bg-emerald-50 border-emerald-200 text-emerald-800' : 'bg-amber-50 border-amber-200 text-amber-900']">
                     <div class="font-bold flex items-center gap-1 text-sm">
                         <span>{{ activeDefenseNotice.isComplete ? '✅' : '⚠️' }}</span> 
-                        目前場上守備配置狀態 (代打/代跑不佔守位)：
+                        目前場上守備配置狀態 (代打/代跑/DH不佔野手守位)：
                     </div>
                     <div v-if="activeDefenseNotice.isComplete" class="font-medium text-emerald-700">
                         九個標準守備位置均已妥善安排球員。
@@ -185,11 +220,14 @@
                     </div>
                 </div>
 
+                <!-- 需求 3 修正：1~9棒打序標籤 -->
                 <div class="space-y-3">
                     <div v-for="(slot, index) in activeLineup" :key="index" class="bg-slate-50 p-3 rounded-xl border space-y-2">
                         <div class="flex items-center justify-between">
                             <div class="flex items-center gap-2">
-                                <span class="w-6 h-6 rounded-full bg-slate-800 text-white text-xs font-bold flex items-center justify-center">{{ index + 1 }}</span>
+                                <span class="px-2 py-0.5 rounded-full bg-slate-800 text-white text-xs font-bold flex items-center justify-center">
+                                    第 {{ index + 1 }} 棒
+                                </span>
                                 <span class="bg-blue-100 text-blue-800 font-bold px-2 py-0.5 rounded text-xs">{{ slot.starter.posLabel }}</span>
                                 <span class="font-bold text-slate-800">#{{ slot.starter.number }} {{ slot.starter.name }}</span>
                             </div>
@@ -198,6 +236,7 @@
                             </button>
                         </div>
 
+                        <!-- 替補紀錄 -->
                         <div v-for="sub in slot.substitutes" :key="sub.timestamp" class="ml-6 flex items-center justify-between text-sm bg-amber-50/80 p-2 rounded-lg border border-amber-200/80">
                             <div class="flex items-center gap-2">
                                 <span class="text-amber-600 font-bold">↳</span>
@@ -212,6 +251,37 @@
                     </div>
                 </div>
 
+                <!-- 投手調度列表 -->
+                <div class="bg-blue-900 text-white rounded-2xl p-4 space-y-3 shadow-md">
+                    <div class="flex justify-between items-center border-b border-blue-800 pb-2">
+                        <h3 class="font-bold text-sm text-blue-100 flex items-center gap-2">
+                            <span>⚾</span> 投手調度列表 (共 {{ activePitchers.length }} 位)
+                        </h3>
+                        <span class="text-[11px] text-blue-300">守位為 P(2) 者自動連動同步</span>
+                    </div>
+
+                    <div v-if="activePitchers.length === 0" class="text-xs text-blue-300 py-2 text-center">
+                        目前尚未指定先發投手
+                    </div>
+
+                    <div v-else class="space-y-1.5">
+                        <div v-for="(p, idx) in activePitchers" :key="idx" 
+                             class="bg-blue-800/80 border border-blue-700/80 rounded-xl p-2.5 flex justify-between items-center text-xs">
+                            <div class="flex items-center gap-2.5">
+                                <span class="w-5 h-5 rounded-md bg-blue-600 text-white font-bold flex items-center justify-center text-[11px]">
+                                    {{ idx + 1 }}
+                                </span>
+                                <span class="bg-amber-400 text-blue-950 font-extrabold px-1.5 py-0.5 rounded text-[10px]">
+                                    {{ p.posLabel || 'P (2)' }}
+                                </span>
+                                <span class="font-bold">#{{ p.number }} {{ p.name }}</span>
+                            </div>
+                            <span class="text-blue-300 text-[11px]">{{ idx === 0 ? (hasDHInLineup ? '先發投手 (DH制)' : '先發投手') : (p.reason || '中繼/後援') }}</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 目前板凳名單 -->
                 <div class="bg-slate-50 border border-slate-200 rounded-2xl p-4 space-y-2">
                     <div class="flex justify-between items-center">
                         <h3 class="font-bold text-sm text-slate-700 flex items-center gap-1.5">
@@ -220,7 +290,7 @@
                         <span class="text-xs text-slate-400">當前尚未上場之出席成員</span>
                     </div>
                     <div v-if="benchPlayers.length === 0" class="text-xs text-slate-400 py-3 text-center bg-white rounded-xl border border-dashed">
-                        目前板凳無預備球員 (全員皆已上場或無其餘出席隊員)
+                        目前板凳無預備球員
                     </div>
                     <div v-else class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2">
                         <div v-for="bp in benchPlayers" :key="bp.id" class="bg-white border rounded-xl p-2 text-xs flex items-center justify-between shadow-sm">
@@ -230,6 +300,7 @@
                     </div>
                 </div>
 
+                <!-- 當前待上傳更換報備單 -->
                 <div v-if="currentBatchPending.length > 0" class="bg-amber-50 border border-amber-300 rounded-2xl p-4 space-y-2 shadow-sm">
                     <div class="flex justify-between items-center">
                         <h3 class="font-bold text-xs text-amber-900 flex items-center gap-1.5">
@@ -242,6 +313,7 @@
                     <pre class="bg-white p-3 rounded-xl border text-xs text-slate-800 font-mono whitespace-pre-wrap leading-relaxed">{{ currentLeagueReportText }}</pre>
                 </div>
 
+                <!-- 歷史已上傳之報備單 -->
                 <div v-if="uploadedBatches.length > 0" class="space-y-2 pt-2">
                     <h4 class="text-xs font-bold text-slate-500">📜 歷史已上傳報備紀錄：</h4>
                     <div v-for="batch in uploadedBatches" :key="batch.batchId" class="bg-purple-50 border border-purple-200 rounded-2xl overflow-hidden transition shadow-sm">
@@ -266,6 +338,7 @@
                     </div>
                 </div>
 
+                <!-- 底部按鈕區 -->
                 <div class="pt-4 flex justify-between items-center flex-wrap gap-3">
                     <button @click="goToStep(2)" class="text-slate-600 text-sm font-medium border px-4 py-2 rounded-xl">⬅ 檢視先發</button>
                     
@@ -278,11 +351,12 @@
 
         </div>
 
+        <!-- 需求 3 修正：替補選擇 Modal 標題「第 X 棒更換」 -->
         <div v-if="subModal.open" class="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
             <div class="bg-white rounded-2xl p-6 max-w-md w-full shadow-2xl space-y-4">
                 <div class="border-b pb-2 flex justify-between items-center">
                     <h3 class="text-lg font-bold text-slate-800 flex items-center gap-2">
-                        <span>🔄</span> 第 {{ subModal.battingOrder }} 打席更換 / 守位調整
+                        <span>🔄</span> 第 {{ subModal.battingOrder }} 棒更換 / 守位調整
                     </h3>
                 </div>
 
@@ -304,13 +378,14 @@
                     </select>
                 </div>
 
+                <!-- 需求 2 修正：若 DH 取消，DH(10) 選項自動反灰 disable -->
                 <div>
                     <label class="block text-xs font-bold text-slate-600 mb-1">2. 選擇上場性質 / 新守位</label>
                     <select v-model="subModal.selectedPosCode" class="w-full border rounded-xl p-2.5 text-sm font-semibold bg-slate-50">
                         <option value="PH">PH (代打 - 不計守備位置)</option>
                         <option value="PR">PR (代跑 - 不計守備位置)</option>
-                        <option v-for="pos in positionOptions" :key="pos.code" :value="pos.code">
-                            {{ pos.label }}
+                        <option v-for="pos in positionOptions" :key="pos.code" :value="pos.code" :disabled="pos.code === 'DH' && isDHCancelled">
+                            {{ pos.label }} {{ (pos.code === 'DH' && isDHCancelled) ? '(DH已被取消)' : '' }}
                         </option>
                     </select>
                 </div>
@@ -359,6 +434,8 @@
                     selectedPosCode: 'PH'
                 });
 
+                const independentPitcherId = ref(''); 
+
                 const positionOptions = [
                     { code: 'C', label: 'C (1)', num: 1 },
                     { code: 'P', label: 'P (2)', num: 2 },
@@ -383,11 +460,7 @@
                 ]);
 
                 const activeLineup = ref([]);
-                
-                // 需求 2 修正：
-                // currentBatchPending: 當前待上傳的這批更動紀錄
                 const currentBatchPending = ref([]);
-                // uploadedBatches: 歷史已上傳的更動紀錄（獨立批次歸檔）
                 const uploadedBatches = ref([]);
 
                 const getPosLabel = (code) => {
@@ -403,6 +476,33 @@
                         return subModal.value.selectedPosCode === subModal.value.currentActivePlayer.pos;
                     }
                     return false;
+                });
+
+                const hasDHInLineup = computed(() => {
+                    return lineup.value.some(s => s.positionCode === 'DH');
+                });
+
+                // 需求 1 修正：過濾掉已經在先發名單中被指派為 DH 的球員，不可被選為先發投手
+                const availablePitcherCandidates = computed(() => {
+                    const dhSlot = lineup.value.find(s => s.positionCode === 'DH');
+                    if (!dhSlot || !dhSlot.playerId) return attendedPlayers.value;
+                    return attendedPlayers.value.filter(p => p.id !== parseInt(dhSlot.playerId));
+                });
+
+                // 需求 2 修正：判斷比賽中是否取消了 DH（例如 DH 球員上場守備或投手接替打擊）
+                const isDHCancelled = computed(() => {
+                    if (!hasDHInLineup.value) return false;
+                    
+                    // 尋找先發打 DH 的打席
+                    const dhSlot = activeLineup.value.find(s => s.starter && s.starter.pos === 'DH');
+                    if (!dhSlot) return false;
+
+                    // 若該打席後續更換的人守位不再是 DH，或有人直接接替守 P，則視為 DH 取消
+                    const currentActive = (dhSlot.substitutes && dhSlot.substitutes.length > 0)
+                        ? dhSlot.substitutes[dhSlot.substitutes.length - 1]
+                        : dhSlot.starter;
+
+                    return currentActive.pos !== 'DH';
                 });
 
                 const parseCSV = (url, isFallback = false) => {
@@ -474,10 +574,8 @@
                     return pos.length > 0 ? `(${pos.join('/')})` : '';
                 };
 
-                const addLineupSlot = () => lineup.value.push({ positionCode: 'DH', playerId: '' });
                 const goToStep = (step) => currentStep.value = step;
 
-                // 先發守位重複計算
                 const positionConflicts = computed(() => {
                     const counts = {};
                     lineup.value.forEach(slot => {
@@ -506,7 +604,58 @@
                             slot.substitutes.forEach(sub => usedIds.push(sub.id));
                         }
                     });
+                    if (independentPitcherId.value) {
+                        usedIds.push(parseInt(independentPitcherId.value));
+                    }
                     return attendedPlayers.value.filter(p => !usedIds.includes(p.id));
+                });
+
+                const activePitchers = computed(() => {
+                    const list = [];
+                    
+                    if (hasDHInLineup.value && independentPitcherId.value) {
+                        const p = getPlayerObj(independentPitcherId.value);
+                        if (p) {
+                            list.push({
+                                name: p['球員姓名'],
+                                number: p['背號'] || '?',
+                                pos: 'P',
+                                posLabel: 'P (2)',
+                                reason: '先發投手 (DH制)'
+                            });
+                        }
+                    } else {
+                        const starterPitcherSlot = activeLineup.value.find(s => s.starter && s.starter.pos === 'P');
+                        if (starterPitcherSlot) {
+                            list.push({
+                                name: starterPitcherSlot.starter.name,
+                                number: starterPitcherSlot.starter.number,
+                                pos: 'P',
+                                posLabel: starterPitcherSlot.starter.posLabel || 'P (2)',
+                                reason: '先發投手'
+                            });
+                        }
+                    }
+
+                    activeLineup.value.forEach(slot => {
+                        if (slot.substitutes && slot.substitutes.length > 0) {
+                            slot.substitutes.forEach(sub => {
+                                if (sub.pos === 'P') {
+                                    if (!list.some(p => p.number === sub.number && p.name === sub.name)) {
+                                        list.push({
+                                            name: sub.name,
+                                            number: sub.number,
+                                            pos: 'P',
+                                            posLabel: sub.posLabel || 'P (2)',
+                                            reason: sub.reason || '比賽中更換'
+                                        });
+                                    }
+                                }
+                            });
+                        }
+                    });
+
+                    return list;
                 });
 
                 const activeDefenseNotice = computed(() => {
@@ -520,6 +669,10 @@
                             counts[currentActive.pos] = (counts[currentActive.pos] || 0) + 1;
                         }
                     });
+
+                    if (hasDHInLineup.value && independentPitcherId.value && !isDHCancelled.value) {
+                        counts['P'] = (counts['P'] || 0) + 1;
+                    }
 
                     const conflicts = Object.keys(counts)
                         .filter(code => counts[code] > 1)
@@ -536,7 +689,6 @@
                     };
                 });
 
-                // 計算「當前待上傳」的報備單文字
                 const currentLeagueReportText = computed(() => {
                     if (currentBatchPending.value.length === 0) return '';
 
@@ -577,6 +729,11 @@
                         return;
                     }
 
+                    if (hasDHInLineup.value && !independentPitcherId.value) {
+                        alert('⚠️ 有使用 DH 指定打擊，請指派一位先發投手！');
+                        return;
+                    }
+
                     saving.value = true;
                     const starterPayload = lineup.value.map(slot => {
                         const p = getPlayerObj(slot.playerId);
@@ -595,7 +752,8 @@
                         body: JSON.stringify({
                             action: 'saveStarters',
                             gameInfo: gameInfo.value,
-                            lineup: starterPayload
+                            lineup: starterPayload,
+                            pitchers: activePitchers.value
                         })
                     }).then(() => {
                         saving.value = false;
@@ -605,7 +763,7 @@
                         }));
                         currentBatchPending.value = [];
                         uploadedBatches.value = [];
-                        alert('✅ 先發陣容已成功上傳！');
+                        alert('✅ 先發陣容與先發投手已成功上傳！');
                         goToStep(3);
                     }).catch(err => {
                         saving.value = false;
@@ -665,11 +823,10 @@
                     };
 
                     activeLineup.value[subModal.value.battingOrder - 1].substitutes.push(subRecord);
-                    currentBatchPending.value.push(subRecord); // 寫入「當前待上傳這批」
+                    currentBatchPending.value.push(subRecord);
                     subModal.value.open = false;
                 };
 
-                // 需求 2 修正：上傳後將當前批次存入歷史歸檔，並重置當前待上傳單
                 const uploadSubstitutionsToGAS = () => {
                     if (currentBatchPending.value.length === 0) return;
                     saving.value = true;
@@ -680,22 +837,20 @@
                         body: JSON.stringify({
                             action: 'saveSubstitutions',
                             gameInfo: gameInfo.value,
-                            activeLineup: activeLineup.value
+                            activeLineup: activeLineup.value,
+                            pitchers: activePitchers.value
                         })
                     }).then(() => {
                         saving.value = false;
                         
-                        // 1. 將當前報備文字歸檔到歷史批次中（預設折疊）
                         uploadedBatches.value.push({
                             batchId: uploadedBatches.value.length + 1,
                             text: currentLeagueReportText.value,
                             isCollapsed: true
                         });
 
-                        // 2. 清空「當前待上傳」，讓下次更換開新報備單
                         currentBatchPending.value = [];
-
-                        alert('✅ 更換紀錄已成功同步至 Google Sheet！報備單已自動歸檔。');
+                        alert('✅ 更換紀錄與投手調度已同步至 Google Sheet！');
                     }).catch(err => {
                         saving.value = false;
                         alert('更新失敗: ' + err);
@@ -716,13 +871,13 @@
                 };
 
                 return {
-                    players, loading, saving, searchQuery, currentStep, gameInfo, subModal,
-                    positionOptions, lineup, activeLineup, currentBatchPending, uploadedBatches,
+                    players, loading, saving, searchQuery, currentStep, gameInfo, subModal, independentPitcherId, hasDHInLineup, availablePitcherCandidates, isDHCancelled,
+                    positionOptions, lineup, activeLineup, activePitchers, currentBatchPending, uploadedBatches,
                     positionConflicts, missingPositions, positionNotice,
                     attendedPlayers, attendedCount, filledLineupCount, filteredPlayers, benchPlayers, activeDefenseNotice,
                     currentLeagueReportText, isSamePositionSelected, copyText,
                     fetchData, selectAll, resetAttendance, isPlayerInLineup, getPlayerPositionsText,
-                    addLineupSlot, goToStep, uploadStartersToGAS, openSubModal, confirmSubstitution,
+                    goToStep, uploadStartersToGAS, openSubModal, confirmSubstitution,
                     uploadSubstitutionsToGAS, copyLineup
                 };
             }

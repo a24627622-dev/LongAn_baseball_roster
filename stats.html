@@ -1,0 +1,193 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>龍安棒球隊 - 球員個人成績登記工具</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+  <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
+  <style>
+    body { background-color: #f1f5f9; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
+    .card-header-custom { background: linear-gradient(135deg, #0f172a, #1e3a8a); color: white; }
+    .counter-btn { width: 38px; height: 38px; font-weight: bold; font-size: 1.2rem; border-radius: 8px; }
+    .stat-card { background: white; border-radius: 12px; padding: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.05); }
+    .nav-pills .nav-link.active { background-color: #1e3a8a; }
+  </style>
+</head>
+<body>
+
+<div id="app" class="container py-3" style="max-width: 600px;">
+  <div class="card shadow-sm mb-3">
+    <div class="card-header card-header-custom text-center py-3">
+      <h4 class="mb-0 fw-bold">⚾ 個人賽後成績登記</h4>
+      <small class="opacity-75">龍安棒球隊 數據紀錄系統</small>
+    </div>
+    <div class="card-body">
+      <div class="row g-2 mb-2">
+        <div class="col-12">
+          <label class="form-label fw-bold mb-1">1. 輸入比賽 ID (對應 Sheet 名稱)</label>
+          <input type="text" v-model="gameId" class="form-style form-control" placeholder="例: 2026-07-26_G1_同樂">
+        </div>
+        <div class="col-12 mt-2">
+          <label class="form-label fw-bold mb-1">2. 選擇 / 輸入球員姓名與背號</label>
+          <div class="input-group">
+            <span class="input-group-text bg-light">背號 #</span>
+            <input type="text" v-model="playerNum" class="form-control" style="max-width: 80px;" placeholder="56">
+            <input type="text" v-model="playerName" class="form-control" placeholder="輸入姓名 (例: 蘇垣華)">
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <ul class="nav nav-pills nav-fill mb-3 bg-white p-1 rounded shadow-sm">
+    <li class="nav-item">
+      <button class="nav-link fw-bold" :class="{ active: currentTab === 'batting' }" @click="currentTab = 'batting'">
+        🏏 打擊成績 (Batting)
+      </button>
+    </li>
+    <li class="nav-item">
+      <button class="nav-link fw-bold" :class="{ active: currentTab === 'pitching' }" @click="currentTab = 'pitching'">
+        ⚾ 投球成績 (Pitching)
+      </button>
+    </li>
+  </ul>
+
+  <div v-if="currentTab === 'batting'" class="stat-card mb-3">
+    <h6 class="fw-bold text-primary mb-3 border-bottom pb-2">主要打擊數據 (AB, R, H, 2B, 3B, HR, RBI, BB, K)</h6>
+    
+    <div class="row g-3">
+      <div class="col-6" v-for="(val, field) in battingStats" :key="field">
+        <div class="d-flex align-items-center justify-content-between p-2 border rounded bg-light">
+          <div>
+            <div class="fw-bold">{{ fieldLabels[field] || field }}</div>
+            <small class="text-muted">{{ field }}</small>
+          </div>
+          <div class="d-flex align-items-center gap-1">
+            <button class="btn btn-outline-danger counter-btn d-flex align-items-center justify-content-center" @click="changeStat('batting', field, -1)">-</button>
+            <span class="fw-bold px-2 fs-5" style="min-width: 25px; text-align: center;">{{ val }}</span>
+            <button class="btn btn-outline-success counter-btn d-flex align-items-center justify-content-center" @click="changeStat('batting', field, 1)">+</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div v-if="currentTab === 'pitching'" class="stat-card mb-3">
+    <h6 class="fw-bold text-danger mb-3 border-bottom pb-2">投手數據登記</h6>
+    <div class="row g-3">
+      <div class="col-12">
+        <label class="form-label fw-bold mb-1">投球局數 (IP)</label>
+        <div class="input-group">
+          <button class="btn btn-outline-secondary" @click="pitchingStats.IP = Math.max(0, +(pitchingStats.IP - 0.1).toFixed(1))">-0.1</button>
+          <input type="number" step="0.1" v-model.number="pitchingStats.IP" class="form-control text-center fw-bold fs-5">
+          <button class="btn btn-outline-secondary" @click="pitchingStats.IP = +(pitchingStats.IP + 0.1).toFixed(1)">+0.1</button>
+        </div>
+        <small class="text-muted">註: 1/3局請輸入 0.1，2/3局請輸入 0.2</small>
+      </div>
+    </div>
+  </div>
+
+  <div v-if="errorMessage" class="alert alert-warning py-2 mb-3 small fw-bold">
+    ⚠️ {{ errorMessage }}
+  </div>
+
+  <button class="btn btn-primary w-100 py-3 fw-bold fs-5 shadow" :disabled="isUploading || !playerName || !gameId" @click="submitStats">
+    <span v-if="isUploading" class="spinner-border spinner-border-sm me-2"></span>
+    {{ isUploading ? '資料上傳中...' : '確認並上傳至 Google Sheet 儲存 🚀' }}
+  </button>
+</div>
+
+<script>
+const { createApp, ref, reactive, watch } = Vue;
+
+createApp({
+  setup() {
+    // ⚠️ 請填入您的 Google Apps Script 部署 URL
+    const GOOGLE_APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxnxwpLSBT2Pm1y9-Rhsw1-tzN5TmQlvHWbw1zFoUlIWS5y8GYqnNkOiOwkJ6y0kEdp/exec';
+
+    const gameId = ref('2026-07-26_G1_同樂');
+    const playerName = ref('');
+    const playerNum = ref('');
+    const currentTab = ref('batting');
+    const isUploading = ref(false);
+    const errorMessage = ref('');
+
+    const fieldLabels = {
+      AB: '打數', R: '得分', H: '安打', '2B': '二壘打',
+      '3B': '三壘打', HR: '全壘打', RBI: '打點', BB: '保送', K: '三振'
+    };
+
+    const battingStats = reactive({
+      AB: 0, R: 0, H: 0, '2B': 0, '3B': 0, HR: 0, RBI: 0, BB: 0, K: 0
+    });
+
+    const pitchingStats = reactive({
+      IP: 0
+    });
+
+    const changeStat = (type, field, delta) => {
+      if (type === 'batting') {
+        battingStats[field] = Math.max(0, battingStats[field] + delta);
+      }
+    };
+
+    // 防呆檢查邏輯
+    watch([battingStats], () => {
+      errorMessage.value = '';
+      if (battingStats.H > battingStats.AB) {
+        errorMessage.value = '安打數 (H) 不得大於打數 (AB)！';
+      } else if ((battingStats['2B'] + battingStats['3B'] + battingStats.HR) > battingStats.H) {
+        errorMessage.value = '長打總和 (2B+3B+HR) 不得大於總安打數 (H)！';
+      }
+    }, { deep: true });
+
+    const submitStats = async () => {
+      if (errorMessage.value) {
+        alert(errorMessage.value);
+        return;
+      }
+
+      isUploading.value = true;
+      const payload = {
+        action: 'savePlayerStats',
+        gameId: gameId.value,
+        playerName: playerName.value,
+        playerNum: playerNum.value,
+        stats: {
+          ...battingStats,
+          IP: pitchingStats.IP
+        }
+      };
+
+      try {
+        const response = await fetch(GOOGLE_APPS_SCRIPT_URL, {
+          method: 'POST',
+          headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+          body: JSON.stringify(payload)
+        });
+        const resData = await response.json();
+        
+        if (resData.status === 'success') {
+          alert('🎉 ' + resData.message);
+        } else {
+          alert('❌ 上傳失敗: ' + resData.message);
+        }
+      } catch (err) {
+        alert('❌ 連線發送失敗，請檢查網路或 GAS 網址！');
+      } finally {
+        isUploading.value = false;
+      }
+    };
+
+    return {
+      gameId, playerName, playerNum, currentTab, fieldLabels,
+      battingStats, pitchingStats, changeStat, submitStats,
+      isUploading, errorMessage
+    };
+  }
+}).mount('#app');
+</script>
+
+</body>
+</html>

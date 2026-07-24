@@ -632,11 +632,9 @@
                     return attendedPlayers.value.filter(p => !usedIds.includes(p.id));
                 });
 
-                // 需求 2 修正：依據【時間戳記 (Timestamp)】排序的全場投手動態時間軸
                 const activePitchers = computed(() => {
                     const pitcherEvents = [];
                     
-                    // 1. 先發投手 (時間戳記設為 0，永遠排第 1 位)
                     if (hasDHInLineup.value && independentPitcherId.value) {
                         const p = getPlayerObj(independentPitcherId.value);
                         if (p) {
@@ -667,7 +665,6 @@
                         }
                     }
 
-                    // 2. 收集打序中替補/野手轉守 P(2) 的時間事件
                     activeLineup.value.forEach(slot => {
                         if (slot.substitutes && slot.substitutes.length > 0) {
                             slot.substitutes.forEach(sub => {
@@ -687,7 +684,6 @@
                         }
                     });
 
-                    // 3. 收集 DH 制下從板凳直接換上投球的時間事件
                     extraPitchersHistory.value.forEach(p => {
                         pitcherEvents.push({
                             id: p.id,
@@ -702,7 +698,6 @@
                         });
                     });
 
-                    // 依據時間戳記由小到大 (舊到新) 嚴格排序時間軸，並去重
                     pitcherEvents.sort((a, b) => a.timestamp - b.timestamp);
 
                     const finalPitchers = [];
@@ -746,6 +741,7 @@
                     };
                 });
 
+                // 大會報備文字生成邏輯（修復：同時精準產出「更換選手」與「更換守位」）
                 const currentLeagueReportText = computed(() => {
                     if (currentBatchPending.value.length === 0) return '';
 
@@ -757,7 +753,12 @@
                             playerChanges.push(`更換投手：${sub.prevNumber}號 換 ${sub.number}號`);
                         } else if (sub.isPlayerChange) {
                             playerChanges.push(`${sub.prevNumber}號 換 ${sub.number}號`);
+                            // 若換人的同時，其守位與原本有所不同或有指定守位，亦同步呈現守位更換
+                            if (sub.posLabel && sub.prevPosLabel && sub.posLabel !== sub.prevPosLabel) {
+                                positionChanges.push(`${sub.number}號 守 ${sub.posLabel}`);
+                            }
                         } else {
+                            // 純更換守位 (SAME_PLAYER，如 #23號 從 RF(9) 換 LF(7))
                             positionChanges.push(`${sub.number}號 從 ${sub.prevPosLabel} 換 ${sub.posLabel}`);
                         }
                     });
@@ -872,6 +873,7 @@
                     if (!player) return;
 
                     const newPosLabel = getPosLabel(subModal.value.selectedPosCode);
+                    const prevPosLabel = prevPlayer.posLabel || getPosLabel(prevPlayer.pos);
 
                     const subRecord = {
                         battingOrder: subModal.value.battingOrder,
@@ -882,10 +884,10 @@
                         id: player.id,
                         reason: reason,
                         isPlayerChange: isPlayerChange,
-                        prevNumber: prevPlayer.number,
-                        prevPosLabel: prevPlayer.posLabel,
+                        prevNumber: prevPlayer.number || '?',
+                        prevPosLabel: prevPosLabel,
                         timestamp: new Date().getTime(),
-                        isUploaded: false // 預設未上傳
+                        isUploaded: false
                     };
 
                     activeLineup.value[subModal.value.battingOrder - 1].substitutes.push(subRecord);
@@ -935,7 +937,6 @@
                     currentBatchPending.value = currentBatchPending.value.filter(item => item.id !== pitcherId);
                 };
 
-                // 需求 1 修正：點擊上傳後，將所有變更紀錄標記為 isUploaded = true (鎖定狀態，隱藏 ✕)
                 const uploadSubstitutionsToGAS = () => {
                     if (currentBatchPending.value.length === 0) return;
                     saving.value = true;
@@ -952,7 +953,6 @@
                     }).then(() => {
                         saving.value = false;
                         
-                        // 1. 將畫面上所有替補紀錄標記為已上傳 (隱藏 ✕ 復原按鈕)
                         activeLineup.value.forEach(slot => {
                             if (slot.substitutes) {
                                 slot.substitutes.forEach(sub => sub.isUploaded = true);
@@ -960,7 +960,6 @@
                         });
                         extraPitchersHistory.value.forEach(p => p.isUploaded = true);
 
-                        // 2. 歸檔大會報備單
                         uploadedBatches.value.push({
                             batchId: uploadedBatches.value.length + 1,
                             text: currentLeagueReportText.value,

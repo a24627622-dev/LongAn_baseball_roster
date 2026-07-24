@@ -123,8 +123,8 @@
                     <div v-if="positionConflicts.length > 0" class="text-red-600 font-bold">
                         • 重複選擇守位：{{ positionConflicts.join(', ') }} (無法上傳)
                     </div>
-                    <div v-if="missingPositions.length > 0" class="text-amber-700">
-                        • 尚缺守位未選擇：{{ missingPositions.join(', ') }}
+                    <div v-if="missingPositions.length > 0" class="text-amber-700 font-semibold">
+                        • 尚缺守位未選擇：{{ missingPositions.join(', ') }} (無法上傳)
                     </div>
                 </div>
 
@@ -164,10 +164,11 @@
                     <button @click="goToStep(1)" class="text-slate-600 text-sm font-medium border px-4 py-2 rounded-xl">⬅ 返回點名</button>
                     
                     <button @click="uploadStartersToGAS" 
-                            :disabled="saving || filledLineupCount < 9 || positionConflicts.length > 0 || (hasDHInLineup && !independentPitcherId)" 
+                            :disabled="saving || filledLineupCount < 9 || positionConflicts.length > 0 || missingPositions.length > 0 || (hasDHInLineup && !independentPitcherId)" 
                             class="bg-emerald-600 hover:bg-emerald-500 disabled:bg-slate-300 disabled:cursor-not-allowed text-white px-6 py-2.5 rounded-xl font-bold shadow flex items-center gap-2 transition">
                         <span>📤</span> 
                         <span v-if="positionConflicts.length > 0">⚠️ 守位重複無法上傳</span>
+                        <span v-else-if="missingPositions.length > 0">⚠️ 尚有守位未安排</span>
                         <span v-else-if="hasDHInLineup && !independentPitcherId">⚠️ 請選擇先發投手</span>
                         <span v-else>{{ saving ? '上傳中...' : '確認先發並上傳 GAS ➔' }}</span>
                     </button>
@@ -231,7 +232,7 @@
                                 <span class="font-bold text-slate-700">#{{ sub.number }} {{ sub.name }}</span>
                                 <span class="text-xs text-slate-400">({{ sub.reason }})</span>
                             </div>
-                            <button @click="removeSubstitute(index, subIdx)" title="取消此筆更換紀錄" class="text-red-500 hover:text-red-700 hover:bg-red-100 font-bold text-xs px-2 py-0.5 rounded transition">
+                            <button v-if="!sub.isUploaded" @click="removeSubstitute(index, subIdx)" title="取消此筆更換紀錄" class="text-red-500 hover:text-red-700 hover:bg-red-100 font-bold text-xs px-2 py-0.5 rounded transition">
                                 ✕ 復原
                             </button>
                         </div>
@@ -244,7 +245,7 @@
                             <span>⚾</span> 投手調度列表 (共 {{ activePitchers.length }} 位)
                         </h3>
                         <div class="flex items-center gap-2">
-                            <button v-if="hasDHInLineup" @click="pitcherModal.open = true" class="text-xs bg-amber-400 hover:bg-amber-300 text-blue-950 font-bold px-3 py-1 rounded-lg shadow transition">
+                            <button v-if="hasDHInLineup && !isDHCancelled" @click="pitcherModal.open = true" class="text-xs bg-amber-400 hover:bg-amber-300 text-blue-950 font-bold px-3 py-1 rounded-lg shadow transition">
                                 + 更換投手 (DH制)
                             </button>
                             <span class="text-[11px] text-blue-300">守位 P(2) 連動</span>
@@ -269,7 +270,7 @@
                             </div>
                             <div class="flex items-center gap-2">
                                 <span class="text-blue-300 text-[11px]">{{ idx === 0 ? (hasDHInLineup ? '先發投手 (DH制)' : '先發投手') : (p.reason || '中繼/後援') }}</span>
-                                <button v-if="p.isIndependentSub" @click="removeIndependentPitcher(p.id)" class="text-red-300 hover:text-red-100 font-bold text-xs px-1">✕</button>
+                                <button v-if="p.isIndependentSub && !p.isUploaded" @click="removeIndependentPitcher(p.id)" class="text-red-300 hover:text-red-100 font-bold text-xs px-1">✕</button>
                             </div>
                         </div>
                     </div>
@@ -456,7 +457,7 @@
                 });
 
                 const independentPitcherId = ref(''); 
-                const extraPitchersHistory = ref([]); // 記錄 DH 制下於步驟 3 比賽中更換的純投手
+                const extraPitchersHistory = ref([]);
 
                 const positionOptions = [
                     { code: 'C', label: 'C (1)', num: 1 },
@@ -504,7 +505,6 @@
                     return lineup.value.some(s => s.positionCode === 'DH');
                 });
 
-                // 需求 1 修正：先發投手選單【嚴格排除已選入 1~9 棒先發】的人，只出現板凳隊員
                 const nonStartingBenchCandidates = computed(() => {
                     const startingIds = lineup.value.filter(s => s.playerId).map(s => parseInt(s.playerId));
                     return attendedPlayers.value.filter(p => !startingIds.includes(p.id));
@@ -606,6 +606,9 @@
 
                 const missingPositions = computed(() => {
                     const selectedCodes = lineup.value.filter(s => s.playerId).map(s => s.positionCode);
+                    if (hasDHInLineup.value && independentPitcherId.value) {
+                        selectedCodes.push('P');
+                    }
                     return requiredPositions
                         .filter(code => !selectedCodes.includes(code))
                         .map(code => getPosLabel(code));
@@ -624,77 +627,92 @@
                     if (independentPitcherId.value) {
                         usedIds.push(parseInt(independentPitcherId.value));
                     }
-                    // 扣除 DH 制中途換上的純投手
                     extraPitchersHistory.value.forEach(p => usedIds.push(p.id));
 
                     return attendedPlayers.value.filter(p => !usedIds.includes(p.id));
                 });
 
+                // 需求 2 修正：依據【時間戳記 (Timestamp)】排序的全場投手動態時間軸
                 const activePitchers = computed(() => {
-                    const list = [];
+                    const pitcherEvents = [];
                     
+                    // 1. 先發投手 (時間戳記設為 0，永遠排第 1 位)
                     if (hasDHInLineup.value && independentPitcherId.value) {
                         const p = getPlayerObj(independentPitcherId.value);
                         if (p) {
-                            list.push({
+                            pitcherEvents.push({
                                 id: p.id,
                                 name: p['球員姓名'],
                                 number: p['背號'] || '?',
                                 pos: 'P',
                                 posLabel: 'P (2)',
-                                reason: '先發投手 (DH制)'
+                                reason: '先發投手 (DH制)',
+                                timestamp: 0,
+                                isUploaded: true
                             });
                         }
                     } else {
                         const starterPitcherSlot = activeLineup.value.find(s => s.starter && s.starter.pos === 'P');
                         if (starterPitcherSlot) {
-                            list.push({
+                            pitcherEvents.push({
                                 id: starterPitcherSlot.starter.id,
                                 name: starterPitcherSlot.starter.name,
                                 number: starterPitcherSlot.starter.number,
                                 pos: 'P',
                                 posLabel: starterPitcherSlot.starter.posLabel || 'P (2)',
-                                reason: '先發投手'
+                                reason: '先發投手',
+                                timestamp: 0,
+                                isUploaded: true
                             });
                         }
                     }
 
-                    // 比賽中野手調為 P 的投手
+                    // 2. 收集打序中替補/野手轉守 P(2) 的時間事件
                     activeLineup.value.forEach(slot => {
                         if (slot.substitutes && slot.substitutes.length > 0) {
                             slot.substitutes.forEach(sub => {
                                 if (sub.pos === 'P') {
-                                    if (!list.some(p => p.number === sub.number && p.name === sub.name)) {
-                                        list.push({
-                                            id: sub.id,
-                                            name: sub.name,
-                                            number: sub.number,
-                                            pos: 'P',
-                                            posLabel: sub.posLabel || 'P (2)',
-                                            reason: sub.reason || '比賽中更換'
-                                        });
-                                    }
+                                    pitcherEvents.push({
+                                        id: sub.id,
+                                        name: sub.name,
+                                        number: sub.number,
+                                        pos: 'P',
+                                        posLabel: sub.posLabel || 'P (2)',
+                                        reason: sub.reason || '比賽中更換',
+                                        timestamp: sub.timestamp || Date.now(),
+                                        isUploaded: sub.isUploaded || false
+                                    });
                                 }
                             });
                         }
                     });
 
-                    // 需求 4 修正：DH 制中途從板凳直接替換的純投手
+                    // 3. 收集 DH 制下從板凳直接換上投球的時間事件
                     extraPitchersHistory.value.forEach(p => {
-                        if (!list.some(x => x.id === p.id)) {
-                            list.push({
-                                id: p.id,
-                                name: p.name,
-                                number: p.number,
-                                pos: 'P',
-                                posLabel: 'P (2)',
-                                reason: '比賽中更換投手',
-                                isIndependentSub: true
-                            });
+                        pitcherEvents.push({
+                            id: p.id,
+                            name: p.name,
+                            number: p.number,
+                            pos: 'P',
+                            posLabel: 'P (2)',
+                            reason: '比賽中更換投手',
+                            timestamp: p.timestamp || Date.now(),
+                            isIndependentSub: true,
+                            isUploaded: p.isUploaded || false
+                        });
+                    });
+
+                    // 依據時間戳記由小到大 (舊到新) 嚴格排序時間軸，並去重
+                    pitcherEvents.sort((a, b) => a.timestamp - b.timestamp);
+
+                    const finalPitchers = [];
+                    pitcherEvents.forEach(pe => {
+                        if (!finalPitchers.some(x => x.id === pe.id && x.timestamp === pe.timestamp)) {
+                            finalPitchers.push(pe);
                         }
                     });
 
-                    return list;
+                    return finalPitchers;
                 });
 
                 const activeDefenseNotice = computed(() => {
@@ -767,6 +785,11 @@
                 const uploadStartersToGAS = () => {
                     if (positionConflicts.value.length > 0) {
                         alert('⚠️ 守位重複衝突，請修正守位後再試！');
+                        return;
+                    }
+
+                    if (missingPositions.value.length > 0) {
+                        alert('⚠️ 尚有守位未安排，請完成防守配置！');
                         return;
                     }
 
@@ -861,7 +884,8 @@
                         isPlayerChange: isPlayerChange,
                         prevNumber: prevPlayer.number,
                         prevPosLabel: prevPlayer.posLabel,
-                        timestamp: new Date().getTime()
+                        timestamp: new Date().getTime(),
+                        isUploaded: false // 預設未上傳
                     };
 
                     activeLineup.value[subModal.value.battingOrder - 1].substitutes.push(subRecord);
@@ -869,7 +893,6 @@
                     subModal.value.open = false;
                 };
 
-                // 需求 4 修正：DH 制比賽中獨立更換投手
                 const confirmIndependentPitcherChange = () => {
                     const p = getPlayerObj(pitcherModal.value.selectedPlayerId);
                     if (!p) return;
@@ -880,7 +903,8 @@
                         id: p.id,
                         name: p['球員姓名'],
                         number: p['背號'] || '?',
-                        timestamp: new Date().getTime()
+                        timestamp: new Date().getTime(),
+                        isUploaded: false
                     };
 
                     extraPitchersHistory.value.push(newPitcherObj);
@@ -899,21 +923,19 @@
                     pitcherModal.value.selectedPlayerId = '';
                 };
 
-                // 需求 3 修正：復原/撤銷指定的替補更換紀錄 ✕
                 const removeSubstitute = (slotIndex, subIndex) => {
                     const removedSub = activeLineup.value[slotIndex].substitutes.splice(subIndex, 1)[0];
                     if (removedSub) {
-                        // 從待上傳單據中移除
                         currentBatchPending.value = currentBatchPending.value.filter(item => item.timestamp !== removedSub.timestamp);
                     }
                 };
 
-                // 復原純投手更換 ✕
                 const removeIndependentPitcher = (pitcherId) => {
                     extraPitchersHistory.value = extraPitchersHistory.value.filter(p => p.id !== pitcherId);
                     currentBatchPending.value = currentBatchPending.value.filter(item => item.id !== pitcherId);
                 };
 
+                // 需求 1 修正：點擊上傳後，將所有變更紀錄標記為 isUploaded = true (鎖定狀態，隱藏 ✕)
                 const uploadSubstitutionsToGAS = () => {
                     if (currentBatchPending.value.length === 0) return;
                     saving.value = true;
@@ -930,6 +952,15 @@
                     }).then(() => {
                         saving.value = false;
                         
+                        // 1. 將畫面上所有替補紀錄標記為已上傳 (隱藏 ✕ 復原按鈕)
+                        activeLineup.value.forEach(slot => {
+                            if (slot.substitutes) {
+                                slot.substitutes.forEach(sub => sub.isUploaded = true);
+                            }
+                        });
+                        extraPitchersHistory.value.forEach(p => p.isUploaded = true);
+
+                        // 2. 歸檔大會報備單
                         uploadedBatches.value.push({
                             batchId: uploadedBatches.value.length + 1,
                             text: currentLeagueReportText.value,
@@ -937,7 +968,7 @@
                         });
 
                         currentBatchPending.value = [];
-                        alert('✅ 更換紀錄與投手調度已同步至 Google Sheet！');
+                        alert('✅ 更換紀錄與投手調度已同步至 Google Sheet！已鎖定調整名單。');
                     }).catch(err => {
                         saving.value = false;
                         alert('更新失敗: ' + err);

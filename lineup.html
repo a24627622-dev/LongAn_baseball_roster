@@ -23,7 +23,7 @@
     <header class="app-header">
       <div class="header-brand">
         <img src="logo.png" alt="龍安隊徽" class="team-logo">
-        <h1 style="font-size: 1rem;">📋 龍安點名與陣容助手</h1>
+        <h1 style="font-size: 1rem;"> 龍安點名與陣容助手</h1>
       </div>
 
       <div style="display: flex; align-items: center; gap: 10px;">
@@ -31,11 +31,7 @@
         <button @click="fetchData(true)" :disabled="loading" style="background: #374151; color: white; border: 1px solid var(--gold-color); padding: 4px 10px; border-radius: 8px; font-size: 0.75rem; cursor: pointer; display: flex; align-items: center; gap: 4px;">
           <span :class="{'animate-spin': loading}">🔄</span> 同步
         </button>
-
-        <!-- 返回大廳按鈕 -->
-        <a href="index.html" style="color: var(--gold-color); text-decoration: none; font-size: 0.85rem; font-weight: bold;">
-          🏠 大廳
-        </a>
+          
       </div>
     </header>
 

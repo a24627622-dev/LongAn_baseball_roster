@@ -10,23 +10,70 @@
 
   <div class="mobile-container">
     
-    <!-- 頂部 Header：加入隊徽 Logo 與深黑金配色 -->
+    <!-- 頂部 Header：隊徽 Logo 與深黑金配色 -->
     <header class="app-header">
       <div class="header-brand">
-        <!-- 隊徽圖片 (若無圖片會自動以預設大小顯示) -->
-        <img src="logo.png" alt="龍安隊徽" class="team-logo">
+        <img src="logo.png" alt="龍安隊徽" class="team-logo" onerror="this.style.display='none'">
         <h1>龍安棒球隊管理系統</h1>
       </div>
       <span style="font-size: 0.75rem; background: var(--gold-color); color: black; padding: 2px 6px; border-radius: 4px; font-weight: bold;">LONGAN</span>
     </header>
 
-    <!-- 內容區塊 -->
+    <!-- 內容區塊 (依照指定順序排列所有 Project) -->
     <main class="app-content">
       
-      <!-- 卡片 1: 點名與陣容調度 -->
+      <!-- 1. 官方公告 & 最新消息 -->
+      <div class="card" style="border-left-color: var(--gold-color);">
+        <div class="card-title">
+          <span>📢 官方公告 & 最新消息</span>
+          <span style="font-size: 0.75rem; background: #fef3c7; color: #92400e; padding: 2px 8px; border-radius: 12px; font-weight: bold;">開發中</span>
+        </div>
+        <p style="color: var(--text-muted); font-size: 0.875rem; margin-bottom: 16px;">
+          球隊最新公佈事項、練球比賽時間異動及重要發布公告。
+        </p>
+        <a href="#" class="btn btn-outline btn-disabled">功能開發中</a>
+      </div>
+
+      <!-- 2. 賽事時程 & 練球 -->
+      <div class="card" style="border-left-color: var(--gold-color);">
+        <div class="card-title">
+          <span>📅 賽事時程 & 練球</span>
+          <span style="font-size: 0.75rem; background: #fef3c7; color: #92400e; padding: 2px 8px; border-radius: 12px; font-weight: bold;">開發中</span>
+        </div>
+        <p style="color: var(--text-muted); font-size: 0.875rem; margin-bottom: 16px;">
+          聯賽賽程表、熱身賽安排、每週練球地點與出席預估登記。
+        </p>
+        <a href="#" class="btn btn-outline btn-disabled">功能開發中</a>
+      </div>
+
+      <!-- 3. 賽事成績 -->
+      <div class="card" style="border-left-color: var(--gold-color);">
+        <div class="card-title">
+          <span>🏆 賽事成績</span>
+          <span style="font-size: 0.75rem; background: #fef3c7; color: #92400e; padding: 2px 8px; border-radius: 12px; font-weight: bold;">開發中</span>
+        </div>
+        <p style="color: var(--text-muted); font-size: 0.875rem; margin-bottom: 16px;">
+          過往比賽對戰勝負紀錄、球隊整體數據戰績與聯賽排名。
+        </p>
+        <a href="#" class="btn btn-outline btn-disabled">功能開發中</a>
+      </div>
+
+      <!-- 4. 球員名單 & 成績紀錄 -->
+      <div class="card" style="border-left-color: var(--gold-color);">
+        <div class="card-title">
+          <span>👥 球員名單 & 成績紀錄</span>
+          <span style="font-size: 0.75rem; background: #fef3c7; color: #92400e; padding: 2px 8px; border-radius: 12px; font-weight: bold;">開發中</span>
+        </div>
+        <p style="color: var(--text-muted); font-size: 0.875rem; margin-bottom: 16px;">
+          全隊隊員名冊、背號、守位資料及個人生涯打擊/投球累積數據。
+        </p>
+        <a href="#" class="btn btn-outline btn-disabled">功能開發中</a>
+      </div>
+
+      <!-- 5. 陣容調度助手 (線上使用中) -->
       <div class="card">
         <div class="card-title">
-          <span>📋 賽事點名 & 陣容調度</span>
+          <span>📋 陣容調度助手</span>
           <span style="font-size: 0.75rem; background: #fee2e2; color: #991b1b; padding: 2px 8px; border-radius: 12px; font-weight: bold;">線上使用中</span>
         </div>
         <p style="color: var(--text-muted); font-size: 0.875rem; margin-bottom: 16px;">
@@ -35,14 +82,26 @@
         <a href="lineup.html" class="btn btn-primary">進入調度助手 ➔</a>
       </div>
 
-      <!-- 卡片 2: 賽後個人成績登記 -->
-      <div class="card" style="border-left-color: var(--gold-color);">
+      <!-- 6. 球員成績登記助手 -->
+      <div class="card">
         <div class="card-title">
-          <span>📊 賽後個人成績登記</span>
-          <span style="font-size: 0.75rem; background: #fef3c7; color: #92400e; padding: 2px 8px; border-radius: 12px; font-weight: bold;">開發中</span>
+          <span>📊 球員成績登記助手</span>
+          <span style="font-size: 0.75rem; background: #dbeafe; color: #1e40af; padding: 2px 8px; border-radius: 12px; font-weight: bold;">準備中</span>
         </div>
         <p style="color: var(--text-muted); font-size: 0.875rem; margin-bottom: 16px;">
           填寫個人 AB、H、2B、3B、HR、RBI 等打擊數據與投球成績，自動計算 AVG 與 OPS。
+        </p>
+        <a href="stats.html" class="btn btn-outline">進入成績登記 ➔</a>
+      </div>
+
+      <!-- 7. 照片影片上傳助手 -->
+      <div class="card" style="border-left-color: var(--gold-color);">
+        <div class="card-title">
+          <span>📸 照片影片上傳助手</span>
+          <span style="font-size: 0.75rem; background: #fef3c7; color: #92400e; padding: 2px 8px; border-radius: 12px; font-weight: bold;">開發中</span>
+        </div>
+        <p style="color: var(--text-muted); font-size: 0.875rem; margin-bottom: 16px;">
+          比賽精彩花絮照片、投手/打擊動作影片紀錄快速雲端彙整。
         </p>
         <a href="#" class="btn btn-outline btn-disabled">功能開發中</a>
       </div>
@@ -53,13 +112,13 @@
     <nav class="bottom-nav">
       <a href="index.html" class="nav-item active">
         <span style="font-size: 1.2rem;">🏠</span>
-        <span>大廳</span>
+        <span>首頁</span>
       </a>
       <a href="lineup.html" class="nav-item">
         <span style="font-size: 1.2rem;">📋</span>
         <span>陣容調度</span>
       </a>
-      <a href="#" class="nav-item">
+      <a href="stats.html" class="nav-item">
         <span style="font-size: 1.2rem;">📊</span>
         <span>成績登記</span>
       </a>

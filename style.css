@@ -1,8 +1,12 @@
 /* 龍安棒球隊 手機 App 視覺外觀 */
 :root {
-  --primary-color: #1e3a8a;   /* 龍安經典深藍 */
-  --accent-color: #d97706;    /* 亮橘 */
-  --bg-color: #f1f5f9;        /* 淺灰底 */
+  /* 龍安球隊專屬配色 */
+  --primary-color: #b91c1c;   /* 主色系：龍安熱血深紅 */
+  --dark-color: #111827;      /* 主色系：霸氣勁黑 */
+  --accent-color: #ea580c;    /* 副色系：橘紅 */
+  --gold-color: #d97706;      /* 第三色系：冠軍金色 */
+  
+  --bg-color: #f8fafc;        /* 副色系：乾淨純白/淺灰底 */
   --card-bg: #ffffff;
   --text-primary: #0f172a;
   --text-muted: #64748b;
@@ -15,7 +19,7 @@
 
 body {
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-  background-color: #0f172a; /* 電腦開啟時的外層暗色底 */
+  background-color: #000000; /* 電腦外層底色設為黑 */
   margin: 0;
   padding: 0;
   color: var(--text-primary);
@@ -26,31 +30,50 @@ body {
 /* 📱 手機 Viewport 核心容器 */
 .mobile-container {
   width: 100%;
-  max-width: 480px; /* 限制為標準手機螢幕寬度 */
+  max-width: 480px;
   min-height: 100vh;
   background-color: var(--bg-color);
-  box-shadow: 0 0 20px rgba(0, 0, 0, 0.3);
+  box-shadow: 0 0 20px rgba(0, 0, 0, 0.5);
   display: flex;
   flex-direction: column;
 }
 
-/* 頂部 Header */
+/* 頂部 Header (深黑背景搭配金色下邊框) */
 .app-header {
-  background-color: var(--primary-color);
+  background-color: var(--dark-color);
   color: white;
-  padding: 16px 20px;
+  padding: 12px 16px;
   display: flex;
   align-items: center;
   justify-content: space-between;
   position: sticky;
   top: 0;
   z-index: 100;
+  border-bottom: 3px solid var(--gold-color); /* 金色邊條 */
+}
+
+/* 隊徽 Logo 樣式 */
+.header-brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.team-logo {
+  width: 36px;
+  height: 36px;
+  object-fit: contain;
+  border-radius: 50%;
+  background: white;
+  padding: 2px;
+  border: 1.5px solid var(--gold-color); /* 隊徽金色外框 */
 }
 
 .app-header h1 {
-  font-size: 1.15rem;
+  font-size: 1.1rem;
   margin: 0;
   font-weight: 700;
+  color: #ffffff;
 }
 
 /* 內容區塊 */
@@ -59,32 +82,33 @@ body {
   flex: 1;
 }
 
-/* 數據卡片 */
+/* 數據卡片 (左側帶有深紅配色邊條) */
 .card {
   background: var(--card-bg);
-  border-radius: 16px;
+  border-radius: 14px;
   padding: 18px;
   margin-bottom: 16px;
-  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.06);
   border: 1px solid #e2e8f0;
+  border-left: 5px solid var(--primary-color); /* 左側主色紅邊條 */
 }
 
 .card-title {
   font-size: 1rem;
   font-weight: 700;
   margin-bottom: 8px;
-  color: var(--primary-color);
+  color: var(--dark-color);
   display: flex;
   justify-content: space-between;
   align-items: center;
 }
 
-/* 手指觸控按鈕 (48px 黃金高度) */
+/* 手指觸控按鈕 (預設主色紅色、次要橘紅外框) */
 .btn {
   width: 100%;
   min-height: 48px;
   border: none;
-  border-radius: 12px;
+  border-radius: 10px;
   font-size: 1rem;
   font-weight: 700;
   display: flex;
@@ -92,19 +116,35 @@ body {
   justify-content: center;
   cursor: pointer;
   text-decoration: none;
-  transition: opacity 0.2s;
+  transition: all 0.2s;
 }
 
-.btn-primary { background-color: var(--primary-color); color: white; }
-.btn-outline { background-color: transparent; border: 2px solid var(--primary-color); color: var(--primary-color); }
-.btn-disabled { background-color: #cbd5e1; color: #64748b; cursor: not-allowed; }
+.btn-primary { 
+  background-color: var(--primary-color); 
+  color: white; 
+}
+.btn-primary:active {
+  background-color: #991b1b;
+}
 
-/* 底部導覽列 */
+.btn-outline { 
+  background-color: transparent; 
+  border: 2px solid var(--accent-color); 
+  color: var(--accent-color); 
+}
+
+.btn-disabled { 
+  background-color: #e2e8f0; 
+  color: #94a3b8; 
+  cursor: not-allowed; 
+}
+
+/* 底部導覽列 (黑色底搭配金/橘高亮) */
 .bottom-nav {
   position: sticky;
   bottom: 0;
-  background-color: #ffffff;
-  border-top: 1px solid #e2e8f0;
+  background-color: var(--dark-color);
+  border-top: 1px solid #374151;
   display: flex;
   justify-content: space-around;
   padding: 8px 0 12px 0;
@@ -115,12 +155,12 @@ body {
   flex-direction: column;
   align-items: center;
   font-size: 0.75rem;
-  color: var(--text-muted);
+  color: #9ca3af;
   text-decoration: none;
   gap: 4px;
 }
 
 .nav-item.active {
-  color: var(--primary-color);
+  color: var(--gold-color); /* 作用中的 Tab 顯示冠軍金 */
   font-weight: bold;
 }

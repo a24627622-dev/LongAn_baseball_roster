@@ -2,7 +2,7 @@
 <html lang="zh-TW">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>龍安棒球隊點名與先發陣容助手</title>
     <!-- Tailwind CSS CDN -->
     <script src="https://cdn.tailwindcss.com"></script>
@@ -13,22 +13,31 @@
     <style>
         [v-cloak] { display: none; }
     </style>
+    <link rel="stylesheet" href="style.css">
 </head>
 <body class="bg-slate-100 min-h-screen text-slate-800 pb-12">
+    <div class="mobile-container">
     <div id="app" v-cloak class="max-w-4xl mx-auto px-4 py-6">
         
-        <!-- 頂部標題 -->
-        <header class="bg-blue-900 text-white rounded-2xl p-6 shadow-lg mb-6 flex justify-between items-center flex-wrap gap-4">
-            <div>
-                <h1 class="text-2xl font-bold flex items-center gap-2">
-                    <span>⚾</span> 龍安棒球隊點名與先發陣容助手
-                </h1>
-                <p class="text-blue-200 text-sm mt-1">Baseball Savant 規範調度與紀錄工具</p>
-            </div>
-            <button @click="fetchData(true)" :disabled="loading" class="bg-blue-600 hover:bg-blue-500 text-white px-4 py-2 rounded-xl text-sm font-medium transition shadow flex items-center gap-2">
-                <span :class="{'animate-spin': loading}">🔄</span> 手動同步球員名單
-            </button>
-        </header>
+     <!-- 頂部標題 -->
+    <header class="app-header">
+      <div class="header-brand">
+        <img src="logo.png" alt="龍安隊徽" class="team-logo">
+        <h1 style="font-size: 1rem;">📋 龍安點名與陣容助手</h1>
+      </div>
+
+      <div style="display: flex; align-items: center; gap: 10px;">
+        <!-- 保留你原本的 Vue 同步資料按鈕 -->
+        <button @click="fetchData(true)" :disabled="loading" style="background: #374151; color: white; border: 1px solid var(--gold-color); padding: 4px 10px; border-radius: 8px; font-size: 0.75rem; cursor: pointer; display: flex; align-items: center; gap: 4px;">
+          <span :class="{'animate-spin': loading}">🔄</span> 同步
+        </button>
+
+        <!-- 返回大廳按鈕 -->
+        <a href="index.html" style="color: var(--gold-color); text-decoration: none; font-size: 0.85rem; font-weight: bold;">
+          🏠 大廳
+        </a>
+      </div>
+    </header>
 
         <!-- 步驟指示列 -->
         <div class="bg-white rounded-2xl p-4 shadow-sm border border-slate-200 mb-6 flex justify-between items-center text-xs sm:text-sm font-bold">
@@ -1053,5 +1062,23 @@
             }
         }).mount('#app');
     </script>
+
+<!-- 底部導覽列 -->
+  <nav class="bottom-nav">
+    <a href="index.html" class="nav-item">
+      <span style="font-size: 1.2rem;">🏠</span>
+      <span>大廳</span>
+    </a>
+    <a href="lineup.html" class="nav-item active">
+      <span style="font-size: 1.2rem;">📋</span>
+      <span>陣容調度</span>
+    </a>
+    <a href="#" class="nav-item">
+      <span style="font-size: 1.2rem;">📊</span>
+      <span>成績登記</span>
+    </a>
+  </nav>
+
+</div> <!-- 關閉 .mobile-container -->
 </body>
 </html>

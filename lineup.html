@@ -452,7 +452,7 @@
     </div>
 
     <script>
-        const { createApp, ref, computed, onMounted } = Vue;
+const { createApp, ref, computed, onMounted } = Vue;
 
         createApp({
             setup() {
@@ -550,7 +550,7 @@
                     return currentActive.pos !== 'DH';
                 });
 
-                const parseCSV = (url, isFallback = false) => {
+                const parseCSV = (url, isFallback = false, isManual = false) => {
                     Papa.parse(url, {
                         download: true,
                         header: true,
@@ -561,9 +561,14 @@
                                     id: index + 1, ...item, isAttended: false
                                 }));
                                 loading.value = false;
+                                // 💡 同步成功後寫入快取
+                                localStorage.setItem('longan_player_list', JSON.stringify(players.value));
+                                if (isManual) {
+                                    alert('✅ 球員名單手動同步完成！');
+                                }
                             } else if (!isFallback) {
                                 const fallbackUrl = 'https://api.allorigins.win/raw?url=' + encodeURIComponent(GOOGLE_SHEET_CSV_URL);
-                                parseCSV(fallbackUrl, true);
+                                parseCSV(fallbackUrl, true, isManual);
                             } else {
                                 loading.value = false;
                                 alert('載入失敗：取得的名單內容為空！');
@@ -572,7 +577,7 @@
                         error: () => {
                             if (!isFallback) {
                                 const fallbackUrl = 'https://api.allorigins.win/raw?url=' + encodeURIComponent(GOOGLE_SHEET_CSV_URL);
-                                parseCSV(fallbackUrl, true);
+                                parseCSV(fallbackUrl, true, isManual);
                             } else {
                                 loading.value = false;
                                 alert('無法載入 Google Sheet 資料，請確認發布狀態！');
@@ -583,13 +588,24 @@
 
                 const fetchData = (isManual = false) => {
                     loading.value = true;
-                    parseCSV(GOOGLE_SHEET_CSV_URL);
-                    if (isManual) {
-                        setTimeout(() => alert('球員名單手動同步完成！'), 1000);
-                    }
+                    parseCSV(GOOGLE_SHEET_CSV_URL, false, isManual);
                 };
 
-                onMounted(() => fetchData(false));
+                // 💡 核心修改：初始化時優先讀取快取，不再每次強制發起 HTTP 請求
+                onMounted(() => {
+                    const cached = localStorage.getItem('longan_player_list');
+                    if (cached) {
+                        try {
+                            players.value = JSON.parse(cached);
+                            loading.value = false;
+                        } catch (e) {
+                            fetchData(false);
+                        }
+                    } else {
+                        // 只有第一次完全沒紀錄時才抓資料
+                        fetchData(false);
+                    }
+                });
 
                 const attendedPlayers = computed(() => players.value.filter(p => p.isAttended));
                 const attendedCount = computed(() => attendedPlayers.value.length);
@@ -632,7 +648,6 @@
                     return Object.keys(counts).filter(label => counts[label] > 1);
                 });
 
-                // 防呆：非 DH 制有選 P 時，或 DH 制有選獨立投手時，標記 P 已選
                 const missingPositions = computed(() => {
                     const selectedCodes = lineup.value.filter(s => s.playerId).map(s => s.positionCode);
                     if (hasDHInLineup.value && independentPitcherId.value) {
@@ -661,13 +676,10 @@
                     return attendedPlayers.value.filter(p => !usedIds.includes(p.id));
                 });
 
-                // 核心修復：精準抓取【非 DH 制與 DH 制】的先發投手與中繼投手
                 const activePitchers = computed(() => {
                     const pitcherEvents = [];
                     
-                    // 1. 先發投手
                     if (hasDHInLineup.value && independentPitcherId.value) {
-                        // DH 制獨立投手
                         const p = getPlayerObj(independentPitcherId.value);
                         if (p) {
                             pitcherEvents.push({
@@ -682,7 +694,6 @@
                             });
                         }
                     } else {
-                        // 非 DH 制：尋找 1~9 棒先發陣容中守 P(2) 的球員 (優先讀 activeLineup，若無讀單純 lineup)
                         let starterPitcherSlot = activeLineup.value.find(s => s.starter && (s.starter.pos === 'P' || s.starter.posCode === 'P'));
                         
                         if (starterPitcherSlot && starterPitcherSlot.starter) {
@@ -697,7 +708,6 @@
                                 isUploaded: true
                             });
                         } else {
-                            // 當前尚未進入步驟 3 (例如仍在步驟 2 即時計算)
                             const pSlot = lineup.value.find(s => s.positionCode === 'P' && s.playerId);
                             if (pSlot) {
                                 const pObj = getPlayerObj(pSlot.playerId);
@@ -717,7 +727,6 @@
                         }
                     }
 
-                    // 2. 收集打序中替補/野手轉守 P(2) 的時間事件
                     activeLineup.value.forEach(slot => {
                         if (slot.substitutes && slot.substitutes.length > 0) {
                             slot.substitutes.forEach(sub => {
@@ -737,7 +746,6 @@
                         }
                     });
 
-                    // 3. 收集 DH 制下從板凳直接換上投球的時間事件
                     extraPitchersHistory.value.forEach(p => {
                         pitcherEvents.push({
                             id: p.id,
@@ -752,7 +760,6 @@
                         });
                     });
 
-                    // 依時間戳記嚴格排序時間軸
                     pitcherEvents.sort((a, b) => a.timestamp - b.timestamp);
 
                     const finalPitchers = [];
@@ -835,7 +842,6 @@
                     });
                 };
 
-                // 核心修復：確定封裝完整 pitchers 陣容上傳至 GAS
                 const uploadStartersToGAS = () => {
                     if (positionConflicts.value.length > 0) {
                         alert('⚠️ 守位重複衝突，請修正守位後再試！');
@@ -864,13 +870,11 @@
                         };
                     });
 
-                    // 確保 activeLineup 被正確設定，讓計算屬性能抓到 P(2)
                     activeLineup.value = starterPayload.map(s => ({
                         starter: s,
                         substitutes: []
                     }));
 
-                    // 取得計算後的投手清單 (包含非 DH 制先發投手)
                     const pitcherPayload = activePitchers.value;
 
                     fetch(GOOGLE_APPS_SCRIPT_URL, {

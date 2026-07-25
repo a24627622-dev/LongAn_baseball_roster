@@ -1,10 +1,8 @@
-/* 1. 全域變數與手機版面設定 */
+/* 龍安棒球隊 手機 App 視覺外觀 */
 :root {
-  --primary-color: #1e3a8a;   /* 龍安球隊經典深藍 */
-  --accent-color: #d97706;    /* 棒球縫線/亮橘 */
-  --success-color: #16a34a;   /* 綠色確認按鈕 */
-  --danger-color: #dc2626;    /* 紅色警示/刪除按鈕 */
-  --bg-color: #f1f5f9;        /* 舒適淺灰底色 */
+  --primary-color: #1e3a8a;   /* 龍安經典深藍 */
+  --accent-color: #d97706;    /* 亮橘 */
+  --bg-color: #f1f5f9;        /* 淺灰底 */
   --card-bg: #ffffff;
   --text-primary: #0f172a;
   --text-muted: #64748b;
@@ -12,12 +10,12 @@
 
 * {
   box-sizing: border-box;
-  -webkit-tap-highlight-color: transparent; /* 移除手機點擊時的藍色陰影 */
+  -webkit-tap-highlight-color: transparent;
 }
 
 body {
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
-  background-color: #0f172a; /* 電腦版外層黑灰底 */
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  background-color: #0f172a; /* 電腦開啟時的外層暗色底 */
   margin: 0;
   padding: 0;
   color: var(--text-primary);
@@ -25,20 +23,18 @@ body {
   justify-content: center;
 }
 
-/* 📱 核心：手機尺寸容器模擬 (Mobile App Shell) */
+/* 📱 手機 Viewport 核心容器 */
 .mobile-container {
   width: 100%;
-  max-width: 480px; /* 限制最大寬度為標準手機螢幕 */
+  max-width: 480px; /* 限制為標準手機螢幕寬度 */
   min-height: 100vh;
   background-color: var(--bg-color);
   box-shadow: 0 0 20px rgba(0, 0, 0, 0.3);
   display: flex;
   flex-direction: column;
-  position: relative;
-  overflow-x: hidden;
 }
 
-/* 2. 頂部導覽列模組 */
+/* 頂部 Header */
 .app-header {
   background-color: var(--primary-color);
   color: white;
@@ -49,25 +45,21 @@ body {
   position: sticky;
   top: 0;
   z-index: 100;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
 }
 
 .app-header h1 {
   font-size: 1.15rem;
   margin: 0;
   font-weight: 700;
-  display: flex;
-  align-items: center;
-  gap: 8px;
 }
 
-/* 3. 內容主要區塊 */
+/* 內容區塊 */
 .app-content {
   padding: 16px;
   flex: 1;
 }
 
-/* 4. 數據卡片 UI 模組 */
+/* 數據卡片 */
 .card {
   background: var(--card-bg);
   border-radius: 16px;
@@ -80,18 +72,17 @@ body {
 .card-title {
   font-size: 1rem;
   font-weight: 700;
-  margin-top: 0;
   margin-bottom: 8px;
   color: var(--primary-color);
   display: flex;
-  align-items: center;
   justify-content: space-between;
+  align-items: center;
 }
 
-/* 5. 通用大號觸控按鈕模組 */
+/* 手指觸控按鈕 (48px 黃金高度) */
 .btn {
   width: 100%;
-  min-height: 48px; /* 適合手指觸控的黃金高度 */
+  min-height: 48px;
   border: none;
   border-radius: 12px;
   font-size: 1rem;
@@ -99,21 +90,16 @@ body {
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 8px;
   cursor: pointer;
-  transition: transform 0.1s, opacity 0.2s;
   text-decoration: none;
-}
-
-.btn:active {
-  transform: scale(0.98); /* 按下時的按鈕下壓反饋 */
+  transition: opacity 0.2s;
 }
 
 .btn-primary { background-color: var(--primary-color); color: white; }
-.btn-success { background-color: var(--success-color); color: white; }
 .btn-outline { background-color: transparent; border: 2px solid var(--primary-color); color: var(--primary-color); }
+.btn-disabled { background-color: #cbd5e1; color: #64748b; cursor: not-allowed; }
 
-/* 6. 手機底欄導覽列 (Bottom Navigation) */
+/* 底部導覽列 */
 .bottom-nav {
   position: sticky;
   bottom: 0;
@@ -122,7 +108,6 @@ body {
   display: flex;
   justify-content: space-around;
   padding: 8px 0 12px 0;
-  z-index: 100;
 }
 
 .nav-item {

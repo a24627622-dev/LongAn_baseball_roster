@@ -10,37 +10,40 @@
 
   <div class="mobile-container">
     
-    <!-- 頂部 Header -->
+    <!-- 頂部 Header：加入隊徽 Logo 與深黑金配色 -->
     <header class="app-header">
-      <h1>⚾ 龍安棒球隊管理系統</h1>
+      <div class="header-brand">
+        <!-- 隊徽圖片 (若無圖片會自動以預設大小顯示) -->
+        <img src="logo.png" alt="龍安隊徽" class="team-logo" onerror="this.style.display='none'">
+        <h1>龍安棒球隊管理系統</h1>
+      </div>
+      <span style="font-size: 0.75rem; background: var(--gold-color); color: black; padding: 2px 6px; border-radius: 4px; font-weight: bold;">LONGAN</span>
     </header>
 
     <!-- 內容區塊 -->
     <main class="app-content">
       
-      <!-- 卡片 1: 點名與陣容調度 (已完成連結) -->
+      <!-- 卡片 1: 點名與陣容調度 -->
       <div class="card">
         <div class="card-title">
           <span>📋 賽事點名 & 陣容調度</span>
-          <span style="font-size: 0.75rem; background: #dbeafe; color: #1e40af; padding: 2px 8px; border-radius: 12px;">線上使用中</span>
+          <span style="font-size: 0.75rem; background: #fee2e2; color: #991b1b; padding: 2px 8px; border-radius: 12px; font-weight: bold;">線上使用中</span>
         </div>
         <p style="color: var(--text-muted); font-size: 0.875rem; margin-bottom: 16px;">
           本日比賽出席點名、九人先發排定、場上調度換人與產生 LINE 報備文字。
         </p>
-        <!-- 連結指向重命名後的 lineup.html -->
         <a href="lineup.html" class="btn btn-primary">進入調度助手 ➔</a>
       </div>
 
-      <!-- 卡片 2: 賽後成績登記 (預留入口，暫時不連結) -->
-      <div class="card">
+      <!-- 卡片 2: 賽後個人成績登記 -->
+      <div class="card" style="border-left-color: var(--gold-color);">
         <div class="card-title">
           <span>📊 賽後個人成績登記</span>
-          <span style="font-size: 0.75rem; background: #fef3c7; color: #92400e; padding: 2px 8px; border-radius: 12px;">開發中</span>
+          <span style="font-size: 0.75rem; background: #fef3c7; color: #92400e; padding: 2px 8px; border-radius: 12px; font-weight: bold;">開發中</span>
         </div>
         <p style="color: var(--text-muted); font-size: 0.875rem; margin-bottom: 16px;">
           填寫個人 AB、H、2B、3B、HR、RBI 等打擊數據與投球成績，自動計算 AVG 與 OPS。
         </p>
-        <!-- 使用 href="#" 暫不跳轉 -->
         <a href="#" class="btn btn-outline btn-disabled">功能開發中</a>
       </div>
 

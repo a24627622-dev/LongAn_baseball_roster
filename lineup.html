@@ -4,11 +4,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>龍安棒球隊點名與先發陣容助手</title>
-    <!-- Tailwind CSS CDN -->
     <script src="https://cdn.tailwindcss.com"></script>
-    <!-- Vue 3 CDN -->
     <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
-    <!-- PapaParse (CSV 解析) -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.3.2/papaparse.min.js"></script>
     <style>
         [v-cloak] { display: none; }
@@ -19,15 +16,13 @@
     <div class="mobile-container">
     <div id="app" v-cloak class="max-w-4xl mx-auto px-4 py-6">
         
-     <!-- 頂部標題 -->
-    <header class="app-header">
+     <header class="app-header">
       <div class="header-brand">
         <img src="logo.png" alt="龍安隊徽" class="team-logo">
         <h1 style="font-size: 1rem;"> 龍安點名與陣容助手</h1>
       </div>
 
       <div style="display: flex; align-items: center; gap: 10px;">
-        <!-- 保留你原本的 Vue 同步資料按鈕 -->
         <button @click="fetchData(true)" :disabled="loading" style="background: #374151; color: white; border: 1px solid var(--gold-color); padding: 4px 10px; border-radius: 8px; font-size: 0.75rem; cursor: pointer; display: flex; align-items: center; gap: 4px;">
           <span :class="{'animate-spin': loading}">🔄</span> 同步
         </button>
@@ -35,14 +30,13 @@
       </div>
     </header>
 
-        <!-- 步驟指示列 -->
         <div class="bg-white rounded-2xl p-4 shadow-sm border border-slate-200 mb-6 flex justify-between items-center text-xs sm:text-sm font-bold">
             <div :class="['flex-1 text-center py-2 rounded-xl transition', currentStep === 1 ? 'bg-blue-600 text-white shadow' : 'text-slate-400']">
                 1. 賽事資訊與點名 ({{ attendedCount }}人)
             </div>
             <div class="px-1 text-slate-300">➔</div>
             <div :class="['flex-1 text-center py-2 rounded-xl transition', currentStep === 2 ? 'bg-blue-600 text-white shadow' : 'text-slate-400']">
-                2. 排定先發陣容
+                2. 排定先發陣陣容
             </div>
             <div class="px-1 text-slate-300">➔</div>
             <div :class="['flex-1 text-center py-2 rounded-xl transition', currentStep === 3 ? 'bg-blue-600 text-white shadow' : 'text-slate-400']">
@@ -50,7 +44,6 @@
             </div>
         </div>
 
-        <!-- 載入動畫 -->
         <div v-if="loading" class="text-center py-12 bg-white rounded-2xl shadow">
             <div class="inline-block animate-spin rounded-full h-12 w-12 border-4 border-blue-600 border-t-transparent mb-4"></div>
             <p class="text-slate-500 font-medium">正在載入隊員名單，請稍候...</p>
@@ -58,7 +51,6 @@
 
         <div v-else>
             
-            <!-- 【步驟 1】：賽事資訊與點名 -->
             <section v-if="currentStep === 1" class="bg-white rounded-2xl p-6 shadow-sm border border-slate-200 space-y-4">
                 <h2 class="text-xl font-bold flex items-center gap-2"><span>📅</span> 賽事資訊與今日點名</h2>
                 
@@ -120,16 +112,14 @@
                 </div>
             </section>
 
-            <!-- 【步驟 2】：排定先發 -->
             <section v-if="currentStep === 2" class="bg-white rounded-2xl p-6 shadow-sm border border-slate-200 space-y-4">
                 <div class="flex justify-between items-center flex-wrap gap-2">
                     <div>
                         <h2 class="text-xl font-bold flex items-center gap-2"><span>⚾</span> 排定先發陣容 (標準九人)</h2>
-                        <p class="text-xs text-slate-500 mt-1">守位代號：C(1), P(2), 1B(3), 2B(4), 3B(5), SS(6), LF(7), CF(8), RF(9), DH(10)</p>
+                        <p class="text-xs text-slate-500 mt-1">守位代號：P(1), C(2), 1B(3), 2B(4), 3B(5), SS(6), LF(7), CF(8), RF(9), DH(10)</p>
                     </div>
                 </div>
 
-                <!-- 守位提示面板 -->
                 <div v-if="positionNotice" class="p-3 bg-amber-50 border border-amber-200 rounded-xl text-amber-800 text-xs space-y-1">
                     <div class="font-bold flex items-center gap-1">
                         <span>⚠️</span> 先發守位配置提示：
@@ -142,7 +132,6 @@
                     </div>
                 </div>
 
-                <!-- DH 模式：獨立先發投手選單 -->
                 <div v-if="hasDHInLineup" class="p-3.5 bg-blue-50 border border-blue-200 rounded-xl space-y-2">
                     <div class="flex justify-between items-center">
                         <label class="block text-xs font-bold text-blue-900 flex items-center gap-1">
@@ -158,7 +147,6 @@
                     </select>
                 </div>
 
-                <!-- 1~9 棒打序 -->
                 <div class="space-y-2">
                     <div v-for="(slot, index) in lineup" :key="index" class="flex items-center gap-2 bg-slate-50 p-2.5 rounded-xl border">
                         <div class="px-2 py-1 rounded-lg bg-slate-800 text-white font-bold text-xs whitespace-nowrap">
@@ -191,7 +179,6 @@
                 </div>
             </section>
 
-            <!-- 【步驟 3】：比賽更換 -->
             <section v-if="currentStep === 3" class="bg-white rounded-2xl p-6 shadow-sm border border-slate-200 space-y-6">
                 <div class="flex justify-between items-center flex-wrap gap-2">
                     <div>
@@ -201,12 +188,10 @@
                     <button @click="copyLineup" class="bg-blue-600 text-white text-xs px-3 py-2 rounded-xl font-bold shadow">複製 LINE 打單</button>
                 </div>
 
-                <!-- 取消 DH 提示 -->
                 <div v-if="isDHCancelled" class="p-3 bg-red-50 border border-red-200 rounded-xl text-red-700 text-xs font-bold flex items-center gap-2">
                     <span>⚠️</span> 比賽進行中已取消 DH 指定打擊（回歸投手需要打擊模式），後續不可再選 DH 守位！
                 </div>
 
-                <!-- 守備位置動態檢查 -->
                 <div :class="['p-3.5 rounded-xl text-xs space-y-1 border transition', 
                              activeDefenseNotice.isComplete ? 'bg-emerald-50 border-emerald-200 text-emerald-800' : 'bg-amber-50 border-amber-200 text-amber-900']">
                     <div class="font-bold flex items-center gap-1 text-sm">
@@ -226,7 +211,6 @@
                     </div>
                 </div>
 
-                <!-- 1~9棒打序與更換列表 -->
                 <div class="space-y-3">
                     <div v-for="(slot, index) in activeLineup" :key="index" class="bg-slate-50 p-3 rounded-xl border space-y-2">
                         <div class="flex items-center justify-between">
@@ -242,7 +226,6 @@
                             </button>
                         </div>
 
-                        <!-- 替補紀錄列 -->
                         <div v-for="(sub, subIdx) in slot.substitutes" :key="sub.timestamp" class="ml-6 flex items-center justify-between text-sm bg-amber-50/80 p-2 rounded-lg border border-amber-200/80">
                             <div class="flex items-center gap-2">
                                 <span class="text-amber-600 font-bold">↳</span>
@@ -260,7 +243,6 @@
                     </div>
                 </div>
 
-                <!-- 投手調度列表 -->
                 <div class="bg-blue-900 text-white rounded-2xl p-4 space-y-3 shadow-md">
                     <div class="flex justify-between items-center border-b border-blue-800 pb-2">
                         <h3 class="font-bold text-sm text-blue-100 flex items-center gap-2">
@@ -270,7 +252,7 @@
                             <button v-if="hasDHInLineup && !isDHCancelled" @click="pitcherModal.open = true" class="text-xs bg-amber-400 hover:bg-amber-300 text-blue-950 font-bold px-3 py-1 rounded-lg shadow transition">
                                 + 更換投手 (DH制)
                             </button>
-                            <span class="text-[11px] text-blue-300">守位 P(2) 連動</span>
+                            <span class="text-[11px] text-blue-300">守位 P(1) 連動</span>
                         </div>
                     </div>
 
@@ -286,7 +268,7 @@
                                     {{ idx + 1 }}
                                 </span>
                                 <span class="bg-amber-400 text-blue-950 font-extrabold px-1.5 py-0.5 rounded text-[10px]">
-                                    {{ p.posLabel || 'P (2)' }}
+                                    {{ p.posLabel || 'P (1)' }}
                                 </span>
                                 <span class="font-bold">#{{ p.number }} {{ p.name }}</span>
                             </div>
@@ -298,7 +280,6 @@
                     </div>
                 </div>
 
-                <!-- 目前板凳名單 -->
                 <div class="bg-slate-50 border border-slate-200 rounded-2xl p-4 space-y-2">
                     <div class="flex justify-between items-center">
                         <h3 class="font-bold text-sm text-slate-700 flex items-center gap-1.5">
@@ -317,7 +298,6 @@
                     </div>
                 </div>
 
-                <!-- 當前待上傳更換報備單 -->
                 <div v-if="currentBatchPending.length > 0" class="bg-amber-50 border border-amber-300 rounded-2xl p-4 space-y-2 shadow-sm">
                     <div class="flex justify-between items-center">
                         <h3 class="font-bold text-xs text-amber-900 flex items-center gap-1.5">
@@ -330,7 +310,6 @@
                     <pre class="bg-white p-3 rounded-xl border text-xs text-slate-800 font-mono whitespace-pre-wrap leading-relaxed">{{ currentLeagueReportText }}</pre>
                 </div>
 
-                <!-- 歷史已上傳之報備單 -->
                 <div v-if="uploadedBatches.length > 0" class="space-y-2 pt-2">
                     <h4 class="text-xs font-bold text-slate-500">📜 歷史已上傳報備紀錄：</h4>
                     <div v-for="batch in uploadedBatches" :key="batch.batchId" class="bg-purple-50 border border-purple-200 rounded-2xl overflow-hidden transition shadow-sm">
@@ -355,7 +334,6 @@
                     </div>
                 </div>
 
-                <!-- 底部按鈕區 -->
                 <div class="pt-4 flex justify-between items-center flex-wrap gap-3">
                     <button @click="goToStep(2)" class="text-slate-600 text-sm font-medium border px-4 py-2 rounded-xl">⬅ 檢視先發</button>
                     
@@ -368,7 +346,6 @@
 
         </div>
 
-        <!-- 替補選擇 Modal -->
         <div v-if="subModal.open" class="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
             <div class="bg-white rounded-2xl p-6 max-w-md w-full shadow-2xl space-y-4">
                 <div class="border-b pb-2 flex justify-between items-center">
@@ -420,7 +397,6 @@
             </div>
         </div>
 
-        <!-- DH 制更換投手 Modal -->
         <div v-if="pitcherModal.open" class="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
             <div class="bg-white rounded-2xl p-6 max-w-md w-full shadow-2xl space-y-4">
                 <div class="border-b pb-2 flex justify-between items-center">
@@ -487,9 +463,10 @@ const { createApp, ref, computed, onMounted } = Vue;
                 const independentPitcherId = ref(''); 
                 const extraPitchersHistory = ref([]);
 
+                // 修正：依據標準棒球守位代號 (1:投手 P, 2:捕手 C)
                 const positionOptions = [
-                    { code: 'C', label: 'C (1)', num: 1 },
-                    { code: 'P', label: 'P (2)', num: 2 },
+                    { code: 'P', label: 'P (1)', num: 1 },
+                    { code: 'C', label: 'C (2)', num: 2 },
                     { code: '1B', label: '1B (3)', num: 3 },
                     { code: '2B', label: '2B (4)', num: 4 },
                     { code: '3B', label: '3B (5)', num: 5 },
@@ -500,7 +477,7 @@ const { createApp, ref, computed, onMounted } = Vue;
                     { code: 'DH', label: 'DH (10)', num: 10 }
                 ];
 
-                const requiredPositions = ['C', 'P', '1B', '2B', '3B', 'SS', 'LF', 'CF', 'RF'];
+                const requiredPositions = ['P', 'C', '1B', '2B', '3B', 'SS', 'LF', 'CF', 'RF'];
 
                 const lineup = ref([
                     { positionCode: 'CF', playerId: '' }, { positionCode: '3B', playerId: '' },
@@ -561,7 +538,6 @@ const { createApp, ref, computed, onMounted } = Vue;
                                     id: index + 1, ...item, isAttended: false
                                 }));
                                 loading.value = false;
-                                // 💡 同步成功後寫入快取
                                 localStorage.setItem('longan_player_list', JSON.stringify(players.value));
                                 if (isManual) {
                                     alert('✅ 球員名單手動同步完成！');
@@ -591,7 +567,6 @@ const { createApp, ref, computed, onMounted } = Vue;
                     parseCSV(GOOGLE_SHEET_CSV_URL, false, isManual);
                 };
 
-                // 💡 核心修改：初始化時優先讀取快取，不再每次強制發起 HTTP 請求
                 onMounted(() => {
                     const cached = localStorage.getItem('longan_player_list');
                     if (cached) {
@@ -602,7 +577,6 @@ const { createApp, ref, computed, onMounted } = Vue;
                             fetchData(false);
                         }
                     } else {
-                        // 只有第一次完全沒紀錄時才抓資料
                         fetchData(false);
                     }
                 });
@@ -687,7 +661,7 @@ const { createApp, ref, computed, onMounted } = Vue;
                                 name: p['球員姓名'],
                                 number: p['背號'] || '?',
                                 pos: 'P',
-                                posLabel: 'P (2)',
+                                posLabel: 'P (1)',
                                 reason: '先發投手 (DH制)',
                                 timestamp: 0,
                                 isUploaded: true
@@ -702,7 +676,7 @@ const { createApp, ref, computed, onMounted } = Vue;
                                 name: starterPitcherSlot.starter.name,
                                 number: starterPitcherSlot.starter.number,
                                 pos: 'P',
-                                posLabel: starterPitcherSlot.starter.posLabel || 'P (2)',
+                                posLabel: starterPitcherSlot.starter.posLabel || 'P (1)',
                                 reason: '先發投手',
                                 timestamp: 0,
                                 isUploaded: true
@@ -717,7 +691,7 @@ const { createApp, ref, computed, onMounted } = Vue;
                                         name: pObj['球員姓名'],
                                         number: pObj['背號'] || '?',
                                         pos: 'P',
-                                        posLabel: 'P (2)',
+                                        posLabel: 'P (1)',
                                         reason: '先發投手',
                                         timestamp: 0,
                                         isUploaded: true
@@ -736,7 +710,7 @@ const { createApp, ref, computed, onMounted } = Vue;
                                         name: sub.name,
                                         number: sub.number,
                                         pos: 'P',
-                                        posLabel: sub.posLabel || 'P (2)',
+                                        posLabel: sub.posLabel || 'P (1)',
                                         reason: sub.reason || '比賽中更換',
                                         timestamp: sub.timestamp || Date.now(),
                                         isUploaded: sub.isUploaded || false
@@ -752,7 +726,7 @@ const { createApp, ref, computed, onMounted } = Vue;
                             name: p.name,
                             number: p.number,
                             pos: 'P',
-                            posLabel: 'P (2)',
+                            posLabel: 'P (1)',
                             reason: '比賽中更換投手',
                             timestamp: p.timestamp || Date.now(),
                             isIndependentSub: true,
@@ -891,7 +865,7 @@ const { createApp, ref, computed, onMounted } = Vue;
                         currentBatchPending.value = [];
                         uploadedBatches.value = [];
                         extraPitchersHistory.value = [];
-                        alert('✅ 先發陣容與先發投手已成功上傳！');
+                        alert('✅ 先發陣陣容與先發投手已成功上傳！');
                         goToStep(3);
                     }).catch(err => {
                         saving.value = false;
@@ -1063,8 +1037,7 @@ const { createApp, ref, computed, onMounted } = Vue;
         }).mount('#app');
     </script>
 
-<!-- 底部導覽列 -->
-  <nav class="bottom-nav">
+<nav class="bottom-nav">
     <a href="index.html" class="nav-item">
       <span style="font-size: 1.2rem;">🏠</span>
       <span>大廳</span>
@@ -1079,6 +1052,5 @@ const { createApp, ref, computed, onMounted } = Vue;
     </a>
   </nav>
 
-</div> <!-- 關閉 .mobile-container -->
-</body>
+</div> </body>
 </html>

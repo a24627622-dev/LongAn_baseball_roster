@@ -27,11 +27,9 @@
       </div>
 
       <div style="display: flex; align-items: center; gap: 10px;">
-        <!-- 保留你原本的 Vue 同步資料按鈕 -->
         <button @click="fetchData(true)" :disabled="loading" style="background: #374151; color: white; border: 1px solid var(--gold-color); padding: 4px 10px; border-radius: 8px; font-size: 0.75rem; cursor: pointer; display: flex; align-items: center; gap: 4px;">
           <span :class="{'animate-spin': loading}">🔄</span> 同步
         </button>
-          
       </div>
     </header>
 
@@ -198,7 +196,15 @@
                         <h2 class="text-xl font-bold flex items-center gap-2"><span>🔄</span> 比賽動態更換與更新</h2>
                         <p class="text-xs text-slate-500 mt-1">對齊 Baseball Savant 規範，更換後點擊上傳同步至 Google Sheet</p>
                     </div>
-                    <button @click="copyLineup" class="bg-blue-600 text-white text-xs px-3 py-2 rounded-xl font-bold shadow">複製 LINE 打單</button>
+                    <div class="flex gap-2">
+                        <!-- 🔥 新增：解鎖上一批次按鈕 -->
+                        <button v-if="uploadedBatches.length > 0" @click="unlockLastBatch" class="bg-amber-500 hover:bg-amber-600 text-white text-xs px-3 py-2 rounded-xl font-bold shadow">
+                            🔓 解鎖上一批次(重修)
+                        </button>
+                        <button @click="copyLineup" class="bg-blue-600 text-white text-xs px-3 py-2 rounded-xl font-bold shadow">
+                            複製 LINE 打單
+                        </button>
+                    </div>
                 </div>
 
                 <!-- 取消 DH 提示 -->
@@ -800,7 +806,6 @@ const { createApp, ref, computed, onMounted } = Vue;
                     };
                 });
 
-                // 💡 修正點：變更報備單改為「新球員 (number) 換 舊球員 (prevNumber)」
                 const currentLeagueReportText = computed(() => {
                     if (currentBatchPending.value.length === 0) return '';
 
@@ -1034,6 +1039,50 @@ const { createApp, ref, computed, onMounted } = Vue;
                     });
                 };
 
+                // 🔥 新增核心功能：解鎖上一批次 (允許重修/復原)
+                const unlockLastBatch = () => {
+                    if (uploadedBatches.value.length === 0) return;
+
+                    if (!confirm('⚠️ 確定要解鎖並抽回最新一次上傳的更換紀錄嗎？\n解鎖後您可以繼續修改或復原該批更換。')) return;
+
+                    // 1. 移除歷史報備單中的最後一筆
+                    uploadedBatches.value.pop();
+
+                    // 2. 找到最晚被上傳解鎖的那批 subs / pitchers，將 isUploaded 解鎖為 false
+                    // 找出所有 sub 中 timestamp 最晚的那一批次 (最後一次更換)
+                    let unlockedSubs = [];
+
+                    // 將未解鎖的更換紀錄復原成未上傳狀態
+                    activeLineup.value.forEach(slot => {
+                        if (slot.substitutes) {
+                            slot.substitutes.forEach(sub => {
+                                if (sub.isUploaded) {
+                                    sub.isUploaded = false; // 重新解鎖允許刪除
+                                    unlockedSubs.push(sub);
+                                }
+                            });
+                        }
+                    });
+
+                    extraPitchersHistory.value.forEach(p => {
+                        if (p.isUploaded) {
+                            p.isUploaded = false;
+                            unlockedSubs.push({
+                                isPitcherOnlyChange: true,
+                                number: p.number,
+                                name: p.name,
+                                id: p.id,
+                                timestamp: p.timestamp
+                            });
+                        }
+                    });
+
+                    // 將抽回的項目放回待上傳區
+                    currentBatchPending.value = unlockedSubs;
+
+                    alert('🔓 已成功解鎖上一批更換！您現在可以修改守位或點擊「✕ 復原」刪除更換。');
+                };
+
                 const copyLineup = () => {
                     let text = `⚾ 龍安棒球隊 先發打單 (${gameInfo.value.date} ${gameInfo.value.gameNum} vs ${gameInfo.value.opponent})\n-------------------------\n`;
                     activeLineup.value.forEach((slot, idx) => {
@@ -1055,7 +1104,7 @@ const { createApp, ref, computed, onMounted } = Vue;
                     currentLeagueReportText, isSamePositionSelected, copyText,
                     fetchData, selectAll, resetAttendance, isPlayerInLineup, getPlayerPositionsText,
                     goToStep, uploadStartersToGAS, openSubModal, confirmSubstitution, confirmIndependentPitcherChange,
-                    removeSubstitute, removeIndependentPitcher, uploadSubstitutionsToGAS, copyLineup
+                    removeSubstitute, removeIndependentPitcher, uploadSubstitutionsToGAS, unlockLastBatch, copyLineup
                 };
             }
         }).mount('#app');

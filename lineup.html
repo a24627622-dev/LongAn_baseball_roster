@@ -9,6 +9,7 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.3.2/papaparse.min.js"></script>
     <style>
         [v-cloak] { display: none; }
+        .bg-pitcher { backgroundColor: #ffd966; }
     </style>
     <link rel="stylesheet" href="style.css">
 </head>
@@ -86,16 +87,20 @@
                 <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3 max-h-80 overflow-y-auto p-1">
                     <div v-for="player in filteredPlayers" :key="player.id" 
                          @click="player.isAttended = !player.isAttended"
+                         :style="{ backgroundColor: player.isPitcher ? '#ffd966' : (player.isAttended ? '#eff6ff' : '#ffffff') }"
                          :class="['p-3 rounded-xl border-2 cursor-pointer transition flex items-center justify-between', 
-                                  player.isAttended ? 'border-blue-500 bg-blue-50/50' : 'border-slate-200 bg-white']">
+                                  player.isAttended ? 'border-blue-500' : 'border-slate-200']">
                         <div class="flex items-center gap-3">
                             <div :class="['w-9 h-9 rounded-full flex items-center justify-center font-bold text-sm',
                                           player.isAttended ? 'bg-blue-600 text-white' : 'bg-slate-200 text-slate-600']">
                                 {{ player['背號'] || '?' }}
                             </div>
                             <div>
-                                <div class="font-bold text-slate-800">{{ player['球員姓名'] }}</div>
-                                <div class="text-xs text-slate-400">{{ getPlayerPositionsText(player) }}</div>
+                                <div class="font-bold text-slate-800 flex items-center gap-1">
+                                    {{ player['球員姓名'] }}
+                                    <span v-if="player.isPitcher" class="text-[10px] bg-amber-800 text-white px-1 py-0.2 rounded font-extrabold">⚾投手</span>
+                                </div>
+                                <div class="text-xs text-slate-600">{{ getPlayerPositionsText(player) }}</div>
                             </div>
                         </div>
                         <div :class="['w-5 h-5 rounded-full flex items-center justify-center text-xs font-bold border',
@@ -141,7 +146,7 @@
                     <select v-model="independentPitcherId" class="w-full bg-white border rounded-lg px-3 py-2 text-sm font-semibold text-slate-800">
                         <option value="">-- 請選擇先發投手 (非先發 9 人名單成員) --</option>
                         <option v-for="p in nonStartingBenchCandidates" :key="p.id" :value="p.id">
-                            #{{ p['背號'] || '?' }} {{ p['球員姓名'] }} {{ getPlayerPositionsText(p) }}
+                            #{{ p['背號'] || '?' }} {{ p['球員姓名'] }} {{ p.isPitcher ? '⚾[投手]' : '' }} {{ getPlayerPositionsText(p) }}
                         </option>
                     </select>
                 </div>
@@ -157,7 +162,7 @@
                         <select v-model="slot.playerId" class="flex-1 bg-white border rounded-lg px-3 py-1.5 text-sm font-medium">
                             <option value="">-- 請選擇先發球員 --</option>
                             <option v-for="p in attendedPlayers" :key="p.id" :value="p.id" :disabled="isPlayerInLineup(p.id, index)">
-                                #{{ p['背號'] || '?' }} {{ p['球員姓名'] }} {{ isPlayerInLineup(p.id, index) ? '(已選)' : '' }}
+                                #{{ p['背號'] || '?' }} {{ p['球員姓名'] }} {{ p.isPitcher ? '⚾[投手]' : '' }} {{ isPlayerInLineup(p.id, index) ? '(已選)' : '' }}
                             </option>
                         </select>
                     </div>
@@ -297,9 +302,14 @@
                         目前板凳無預備球員
                     </div>
                     <div v-else class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2">
-                        <div v-for="bp in benchPlayers" :key="bp.id" class="bg-white border rounded-xl p-2 text-xs flex items-center justify-between shadow-sm">
-                            <span class="font-bold text-slate-800">#{{ bp['背號'] || '?' }} {{ bp['球員姓名'] }}</span>
-                            <span class="text-[10px] text-slate-400">{{ getPlayerPositionsText(bp) }}</span>
+                        <div v-for="bp in benchPlayers" :key="bp.id" 
+                             :style="{ backgroundColor: bp.isPitcher ? '#ffd966' : '#ffffff' }"
+                             class="border rounded-xl p-2 text-xs flex items-center justify-between shadow-sm">
+                            <span class="font-bold text-slate-800">
+                                #{{ bp['背號'] || '?' }} {{ bp['球員姓名'] }}
+                                <span v-if="bp.isPitcher" class="text-[10px] text-amber-900 font-extrabold">⚾</span>
+                            </span>
+                            <span class="text-[10px] text-slate-500">{{ getPlayerPositionsText(bp) }}</span>
                         </div>
                     </div>
                 </div>
@@ -373,7 +383,7 @@
                         </option>
                         <option disabled>---------------------------------</option>
                         <option v-for="bp in benchPlayers" :key="bp.id" :value="bp.id">
-                            #{{ bp['背號'] || '?' }} {{ bp['球員姓名'] }} {{ getPlayerPositionsText(bp) }}
+                            #{{ bp['背號'] || '?' }} {{ bp['球員姓名'] }} {{ bp.isPitcher ? '⚾[投手]' : '' }} {{ getPlayerPositionsText(bp) }}
                         </option>
                     </select>
                 </div>
@@ -417,7 +427,7 @@
                     <select v-model="pitcherModal.selectedPlayerId" class="w-full border rounded-xl p-2.5 text-sm font-medium bg-slate-50">
                         <option value="">-- 請選擇板凳投手 --</option>
                         <option v-for="bp in benchPlayers" :key="bp.id" :value="bp.id">
-                            #{{ bp['背號'] || '?' }} {{ bp['球員姓名'] }} {{ getPlayerPositionsText(bp) }}
+                            #{{ bp['背號'] || '?' }} {{ bp['球員姓名'] }} {{ bp.isPitcher ? '⚾[投手]' : '' }} {{ getPlayerPositionsText(bp) }}
                         </option>
                     </select>
                 </div>
@@ -533,6 +543,28 @@ const { createApp, ref, computed, onMounted } = Vue;
                     return currentActive.pos !== 'DH';
                 });
 
+                const fetchData = (isManual = false) => {
+                    loading.value = true;
+                    fetch(GOOGLE_APPS_SCRIPT_URL)
+                        .then(res => res.json())
+                        .then(data => {
+                            if (Array.isArray(data) && data.length > 0) {
+                                players.value = data.map((item, index) => ({
+                                    id: index + 1,
+                                    ...item,
+                                    isAttended: false
+                                }));
+                                localStorage.setItem('longan_player_list', JSON.stringify(players.value));
+                                if (isManual) alert('✅ 球員名單同步完成（包含投手標記）！');
+                            }
+                            loading.value = false;
+                        })
+                        .catch(err => {
+                            console.warn('GAS 讀取失敗，使用 CSV 備份:', err);
+                            parseCSV(GOOGLE_SHEET_CSV_URL, false, isManual);
+                        });
+                };
+
                 const parseCSV = (url, isFallback = false, isManual = false) => {
                     Papa.parse(url, {
                         download: true,
@@ -541,36 +573,15 @@ const { createApp, ref, computed, onMounted } = Vue;
                         complete: (results) => {
                             if (results.data && results.data.length > 0) {
                                 players.value = results.data.map((item, index) => ({
-                                    id: index + 1, ...item, isAttended: false
+                                    id: index + 1, ...item, isAttended: false, isPitcher: false
                                 }));
                                 loading.value = false;
                                 localStorage.setItem('longan_player_list', JSON.stringify(players.value));
-                                if (isManual) {
-                                    alert('✅ 球員名單手動同步完成！');
-                                }
-                            } else if (!isFallback) {
-                                const fallbackUrl = 'https://api.allorigins.win/raw?url=' + encodeURIComponent(GOOGLE_SHEET_CSV_URL);
-                                parseCSV(fallbackUrl, true, isManual);
                             } else {
                                 loading.value = false;
-                                alert('載入失敗：取得的名單內容為空！');
-                            }
-                        },
-                        error: () => {
-                            if (!isFallback) {
-                                const fallbackUrl = 'https://api.allorigins.win/raw?url=' + encodeURIComponent(GOOGLE_SHEET_CSV_URL);
-                                parseCSV(fallbackUrl, true, isManual);
-                            } else {
-                                loading.value = false;
-                                alert('無法載入 Google Sheet 資料，請確認發布狀態！');
                             }
                         }
                     });
-                };
-
-                const fetchData = (isManual = false) => {
-                    loading.value = true;
-                    parseCSV(GOOGLE_SHEET_CSV_URL, false, isManual);
                 };
 
                 onMounted(() => {

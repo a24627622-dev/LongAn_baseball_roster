@@ -4,11 +4,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>龍安棒球隊點名與先發陣容助手</title>
-    <!-- Tailwind CSS CDN -->
     <script src="https://cdn.tailwindcss.com"></script>
-    <!-- Vue 3 CDN -->
     <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
-    <!-- PapaParse (CSV 解析) -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.3.2/papaparse.min.js"></script>
     <style>
         [v-cloak] { display: none; }
@@ -19,8 +16,7 @@
     <div class="mobile-container">
     <div id="app" v-cloak class="max-w-4xl mx-auto px-4 py-6">
         
-     <!-- 頂部標題 -->
-    <header class="app-header">
+     <header class="app-header">
       <div class="header-brand">
         <img src="logo.png" alt="龍安隊徽" class="team-logo">
         <h1 style="font-size: 1rem;"> 龍安點名與陣容助手</h1>
@@ -33,7 +29,6 @@
       </div>
     </header>
 
-        <!-- 步驟指示列 -->
         <div class="bg-white rounded-2xl p-4 shadow-sm border border-slate-200 mb-6 flex justify-between items-center text-xs sm:text-sm font-bold">
             <div :class="['flex-1 text-center py-2 rounded-xl transition', currentStep === 1 ? 'bg-blue-600 text-white shadow' : 'text-slate-400']">
                 1. 賽事資訊與點名 ({{ attendedCount }}人)
@@ -48,7 +43,6 @@
             </div>
         </div>
 
-        <!-- 載入動畫 -->
         <div v-if="loading" class="text-center py-12 bg-white rounded-2xl shadow">
             <div class="inline-block animate-spin rounded-full h-12 w-12 border-4 border-blue-600 border-t-transparent mb-4"></div>
             <p class="text-slate-500 font-medium">正在載入隊員名單，請稍候...</p>
@@ -56,7 +50,6 @@
 
         <div v-else>
             
-            <!-- 【步驟 1】：賽事資訊與點名 -->
             <section v-if="currentStep === 1" class="bg-white rounded-2xl p-6 shadow-sm border border-slate-200 space-y-4">
                 <h2 class="text-xl font-bold flex items-center gap-2"><span>📅</span> 賽事資訊與今日點名</h2>
                 
@@ -118,7 +111,6 @@
                 </div>
             </section>
 
-            <!-- 【步驟 2】：排定先發 -->
             <section v-if="currentStep === 2" class="bg-white rounded-2xl p-6 shadow-sm border border-slate-200 space-y-4">
                 <div class="flex justify-between items-center flex-wrap gap-2">
                     <div>
@@ -127,7 +119,6 @@
                     </div>
                 </div>
 
-                <!-- 守位提示面板 -->
                 <div v-if="positionNotice" class="p-3 bg-amber-50 border border-amber-200 rounded-xl text-amber-800 text-xs space-y-1">
                     <div class="font-bold flex items-center gap-1">
                         <span>⚠️</span> 先發守位配置提示：
@@ -140,7 +131,6 @@
                     </div>
                 </div>
 
-                <!-- DH 模式：獨立先發投手選單 -->
                 <div v-if="hasDHInLineup" class="p-3.5 bg-blue-50 border border-blue-200 rounded-xl space-y-2">
                     <div class="flex justify-between items-center">
                         <label class="block text-xs font-bold text-blue-900 flex items-center gap-1">
@@ -156,7 +146,6 @@
                     </select>
                 </div>
 
-                <!-- 1~9 棒打序 -->
                 <div class="space-y-2">
                     <div v-for="(slot, index) in lineup" :key="index" class="flex items-center gap-2 bg-slate-50 p-2.5 rounded-xl border">
                         <div class="px-2 py-1 rounded-lg bg-slate-800 text-white font-bold text-xs whitespace-nowrap">
@@ -189,7 +178,6 @@
                 </div>
             </section>
 
-            <!-- 【步驟 3】：比賽更換 -->
             <section v-if="currentStep === 3" class="bg-white rounded-2xl p-6 shadow-sm border border-slate-200 space-y-6">
                 <div class="flex justify-between items-center flex-wrap gap-2">
                     <div>
@@ -197,7 +185,6 @@
                         <p class="text-xs text-slate-500 mt-1">對齊 Baseball Savant 規範，更換後點擊上傳同步至 Google Sheet</p>
                     </div>
                     <div class="flex gap-2">
-                        <!-- 🔥 新增：解鎖上一批次按鈕 -->
                         <button v-if="uploadedBatches.length > 0" @click="unlockLastBatch" class="bg-amber-500 hover:bg-amber-600 text-white text-xs px-3 py-2 rounded-xl font-bold shadow">
                             🔓 解鎖上一批次(重修)
                         </button>
@@ -207,12 +194,10 @@
                     </div>
                 </div>
 
-                <!-- 取消 DH 提示 -->
                 <div v-if="isDHCancelled" class="p-3 bg-red-50 border border-red-200 rounded-xl text-red-700 text-xs font-bold flex items-center gap-2">
                     <span>⚠️</span> 比賽進行中已取消 DH 指定打擊（回歸投手需要打擊模式），後續不可再選 DH 守位！
                 </div>
 
-                <!-- 守備位置動態檢查 -->
                 <div :class="['p-3.5 rounded-xl text-xs space-y-1 border transition', 
                              activeDefenseNotice.isComplete ? 'bg-emerald-50 border-emerald-200 text-emerald-800' : 'bg-amber-50 border-amber-200 text-amber-900']">
                     <div class="font-bold flex items-center gap-1 text-sm">
@@ -232,7 +217,6 @@
                     </div>
                 </div>
 
-                <!-- 1~9棒打序與更換列表 -->
                 <div class="space-y-3">
                     <div v-for="(slot, index) in activeLineup" :key="index" class="bg-slate-50 p-3 rounded-xl border space-y-2">
                         <div class="flex items-center justify-between">
@@ -248,7 +232,6 @@
                             </button>
                         </div>
 
-                        <!-- 替補紀錄列 -->
                         <div v-for="(sub, subIdx) in slot.substitutes" :key="sub.timestamp" class="ml-6 flex items-center justify-between text-sm bg-amber-50/80 p-2 rounded-lg border border-amber-200/80">
                             <div class="flex items-center gap-2">
                                 <span class="text-amber-600 font-bold">↳</span>
@@ -266,7 +249,6 @@
                     </div>
                 </div>
 
-                <!-- 投手調度列表 -->
                 <div class="bg-blue-900 text-white rounded-2xl p-4 space-y-3 shadow-md">
                     <div class="flex justify-between items-center border-b border-blue-800 pb-2">
                         <h3 class="font-bold text-sm text-blue-100 flex items-center gap-2">
@@ -304,7 +286,6 @@
                     </div>
                 </div>
 
-                <!-- 目前板凳名單 -->
                 <div class="bg-slate-50 border border-slate-200 rounded-2xl p-4 space-y-2">
                     <div class="flex justify-between items-center">
                         <h3 class="font-bold text-sm text-slate-700 flex items-center gap-1.5">
@@ -323,7 +304,6 @@
                     </div>
                 </div>
 
-                <!-- 當前待上傳更換報備單 -->
                 <div v-if="currentBatchPending.length > 0" class="bg-amber-50 border border-amber-300 rounded-2xl p-4 space-y-2 shadow-sm">
                     <div class="flex justify-between items-center">
                         <h3 class="font-bold text-xs text-amber-900 flex items-center gap-1.5">
@@ -336,7 +316,6 @@
                     <pre class="bg-white p-3 rounded-xl border text-xs text-slate-800 font-mono whitespace-pre-wrap leading-relaxed">{{ currentLeagueReportText }}</pre>
                 </div>
 
-                <!-- 歷史已上傳之報備單 -->
                 <div v-if="uploadedBatches.length > 0" class="space-y-2 pt-2">
                     <h4 class="text-xs font-bold text-slate-500">📜 歷史已上傳報備紀錄：</h4>
                     <div v-for="batch in uploadedBatches" :key="batch.batchId" class="bg-purple-50 border border-purple-200 rounded-2xl overflow-hidden transition shadow-sm">
@@ -361,7 +340,6 @@
                     </div>
                 </div>
 
-                <!-- 底部按鈕區 -->
                 <div class="pt-4 flex justify-between items-center flex-wrap gap-3">
                     <button @click="goToStep(2)" class="text-slate-600 text-sm font-medium border px-4 py-2 rounded-xl">⬅ 檢視先發</button>
                     
@@ -374,7 +352,6 @@
 
         </div>
 
-        <!-- 替補選擇 Modal -->
         <div v-if="subModal.open" class="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
             <div class="bg-white rounded-2xl p-6 max-w-md w-full shadow-2xl space-y-4">
                 <div class="border-b pb-2 flex justify-between items-center">
@@ -406,8 +383,9 @@
                     <select v-model="subModal.selectedPosCode" class="w-full border rounded-xl p-2.5 text-sm font-semibold bg-slate-50">
                         <option value="PH">PH (代打 - 不計守備位置)</option>
                         <option value="PR">PR (代跑 - 不計守備位置)</option>
-                        <option v-for="pos in positionOptions" :key="pos.code" :value="pos.code" :disabled="pos.code === 'DH' && isDHCancelled">
-                            {{ pos.label }} {{ (pos.code === 'DH' && isDHCancelled) ? '(DH已被取消)' : '' }}
+                        <option v-for="pos in positionOptions" :key="pos.code" :value="pos.code" 
+                                :disabled="pos.code === 'DH' && (!hasDHInLineup || isDHCancelled)">
+                            {{ pos.label }} {{ pos.code === 'DH' ? (!hasDHInLineup ? '(先發未採用DH)' : (isDHCancelled ? '(DH已被取消)' : '')) : '' }}
                         </option>
                     </select>
                 </div>
@@ -426,7 +404,6 @@
             </div>
         </div>
 
-        <!-- DH 制更換投手 Modal -->
         <div v-if="pitcherModal.open" class="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
             <div class="bg-white rounded-2xl p-6 max-w-md w-full shadow-2xl space-y-4">
                 <div class="border-b pb-2 flex justify-between items-center">
@@ -1039,25 +1016,20 @@ const { createApp, ref, computed, onMounted } = Vue;
                     });
                 };
 
-                // 🔥 新增核心功能：解鎖上一批次 (允許重修/復原)
                 const unlockLastBatch = () => {
                     if (uploadedBatches.value.length === 0) return;
 
                     if (!confirm('⚠️ 確定要解鎖並抽回最新一次上傳的更換紀錄嗎？\n解鎖後您可以繼續修改或復原該批更換。')) return;
 
-                    // 1. 移除歷史報備單中的最後一筆
                     uploadedBatches.value.pop();
 
-                    // 2. 找到最晚被上傳解鎖的那批 subs / pitchers，將 isUploaded 解鎖為 false
-                    // 找出所有 sub 中 timestamp 最晚的那一批次 (最後一次更換)
                     let unlockedSubs = [];
 
-                    // 將未解鎖的更換紀錄復原成未上傳狀態
                     activeLineup.value.forEach(slot => {
                         if (slot.substitutes) {
                             slot.substitutes.forEach(sub => {
                                 if (sub.isUploaded) {
-                                    sub.isUploaded = false; // 重新解鎖允許刪除
+                                    sub.isUploaded = false;
                                     unlockedSubs.push(sub);
                                 }
                             });
@@ -1077,7 +1049,6 @@ const { createApp, ref, computed, onMounted } = Vue;
                         }
                     });
 
-                    // 將抽回的項目放回待上傳區
                     currentBatchPending.value = unlockedSubs;
 
                     alert('🔓 已成功解鎖上一批更換！您現在可以修改守位或點擊「✕ 復原」刪除更換。');
@@ -1110,8 +1081,7 @@ const { createApp, ref, computed, onMounted } = Vue;
         }).mount('#app');
     </script>
 
-<!-- 底部導覽列 -->
-  <nav class="bottom-nav">
+<nav class="bottom-nav">
     <a href="index.html" class="nav-item">
       <span style="font-size: 1.2rem;">🏠</span>
       <span>大廳</span>
@@ -1126,6 +1096,5 @@ const { createApp, ref, computed, onMounted } = Vue;
     </a>
   </nav>
 
-</div> <!-- 關閉 .mobile-container -->
-</body>
+</div> </body>
 </html>

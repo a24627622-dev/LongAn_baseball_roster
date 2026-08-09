@@ -13,17 +13,20 @@
     </style>
     <link rel="stylesheet" href="style.css">
 </head>
-<body class="bg-slate-100 min-h-screen text-slate-800 pb-12">
+<body class="bg-slate-100 min-h-screen text-slate-800 pb-16">
     <div class="mobile-container">
     <div id="app" v-cloak class="max-w-4xl mx-auto px-4 py-6">
         
      <header class="app-header">
       <div class="header-brand">
-        <img src="logo.png" alt="龍安隊徽" class="team-logo">
-        <h1 style="font-size: 1rem;"> 龍安點名與陣容助手</h1>
+        <img src="logo.png" alt="龍安隊徽" class="team-logo" onerror="this.style.display='none'">
+        <h1 style="font-size: 1rem;">龍安點名與陣容助手</h1>
       </div>
 
-      <div style="display: flex; align-items: center; gap: 10px;">
+      <div style="display: flex; align-items: center; gap: 8px;">
+        <button @click="clearDraft" style="background: #4b5563; color: white; border: none; padding: 4px 8px; border-radius: 8px; font-size: 0.75rem; cursor: pointer;">
+          🗑️ 清空
+        </button>
         <button @click="fetchData(true)" :disabled="loading" style="background: #374151; color: white; border: 1px solid var(--gold-color); padding: 4px 10px; border-radius: 8px; font-size: 0.75rem; cursor: pointer; display: flex; align-items: center; gap: 4px;">
           <span :class="{'animate-spin': loading}">🔄</span> 同步
         </button>
@@ -31,16 +34,16 @@
     </header>
 
         <div class="bg-white rounded-2xl p-4 shadow-sm border border-slate-200 mb-6 flex justify-between items-center text-xs sm:text-sm font-bold">
-            <div :class="['flex-1 text-center py-2 rounded-xl transition', currentStep === 1 ? 'bg-blue-600 text-white shadow' : 'text-slate-400']">
-                1. 賽事資訊與點名 ({{ attendedCount }}人)
+            <div :class="['flex-1 text-center py-2 rounded-xl transition cursor-pointer', currentStep === 1 ? 'bg-blue-600 text-white shadow' : 'text-slate-400']" @click="goToStep(1)">
+                1. 賽事與點名 ({{ attendedCount }}人)
             </div>
             <div class="px-1 text-slate-300">➔</div>
-            <div :class="['flex-1 text-center py-2 rounded-xl transition', currentStep === 2 ? 'bg-blue-600 text-white shadow' : 'text-slate-400']">
-                2. 排定先發陣容
+            <div :class="['flex-1 text-center py-2 rounded-xl transition cursor-pointer', currentStep === 2 ? 'bg-blue-600 text-white shadow' : 'text-slate-400']" @click="goToStep(2)">
+                2. 先發陣容
             </div>
             <div class="px-1 text-slate-300">➔</div>
-            <div :class="['flex-1 text-center py-2 rounded-xl transition', currentStep === 3 ? 'bg-blue-600 text-white shadow' : 'text-slate-400']">
-                3. 比賽更換與更新
+            <div :class="['flex-1 text-center py-2 rounded-xl transition cursor-pointer', currentStep === 3 ? 'bg-blue-600 text-white shadow' : 'text-slate-400']" @click="goToStep(3)">
+                3. 調度更換
             </div>
         </div>
 
@@ -52,7 +55,12 @@
         <div v-else>
             
             <section v-if="currentStep === 1" class="bg-white rounded-2xl p-6 shadow-sm border border-slate-200 space-y-4">
-                <h2 class="text-xl font-bold flex items-center gap-2"><span>📅</span> 賽事資訊與今日點名</h2>
+                <div class="flex justify-between items-center flex-wrap gap-2">
+                    <h2 class="text-xl font-bold flex items-center gap-2"><span>📅</span> 賽事資訊與今日點名</h2>
+                    <button @click="loadFromGAS" :disabled="saving" class="bg-sky-600 hover:bg-sky-500 text-white text-xs px-3 py-1.5 rounded-lg shadow font-bold flex items-center gap-1 transition">
+                        ☁️ 回讀雲端歷史紀錄
+                    </button>
+                </div>
                 
                 <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 p-4 bg-slate-50 rounded-xl border">
                     <div>
@@ -445,7 +453,7 @@
     </div>
 
     <script>
-const { createApp, ref, computed, onMounted } = Vue;
+        const { createApp, ref, computed, watch, onMounted } = Vue;
 
         createApp({
             setup() {
@@ -507,6 +515,99 @@ const { createApp, ref, computed, onMounted } = Vue;
                 const currentBatchPending = ref([]);
                 const uploadedBatches = ref([]);
 
+                // ----------------------------------------------------
+                // 💾 自動防呆暫存機制 (LocalStorage Auto-Save & Restore)
+                // ----------------------------------------------------
+                watch([gameInfo, currentStep, lineup, activeLineup, currentBatchPending, uploadedBatches, independentPitcherId], () => {
+                    if (players.value.length === 0) return;
+                    const state = {
+                        gameInfo: gameInfo.value,
+                        currentStep: currentStep.value,
+                        lineup: lineup.value,
+                        activeLineup: activeLineup.value,
+                        currentBatchPending: currentBatchPending.value,
+                        uploadedBatches: uploadedBatches.value,
+                        independentPitcherId: independentPitcherId.value,
+                        attendedIds: players.value.filter(p => p.isAttended).map(p => p.id),
+                        timestamp: Date.now()
+                    };
+                    localStorage.setItem('longan_lineup_draft', JSON.stringify(state));
+                }, { deep: true });
+
+                const restoreDraft = () => {
+                    const draftStr = localStorage.getItem('longan_lineup_draft');
+                    if (!draftStr) return;
+                    try {
+                        const draft = JSON.parse(draftStr);
+                        // 草稿效期限制 24 小時
+                        if (Date.now() - draft.timestamp < 24 * 60 * 60 * 1000) {
+                            if (confirm(`💡 檢測到上次尚未結束的比賽紀錄（對手：${draft.gameInfo.opponent || '未填寫'}），是否讀取回復？`)) {
+                                gameInfo.value = draft.gameInfo || gameInfo.value;
+                                currentStep.value = draft.currentStep || 1;
+                                lineup.value = draft.lineup || lineup.value;
+                                activeLineup.value = draft.activeLineup || [];
+                                currentBatchPending.value = draft.currentBatchPending || [];
+                                uploadedBatches.value = draft.uploadedBatches || [];
+                                independentPitcherId.value = draft.independentPitcherId || '';
+                                
+                                if (draft.attendedIds && Array.isArray(draft.attendedIds)) {
+                                    players.value.forEach(p => {
+                                        if (draft.attendedIds.includes(p.id)) p.isAttended = true;
+                                    });
+                                }
+                            }
+                        }
+                    } catch (e) {
+                        console.error('回復草稿失敗:', e);
+                    }
+                };
+
+                const clearDraft = () => {
+                    if (confirm('⚠️ 確定要清空目前的暫存資料並重新開始嗎？')) {
+                        localStorage.removeItem('longan_lineup_draft');
+                        location.reload();
+                    }
+                };
+
+                // ----------------------------------------------------
+                // ☁️ 雲端 GAS 回讀歷史紀錄
+                // ----------------------------------------------------
+                const loadFromGAS = () => {
+                    if (!gameInfo.value.opponent) {
+                        alert('⚠️ 請先輸入「對手名稱」，才能定位雲端紀錄！');
+                        return;
+                    }
+                    const gameId = `${gameInfo.value.date}_${gameInfo.value.gameNum}_${gameInfo.value.opponent}`;
+                    saving.value = true;
+
+                    fetch(GOOGLE_APPS_SCRIPT_URL, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+                        body: JSON.stringify({ action: 'getGameLineup', gameId: gameId })
+                    })
+                    .then(res => res.json())
+                    .then(res => {
+                        saving.value = false;
+                        if (res.success) {
+                            if (res.mode === 'json' && res.data) {
+                                if (res.data.activeLineup) activeLineup.value = res.data.activeLineup;
+                                if (res.data.lineup) lineup.value = res.data.lineup;
+                                alert('✅ 已成功從雲端回讀該場比賽的完整先發與調度紀錄！');
+                                goToStep(3);
+                            } else {
+                                alert('✅ 找到雲端表格紀錄，已同步載入！');
+                                goToStep(3);
+                            }
+                        } else {
+                            alert('⚠️ ' + (res.message || '找不到該場比賽的雲端紀錄！'));
+                        }
+                    })
+                    .catch(err => {
+                        saving.value = false;
+                        alert('回讀失敗：' + err);
+                    });
+                };
+
                 const getPosLabel = (code) => {
                     if (code === 'PH') return 'PH (代打)';
                     if (code === 'PR') return 'PR (代跑)';
@@ -555,6 +656,7 @@ const { createApp, ref, computed, onMounted } = Vue;
                                     isAttended: false
                                 }));
                                 localStorage.setItem('longan_player_list', JSON.stringify(players.value));
+                                restoreDraft();
                                 if (isManual) alert('✅ 球員名單同步完成（包含投手標記）！');
                             }
                             loading.value = false;
@@ -577,6 +679,7 @@ const { createApp, ref, computed, onMounted } = Vue;
                                 }));
                                 loading.value = false;
                                 localStorage.setItem('longan_player_list', JSON.stringify(players.value));
+                                restoreDraft();
                             } else {
                                 loading.value = false;
                             }
@@ -590,6 +693,7 @@ const { createApp, ref, computed, onMounted } = Vue;
                         try {
                             players.value = JSON.parse(cached);
                             loading.value = false;
+                            restoreDraft();
                         } catch (e) {
                             fetchData(false);
                         }
@@ -654,7 +758,7 @@ const { createApp, ref, computed, onMounted } = Vue;
                 const benchPlayers = computed(() => {
                     const usedIds = [];
                     activeLineup.value.forEach(slot => {
-                        if (slot.starter.id) usedIds.push(slot.starter.id);
+                        if (slot.starter && slot.starter.id) usedIds.push(slot.starter.id);
                         if (slot.substitutes) {
                             slot.substitutes.forEach(sub => usedIds.push(sub.id));
                         }
@@ -1083,7 +1187,7 @@ const { createApp, ref, computed, onMounted } = Vue;
                     positionOptions, lineup, activeLineup, activePitchers, currentBatchPending, uploadedBatches,
                     positionConflicts, missingPositions, positionNotice,
                     attendedPlayers, attendedCount, filledLineupCount, filteredPlayers, benchPlayers, activeDefenseNotice,
-                    currentLeagueReportText, isSamePositionSelected, copyText,
+                    currentLeagueReportText, isSamePositionSelected, copyText, loadFromGAS, clearDraft,
                     fetchData, selectAll, resetAttendance, isPlayerInLineup, getPlayerPositionsText,
                     goToStep, uploadStartersToGAS, openSubModal, confirmSubstitution, confirmIndependentPitcherChange,
                     removeSubstitute, removeIndependentPitcher, uploadSubstitutionsToGAS, unlockLastBatch, copyLineup
@@ -1092,20 +1196,20 @@ const { createApp, ref, computed, onMounted } = Vue;
         }).mount('#app');
     </script>
 
-<nav class="bottom-nav">
-    <a href="index.html" class="nav-item">
-      <span style="font-size: 1.2rem;">🏠</span>
-      <span>大廳</span>
-    </a>
-    <a href="lineup.html" class="nav-item active">
-      <span style="font-size: 1.2rem;">📋</span>
-      <span>陣容調度</span>
-    </a>
-    <a href="#" class="nav-item">
-      <span style="font-size: 1.2rem;">📊</span>
-      <span>成績登記</span>
-    </a>
-  </nav>
+    <nav class="bottom-nav">
+        <a href="index.html" class="nav-item">
+          <span style="font-size: 1.2rem;">🏠</span>
+          <span>首頁</span>
+        </a>
+        <a href="lineup.html" class="nav-item active">
+          <span style="font-size: 1.2rem;">📋</span>
+          <span>陣容調度</span>
+        </a>
+        <a href="stats.html" class="nav-item">
+          <span style="font-size: 1.2rem;">📊</span>
+          <span>成績登記</span>
+        </a>
+    </nav>
 
 </div> </body>
 </html>

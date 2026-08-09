@@ -6,7 +6,6 @@
     <title>龍安棒球隊點名與先發陣容助手</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.3.2/papaparse.min.js"></script>
     <style>
         [v-cloak] { display: none; }
         .bg-pitcher { backgroundColor: #ffd966; }
@@ -25,10 +24,10 @@
 
       <div style="display: flex; align-items: center; gap: 8px;">
         <button @click="clearDraft" style="background: #4b5563; color: white; border: none; padding: 4px 8px; border-radius: 8px; font-size: 0.75rem; cursor: pointer;">
-          🗑️ 清空
+          🗑️ 重置
         </button>
         <button @click="fetchData(true)" :disabled="loading" style="background: #374151; color: white; border: 1px solid var(--gold-color); padding: 4px 10px; border-radius: 8px; font-size: 0.75rem; cursor: pointer; display: flex; align-items: center; gap: 4px;">
-          <span :class="{'animate-spin': loading}">🔄</span> 同步
+          <span :class="{'animate-spin': loading}">🔄</span> 同步名單
         </button>
       </div>
     </header>
@@ -49,7 +48,7 @@
 
         <div v-if="loading" class="text-center py-12 bg-white rounded-2xl shadow">
             <div class="inline-block animate-spin rounded-full h-12 w-12 border-4 border-blue-600 border-t-transparent mb-4"></div>
-            <p class="text-slate-500 font-medium">正在載入隊員名單，請稍候...</p>
+            <p class="text-slate-500 font-medium">正在從 GAS 載入「球員名單」，請稍候...</p>
         </div>
 
         <div v-else>
@@ -457,7 +456,7 @@
 
         createApp({
             setup() {
-                const GOOGLE_SHEET_CSV_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vTPF0zsn5Wm6b2BHRtaWNNJfaue03uy6LxPVmaBHXSWyVOA2jT1Nm0dVzgt2aSLgntxza9-Lg3QUPCW/pub?output=csv';
+                // 統一發布之 GAS Web App 網址
                 const GOOGLE_APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxnxwpLSBT2Pm1y9-Rhsw1-tzN5TmQlvHWbw1zFoUlIWS5y8GYqnNkOiOwkJ6y0kEdp/exec';
 
                 const players = ref([]);
@@ -516,7 +515,7 @@
                 const uploadedBatches = ref([]);
 
                 // ----------------------------------------------------
-                // 💾 自動防呆暫存機制 (LocalStorage Auto-Save & Restore)
+                // 💾 自動防呆暫存機制 (LocalStorage Auto-Save)
                 // ----------------------------------------------------
                 watch([gameInfo, currentStep, lineup, activeLineup, currentBatchPending, uploadedBatches, independentPitcherId], () => {
                     if (players.value.length === 0) return;
@@ -539,9 +538,8 @@
                     if (!draftStr) return;
                     try {
                         const draft = JSON.parse(draftStr);
-                        // 草稿效期限制 24 小時
                         if (Date.now() - draft.timestamp < 24 * 60 * 60 * 1000) {
-                            if (confirm(`💡 檢測到上次尚未結束的比賽紀錄（對手：${draft.gameInfo.opponent || '未填寫'}），是否讀取回復？`)) {
+                            if (confirm(`💡 檢測到上次尚未結束的比賽紀錄（對手：${draft.gameInfo.opponent || '未填寫'}），是否回復記錄？`)) {
                                 gameInfo.value = draft.gameInfo || gameInfo.value;
                                 currentStep.value = draft.currentStep || 1;
                                 lineup.value = draft.lineup || lineup.value;
@@ -563,18 +561,47 @@
                 };
 
                 const clearDraft = () => {
-                    if (confirm('⚠️ 確定要清空目前的暫存資料並重新開始嗎？')) {
+                    if (confirm('⚠️ 確定要重置目前的暫存資料並重新點名嗎？')) {
                         localStorage.removeItem('longan_lineup_draft');
                         location.reload();
                     }
                 };
 
                 // ----------------------------------------------------
-                // ☁️ 雲端 GAS 回讀歷史紀錄
+                // ☁️ 直接從 GAS 讀取「球員名單」
+                // ----------------------------------------------------
+                const fetchData = (isManual = false) => {
+                    loading.value = true;
+                    fetch(GOOGLE_APPS_SCRIPT_URL)
+                        .then(res => res.json())
+                        .then(data => {
+                            if (Array.isArray(data) && data.length > 0) {
+                                players.value = data.map((item, index) => ({
+                                    id: index + 1,
+                                    ...item,
+                                    isAttended: false
+                                }));
+                                localStorage.setItem('longan_player_list', JSON.stringify(players.value));
+                                restoreDraft();
+                                if (isManual) alert('✅ 已成功從 Google 試算表同步球員名單！');
+                            } else if (data.message) {
+                                alert('⚠️ 名單讀取提示：' + data.message);
+                            }
+                            loading.value = false;
+                        })
+                        .catch(err => {
+                            console.error('GAS 讀取失敗:', err);
+                            loading.value = false;
+                            alert('⚠️ 無法連接 Google Apps Script 讀取名單，請檢查網路連線或 GAS 部署權限！');
+                        });
+                };
+
+                // ----------------------------------------------------
+                // ☁️ 雲端 GAS 回讀歷史比賽紀錄
                 // ----------------------------------------------------
                 const loadFromGAS = () => {
                     if (!gameInfo.value.opponent) {
-                        alert('⚠️ 請先輸入「對手名稱」，才能定位雲端紀錄！');
+                        alert('⚠️ 請先輸入「對手名稱」，才能搜尋對應的雲端紀錄！');
                         return;
                     }
                     const gameId = `${gameInfo.value.date}_${gameInfo.value.gameNum}_${gameInfo.value.opponent}`;
@@ -595,7 +622,7 @@
                                 alert('✅ 已成功從雲端回讀該場比賽的完整先發與調度紀錄！');
                                 goToStep(3);
                             } else {
-                                alert('✅ 找到雲端表格紀錄，已同步載入！');
+                                alert('✅ 找到雲端紀錄，已同步載入！');
                                 goToStep(3);
                             }
                         } else {
@@ -607,6 +634,21 @@
                         alert('回讀失敗：' + err);
                     });
                 };
+
+                onMounted(() => {
+                    const cached = localStorage.getItem('longan_player_list');
+                    if (cached) {
+                        try {
+                            players.value = JSON.parse(cached);
+                            loading.value = false;
+                            restoreDraft();
+                        } catch (e) {
+                            fetchData(false);
+                        }
+                    } else {
+                        fetchData(false);
+                    }
+                });
 
                 const getPosLabel = (code) => {
                     if (code === 'PH') return 'PH (代打)';
@@ -642,64 +684,6 @@
                         : dhSlot.starter;
 
                     return currentActive.pos !== 'DH';
-                });
-
-                const fetchData = (isManual = false) => {
-                    loading.value = true;
-                    fetch(GOOGLE_APPS_SCRIPT_URL)
-                        .then(res => res.json())
-                        .then(data => {
-                            if (Array.isArray(data) && data.length > 0) {
-                                players.value = data.map((item, index) => ({
-                                    id: index + 1,
-                                    ...item,
-                                    isAttended: false
-                                }));
-                                localStorage.setItem('longan_player_list', JSON.stringify(players.value));
-                                restoreDraft();
-                                if (isManual) alert('✅ 球員名單同步完成（包含投手標記）！');
-                            }
-                            loading.value = false;
-                        })
-                        .catch(err => {
-                            console.warn('GAS 讀取失敗，使用 CSV 備份:', err);
-                            parseCSV(GOOGLE_SHEET_CSV_URL, false, isManual);
-                        });
-                };
-
-                const parseCSV = (url, isFallback = false, isManual = false) => {
-                    Papa.parse(url, {
-                        download: true,
-                        header: true,
-                        skipEmptyLines: true,
-                        complete: (results) => {
-                            if (results.data && results.data.length > 0) {
-                                players.value = results.data.map((item, index) => ({
-                                    id: index + 1, ...item, isAttended: false, isPitcher: false
-                                }));
-                                loading.value = false;
-                                localStorage.setItem('longan_player_list', JSON.stringify(players.value));
-                                restoreDraft();
-                            } else {
-                                loading.value = false;
-                            }
-                        }
-                    });
-                };
-
-                onMounted(() => {
-                    const cached = localStorage.getItem('longan_player_list');
-                    if (cached) {
-                        try {
-                            players.value = JSON.parse(cached);
-                            loading.value = false;
-                            restoreDraft();
-                        } catch (e) {
-                            fetchData(false);
-                        }
-                    } else {
-                        fetchData(false);
-                    }
                 });
 
                 const attendedPlayers = computed(() => players.value.filter(p => p.isAttended));
@@ -986,7 +970,7 @@
                         currentBatchPending.value = [];
                         uploadedBatches.value = [];
                         extraPitchersHistory.value = [];
-                        alert('✅ 先發陣容與先發投手已成功上傳！');
+                        alert('✅ 先發陣容與先發投手已成功上傳至 Google Sheet！');
                         goToStep(3);
                     }).catch(err => {
                         saving.value = false;
@@ -1124,7 +1108,7 @@
                         });
 
                         currentBatchPending.value = [];
-                        alert('✅ 更換紀錄與投手調度已同步至 Google Sheet！已鎖定調整名單。');
+                        alert('✅ 更換紀錄已成功同步至 Google Sheet！');
                     }).catch(err => {
                         saving.value = false;
                         alert('更新失敗: ' + err);
@@ -1166,7 +1150,7 @@
 
                     currentBatchPending.value = unlockedSubs;
 
-                    alert('🔓 已成功解鎖上一批更換！您現在可以修改守位或點擊「✕ 復原」刪除更換。');
+                    alert('🔓 已成功解鎖上一批更換！');
                 };
 
                 const copyLineup = () => {
@@ -1179,7 +1163,7 @@
                             });
                         }
                     });
-                    navigator.clipboard.writeText(text).then(() => alert('已複製包含 ↳ 替補的完整打單！'));
+                    navigator.clipboard.writeText(text).then(() => alert('已複製完整打單！'));
                 };
 
                 return {

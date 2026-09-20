@@ -11,6 +11,8 @@ var AWAY_TEAM_ROW = 7;   // 對手固定在第7列（隊名依 gameInfo.opponent
 // 打者資料區塊：21欄（打順~角色 5欄 + AB~SB 10欄 + AVG/OBP/SLG/OPS 4欄 + 調度上傳時間 + 成績上傳時間）
 var BATTER_HEADERS = ["打順", "守位", "背號", "球員姓名", "角色", "AB", "R", "H", "2B", "3B", "HR", "RBI", "BB", "K", "SB", "AVG", "OBP", "SLG", "OPS", "調度上傳時間", "成績上傳時間"];
 var BATTER_WIDTH = BATTER_HEADERS.length; // 21
+// 純守位變更列（同一棒次同一球員再次出現）的打擊欄位填充值
+var DASH = "-";
 
 // 投手資料區塊：14欄（順序~WP）+ 右側 ERA/K9/BB9/WHIP 4欄
 // 刻意對齊打者表 AVG 開始的欄位位置（P欄），中間 O 欄留空，視覺上跟打者表一致
@@ -273,6 +275,7 @@ function writeBatterBlock(sheet, activeLineupArr, timeFormatted) {
   var lastRow = sheet.getLastRow();
   var oldEndRow = headerRow;
   var savedStats = {};
+  var seenReadCount = {};
 
   if (lastRow > headerRow) {
     var existing = sheet.getRange(headerRow + 1, 1, lastRow - headerRow, BATTER_WIDTH).getValues();
@@ -280,7 +283,12 @@ function writeBatterBlock(sheet, activeLineupArr, timeFormatted) {
       var role = (existing[i][4] || "").toString();
       if (role !== "先發" && role !== "替補") break;
       oldEndRow = headerRow + 1 + i;
-      var key = existing[i][0] + "|" + existing[i][3] + "|" + role;
+      // 同一棒次可能有同名同角色的多列（代打者之後又換守位），
+      // 所以 key 要再帶上「第幾次出現」，否則後面的列會覆蓋前面的列，
+      // 重寫時就會把該球員真正的成績換成守位變更列的「-」。
+      var baseKey = existing[i][0] + "|" + existing[i][3] + "|" + role;
+      seenReadCount[baseKey] = (seenReadCount[baseKey] || 0) + 1;
+      var key = baseKey + "|" + seenReadCount[baseKey];
       savedStats[key] = { stats: existing[i].slice(5, 15), statTime: existing[i][20] };
     }
   }
@@ -289,13 +297,21 @@ function writeBatterBlock(sheet, activeLineupArr, timeFormatted) {
   activeLineupArr.forEach(function (slot, idx) {
     var order = (idx + 1).toString();
     var people = [slot.starter].concat(slot.substitutes || []);
+    var seenInSlot = {};
     people.forEach(function (p, subIdx) {
       if (!p) return;
       var isStarter = subIdx === 0;
+      // 同一棒次裡同一位球員再次出現 = 純守位變更（例如 3B→P、DH→RF），
+      // 不是另一筆打擊紀錄。他的打擊成績集中在這個棒次的第一列，
+      // 這一列的打擊欄位一律寫「-」；投球成績另外記在投手表。
+      var ident = (p.number || "") + "|" + (p.name || "");
+      var isPositionChange = !!seenInSlot[ident];
+      seenInSlot[ident] = true;
       flatRows.push({
         order: order, pos: p.posLabel || p.pos || "", number: p.number || "",
         name: isStarter ? (p.name || "") : ("↳ " + (p.name || "")),
-        role: isStarter ? "先發" : "替補", isStarter: isStarter
+        role: isStarter ? "先發" : "替補", isStarter: isStarter,
+        isPositionChange: isPositionChange
       });
     });
   });
@@ -316,13 +332,26 @@ function writeBatterBlock(sheet, activeLineupArr, timeFormatted) {
   } else {
     var startRow = headerRow + 1;
     var outValues = [];
+    var seenWriteCount = {};
     flatRows.forEach(function (row, i) {
       var r = startRow + i;
-      var key = row.order + "|" + row.name + "|" + row.role;
-      var saved = savedStats[key];
-      var stats = saved ? saved.stats : ["", "", "", "", "", "", "", "", "", ""];
-      var statTime = saved ? saved.statTime : "";
-      var formulas = buildStatFormulas(r);
+      var stats, formulas, statTime;
+      if (row.isPositionChange) {
+        // 純守位變更列：打擊欄位與率值一律「-」。
+        // 率值寫字串而不是公式 —— 若 AB 欄是文字「-」，Sheets 的 "-">0 會判定為 TRUE，
+        // 公式會算出無意義的值。
+        stats = [DASH, DASH, DASH, DASH, DASH, DASH, DASH, DASH, DASH, DASH];
+        formulas = [DASH, DASH, DASH, DASH];
+        statTime = DASH;
+      } else {
+        var baseKey = row.order + "|" + row.name + "|" + row.role;
+        seenWriteCount[baseKey] = (seenWriteCount[baseKey] || 0) + 1;
+        var key = baseKey + "|" + seenWriteCount[baseKey];
+        var saved = savedStats[key];
+        stats = saved ? saved.stats : ["", "", "", "", "", "", "", "", "", ""];
+        statTime = saved ? saved.statTime : "";
+        formulas = buildStatFormulas(r);
+      }
       outValues.push([row.order, row.pos, row.number, row.name, row.role].concat(stats).concat(formulas).concat([timeFormatted || "", statTime]));
     });
     var rng = sheet.getRange(startRow, 1, outValues.length, BATTER_WIDTH);

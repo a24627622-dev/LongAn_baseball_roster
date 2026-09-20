@@ -47,6 +47,27 @@ function battersTotalsAdjacent(backend) {
 const pitcherCount = (backend) =>
   pitcherRows(backend) === '' ? 0 : pitcherRows(backend).split(',').length;
 
+// 讀出打者表每一列的細節（含成績欄與率值欄），供「守位變更列填 -」的斷言使用
+function batterRowsDetailed(backend) {
+  const sh = gameSheet(backend);
+  const h = sh.rows.findIndex(r => r && r[0] === '打順');
+  const out = [];
+  for (let i = h + 1; i < sh.rows.length; i++) {
+    const r = sh.rows[i] || [];
+    if (r[4] !== '先發' && r[4] !== '替補') break;
+    out.push({
+      order: String(r[0]),
+      pos: String(r[1] || '').split(' ')[0],
+      name: String(r[3] || '').replace('↳ ', ''),
+      role: r[4],
+      ab: r[5],
+      avg: r[15],
+      isDash: r[5] === '-' && r[15] === '-',
+    });
+  }
+  return out;
+}
+
 // 在試算表上手動填入某位打者的 AB / H（模擬記錄員事後補成績）
 function fillBatterStat(backend, name, ab, h) {
   const sh = gameSheet(backend);
@@ -177,6 +198,40 @@ scenario(A, 'A5 手動填的打擊成績，在之後調度重寫時保留', asyn
   assert.deepStrictEqual(readBatterStat(backend, '林二'), [3, 2], 'A5：林二的 AB/H 被清掉了');
   assert.deepStrictEqual(readBatterStat(backend, '陳一'), [2, 0], 'A5：陳一的 AB/H 被清掉了');
   invariants(app, backend, 'A5');
+});
+
+scenario(A, 'A6 代打者留下來守備：他的成績不會被自己的守位變更列蓋掉', async () => {
+  const { app, backend } = boot();
+  app.gameInfo.value.opponent = 'A6';
+  setStarters(app, NINE);
+  await app.uploadStartersToGAS(); await tick();
+
+  // 謝替代打第1棒的林二，之後留下來守 CF
+  sub(app, 1, '謝替', 'PH');
+  sub(app, 1, 'SAME', 'CF');
+  await app.uploadSubstitutionsToGAS(); await tick();
+
+  // 兩列都是「1｜↳ 謝替｜替補」，只有守位不同：
+  //   第一列 PH 是他真正的打擊紀錄，第二列 CF 是守位變更，應為「-」
+  const rows = batterRowsDetailed(backend);
+  const ph = rows.find(r => r.order === '1' && r.name === '謝替' && r.pos === 'PH');
+  const cf = rows.find(r => r.order === '1' && r.name === '謝替' && r.pos === 'CF');
+  assert.ok(ph && cf, 'A6：應該有 PH 與 CF 兩列');
+  assert.strictEqual(ph.isDash, false, 'A6：代打列應保留成績欄位');
+  assert.strictEqual(cf.isDash, true, 'A6：守位變更列應填「-」');
+
+  // 記錄員把成績填在代打列
+  assert.ok(fillBatterStat(backend, '謝替', 1, 1), 'A6：找不到謝替的成績列');
+
+  // 另一棒再換人，觸發整段重寫
+  sub(app, 9, '郭替', 'PH');
+  await app.uploadSubstitutionsToGAS(); await tick();
+
+  // 若 savedStats 的 key 不帶「第幾次出現」，兩列會共用同一個 key，
+  // 後面那列的「-」會覆蓋前面那列的真實成績。
+  assert.deepStrictEqual(readBatterStat(backend, '謝替'), [1, 1],
+    'A6：重寫後代打者的成績被自己的守位變更列蓋掉了');
+  invariants(app, backend, 'A6');
 });
 
 // ==================================================================
@@ -399,6 +454,72 @@ scenario(C, 'C6 代打者之後上場投球 → 取消 DH [Rule 5.11(a)(9)]', as
   assert.strictEqual(app.activeDefenseNotice.value.isComplete, true, 'C6：九個守位應該齊全');
   assert.strictEqual(pitcherRows(backend), '先發投手:陳一,後援投手:謝替');
   invariants(app, backend, 'C6');
+});
+
+scenario(C, 'C7 多重換人：DH轉守RF＋原RF下場＋3B轉投手＋板凳接替空出的棒次 [Rule 5.11(a)(5) 多重換人]', async () => {
+  const { app, backend } = boot();
+  app.gameInfo.value.opponent = 'C7';
+  setStarters(app, DH9);
+  app.independentPitcherId.value = byName(app, '陳一');
+  await app.uploadStartersToGAS(); await tick();
+
+  // ① DH 楊十（第6棒）去守 RF
+  assert.strictEqual(sub(app, 6, 'SAME', 'RF'), true, 'C7①：DH 去守備應警告取消 DH');
+  assert.ok(app.activeDefenseNotice.value.conflicts.length > 0,
+    'C7①：此刻王六與楊十同時掛 RF，應偵測到重複守位');
+
+  // ③ 3B 黃三（第2棒）改投球
+  sub(app, 2, 'SAME', 'P');
+
+  // ②④ 板凳謝替接替王六空出的第5棒，守 3B（原 RF 王六同時離場）
+  sub(app, 5, '謝替', '3B');
+  await app.uploadSubstitutionsToGAS(); await tick();
+
+  // --- 打序與守備 ---
+  const onField = app.activeLineup.value.map(s =>
+    (s.substitutes && s.substitutes.length ? s.substitutes[s.substitutes.length - 1] : s.starter));
+  assert.deepStrictEqual(
+    onField.map((c, i) => `${i + 1}${c.pos}${c.name}`),
+    ['1CF林二', '2P黃三', '3SS張四', '4C李五', '53B謝替', '6RF楊十', '71B吳七', '82B劉八', '9LF蔡九'],
+    'C7：最終打序與守位不符預期'
+  );
+  assert.strictEqual(app.isDHCancelled.value, true);
+  assert.strictEqual(app.activeDefenseNotice.value.isComplete, true, 'C7：九個守位應該齊全');
+
+  // Rule 5.11(a)(7)：DH 的棒次鎖住
+  assert.strictEqual(onField[5].name, '楊十', 'C7：DH 的棒次不得改變');
+  // 換守位的球員棒次不變
+  assert.strictEqual(onField[1].name, '黃三', 'C7：純換守位不該改變棒次');
+  // 原投手陳一從未進入打序，且已離場
+  assert.ok(!onField.some(c => c.name === '陳一'), 'C7：原投手不該出現在打序');
+  assert.ok(!app.benchPlayers.value.some(p => p['球員姓名'] === '陳一'),
+    'C7：被換下的投手不得回到板凳（不可重返比賽）');
+
+  // --- 投手表 ---
+  assert.strictEqual(pitcherRows(backend), '先發投手:陳一,後援投手:黃三');
+
+  // --- 打者表：純守位變更列填「-」，真正的換人列維持公式 ---
+  const rows = batterRowsDetailed(backend);
+  const find = (order, name, pos) => rows.find(r => r.order === order && r.name === name && r.pos === pos);
+
+  assert.strictEqual(find('2', '黃三', '3B').isDash, false, 'C7：黃三的第一列應保留成績欄位');
+  assert.strictEqual(find('2', '黃三', 'P').isDash, true, 'C7：黃三的守位變更列應填「-」');
+  assert.strictEqual(find('6', '楊十', 'DH').isDash, false, 'C7：楊十的第一列應保留成績欄位');
+  assert.strictEqual(find('6', '楊十', 'RF').isDash, true, 'C7：楊十的守位變更列應填「-」');
+  assert.strictEqual(find('5', '謝替', '3B').isDash, false,
+    'C7：謝替是真的換人（不同球員），不該被當成守位變更');
+
+  // --- 手動成績在後續重寫時保留，且不會被「-」列蓋掉 ---
+  assert.ok(fillBatterStat(backend, '黃三', 3, 2), 'C7：找不到黃三的成績列');
+  assert.ok(fillBatterStat(backend, '楊十', 4, 1), 'C7：找不到楊十的成績列');
+  sub(app, 9, '郭替', 'PH');
+  await app.uploadSubstitutionsToGAS(); await tick();
+  assert.deepStrictEqual(readBatterStat(backend, '黃三'), [3, 2],
+    'C7：重寫後黃三的成績被守位變更列的「-」蓋掉了');
+  assert.deepStrictEqual(readBatterStat(backend, '楊十'), [4, 1],
+    'C7：重寫後楊十的成績被守位變更列的「-」蓋掉了');
+
+  invariants(app, backend, 'C7');
 });
 
 // ==================================================================

@@ -4,8 +4,8 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>龍安棒球隊</title>
-  <meta name="description" content="龍安棒球隊官方網站：最新公告、賽事時程與練球安排。">
-  <link rel="icon" href="logo.png">
+  <meta name="description" content="龍安棒球隊官方網站：本週活動、最新公告與賽事時程。">
+  <link rel="icon" href="logo-192.png">
   <link rel="stylesheet" href="site.css">
 </head>
 <body>
@@ -13,7 +13,7 @@
   <header class="site-header">
     <div class="wrap">
       <a class="brand" href="index.html">
-        <img src="logo.png" alt="龍安棒球隊隊徽" onerror="this.style.display='none'">
+        <img src="logo-192.png" alt="龍安棒球隊隊徽" onerror="this.style.display='none'">
         <span>龍安棒球隊</span>
       </a>
       <nav class="site-nav">
@@ -26,23 +26,21 @@
 
   <main class="wrap">
 
-    <section id="next-game" class="next-game empty" aria-live="polite">
-      載入中…
-    </section>
+    <section id="hero" class="hero empty" aria-live="polite">載入中…</section>
 
-    <div class="cols">
+    <div class="cols" id="cols">
 
-      <section>
+      <div class="col-pin" id="game-pin"></div>
+
+      <section class="col-news">
         <div class="section-head">
           <h2>最新公告</h2>
           <a class="more-link" href="news.html">全部公告 →</a>
         </div>
-        <div id="news-list">
-          <div class="empty-note">載入中…</div>
-        </div>
+        <div id="news-list"><div class="empty-note">載入中…</div></div>
       </section>
 
-      <section>
+      <section class="col-links">
         <div class="section-head">
           <h2>快速前往</h2>
         </div>
@@ -63,56 +61,70 @@
   <footer class="site-footer">
     <div class="wrap">
       <span>龍安棒球隊</span>
-      <a href="tools/">隊職員專區</a>
+      <a href="tools/">球隊管理</a>
     </div>
   </footer>
 
   <script src="site.js"></script>
   <script>
     (async function () {
-      const gameEl = document.getElementById('next-game');
+      const heroEl = document.getElementById('hero');
+      const pinEl = document.getElementById('game-pin');
       const newsEl = document.getElementById('news-list');
 
-      // ---- 下一場比賽 ----
+      // ---- 大版位：本週／下次活動 ----
       try {
         const schedule = await loadJSON('data/schedule.json');
-        const next = pickNext(schedule, 'game');
+        const act = nextActivity(schedule);
 
-        if (!next) {
-          gameEl.className = 'next-game empty';
-          gameEl.textContent = '目前沒有排定的比賽，請留意公告。';
+        if (!act) {
+          heroEl.className = 'hero empty';
+          heroEl.textContent = '目前沒有排定的活動，請留意公告。';
         } else {
-          const cd = countdownText(next.date);
-          const rows = [];
-          if (next.gatherTime) rows.push(['集合', next.gatherTime]);
-          if (next.startTime) rows.push(['開賽', next.startTime]);
-          if (next.venue) rows.push(['球場', next.venue]);
+          const kind = isGame(act) ? 'game' : 'practice';
+          // 落在本週就叫「本週活動」，已經跨到下週就叫「下次活動」
+          const label = isThisWeek(act.date) ? '本週活動' : '下次活動';
+          const cd = countdownText(act.date);
+          const rows = timeRows(act);
 
-          gameEl.className = 'next-game';
-          gameEl.innerHTML = `
-            <div class="label">下一場比賽</div>
-            <h1 class="matchup">龍安 vs ${escapeHtml(next.opponent || '未定')}</h1>
-            <div class="when">${fmtDateLong(next.date)}${cd ? `<span class="countdown">${cd}</span>` : ''}</div>
-            <dl>
-              ${rows.map(([k, v]) => `<dt>${k}</dt><dd>${escapeHtml(v)}</dd>`).join('')}
-            </dl>
-            ${next.note ? `<div class="note">${escapeHtml(next.note)}</div>` : ''}
+          heroEl.className = `hero ${kind}`;
+          heroEl.innerHTML = `
+            <div class="label">${label}</div>
+            <h1 class="headline">${escapeHtml(activityName(act))}</h1>
+            <div class="when">${fmtDateLong(act.date)}${cd ? `<span class="countdown">${cd}</span>` : ''}</div>
+            <dl>${rows.map(([k, v]) =>
+              `<dt>${k}</dt><dd${k === '地點' && !hasVenue(act) ? ' class="tbd"' : ''}>${escapeHtml(v)}</dd>`
+            ).join('')}</dl>
+            ${act.note ? `<div class="note">${escapeHtml(act.note)}</div>` : ''}
           `;
         }
+
+        // ---- 下一場比賽小卡：大版位已經是那場就不重複 ----
+        const game = nextGame(schedule);
+        if (!game || (act && game.date === act.date)) {
+          document.getElementById('cols').classList.add('no-pin');
+        } else {
+          const cd = countdownText(game.date);
+          pinEl.innerHTML = `
+            <a class="game-pin" href="schedule.html">
+              <div class="pin-label">下一場比賽</div>
+              <div class="pin-title">龍安 vs ${escapeHtml(game.opponent || '未定')}</div>
+              <div class="pin-when">${fmtDate(game.date)} ${escapeHtml(game.startTime || '')} 開賽${cd ? `・${cd}` : ''}</div>
+              <div class="pin-meta">${escapeHtml(venueText(game))}</div>
+            </a>`;
+        }
       } catch (err) {
-        gameEl.className = 'next-game empty';
-        gameEl.textContent = '賽事資料暫時讀不到，請稍後再試。';
+        heroEl.className = 'hero empty';
+        heroEl.textContent = '活動資料暫時讀不到，請稍後再試。';
         console.error(err);
       }
 
       // ---- 最新公告（最多 3 則）----
       try {
         const list = sortAnnouncements(await loadJSON('data/announcements.json'));
-        if (list.length === 0) {
-          newsEl.innerHTML = '<div class="empty-note">目前沒有公告。</div>';
-        } else {
-          newsEl.innerHTML = list.slice(0, 3).map(announcementHTML).join('');
-        }
+        newsEl.innerHTML = list.length === 0
+          ? '<div class="empty-note">目前沒有公告。</div>'
+          : list.slice(0, 3).map(announcementHTML).join('');
       } catch (err) {
         newsEl.innerHTML = '<div class="empty-note">公告暫時讀不到，請稍後再試。</div>';
         console.error(err);

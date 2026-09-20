@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>賽事時程 &amp; 練球 - 龍安棒球隊</title>
+  <meta name="description" content="龍安棒球隊的比賽與練球時程。">
+  <link rel="icon" href="logo-192.png">
+  <link rel="stylesheet" href="site.css">
+</head>
+<body>
+
+  <header class="site-header">
+    <div class="wrap">
+      <a class="brand" href="index.html">
+        <img src="logo-192.png" alt="龍安棒球隊隊徽" onerror="this.style.display='none'">
+        <span>龍安棒球隊</span>
+      </a>
+      <nav class="site-nav">
+        <a href="index.html">首頁</a>
+        <a href="news.html">公告</a>
+        <a href="schedule.html" class="active">賽事時程</a>
+      </nav>
+    </div>
+  </header>
+
+  <main class="wrap page-body">
+
+    <div class="section-head" style="margin-top:20px">
+      <h2>接下來的安排</h2>
+    </div>
+    <div id="upcoming"><div class="empty-note">載入中…</div></div>
+
+    <div id="past-wrap"></div>
+
+  </main>
+
+  <footer class="site-footer">
+    <div class="wrap">
+      <span>龍安棒球隊</span>
+      <a href="tools/">球隊管理</a>
+    </div>
+  </footer>
+
+  <script src="site.js"></script>
+  <script>
+    function scoreHTML(item) {
+      const s = item.score;
+      if (!s || typeof s.longan !== 'number' || typeof s.opponent !== 'number') return '';
+      const cls = s.longan > s.opponent ? 'win' : (s.longan < s.opponent ? 'lose' : 'tie');
+      const word = cls === 'win' ? '勝' : (cls === 'lose' ? '敗' : '和');
+      return `<span class="sched-score ${cls}">${s.longan} : ${s.opponent} ${word}</span>`;
+    }
+
+    function itemHTML(item, isPast) {
+      const game = isGame(item);
+      const classes = ['sched-item'];
+      if (game) classes.push('game');
+      if (item.cancelled) classes.push('cancelled');
+      if (isPast) classes.push('past');
+
+      const detail = game
+        ? `集合時間 ${escapeHtml(item.gatherTime || '—')}　開賽時間 ${escapeHtml(item.startTime || '—')}`
+        : `時間 ${escapeHtml(item.startTime || '—')} ~ ${escapeHtml(item.endTime || '—')}`;
+
+      const venueCls = hasVenue(item) ? '' : ' tbd';
+
+      return `
+        <article class="${classes.join(' ')}">
+          <div class="sched-head">
+            <span class="sched-date">${fmtDate(item.date)}</span>
+            <span class="sched-kind">${game ? '比賽' : '練球'}</span>
+            ${item.cancelled ? '<span class="cancel-tag">已取消</span>' : ''}
+            ${!item.cancelled ? scoreHTML(item) : ''}
+          </div>
+          ${game ? `<div class="sched-title">${escapeHtml(activityName(item))}</div>` : ''}
+          <div class="sched-detail">${detail}</div>
+          <div class="sched-detail${venueCls}">地點　${escapeHtml(venueText(item))}</div>
+          ${item.note ? `<div class="sched-note">${escapeHtml(item.note)}</div>` : ''}
+        </article>`;
+    }
+
+    (async function () {
+      const upEl = document.getElementById('upcoming');
+      const pastWrap = document.getElementById('past-wrap');
+
+      try {
+        const schedule = await loadJSON('data/schedule.json');
+        const today = todayStr();
+
+        // 未來：日期近到遠（取消的也留著，讓隊員知道那天沒活動）
+        const future = schedule.filter((x) => x.date >= today).sort(byDate);
+        // 已結束：日期新到舊
+        const past = schedule.filter((x) => x.date < today).sort((a, b) => byDate(b, a));
+
+        if (!future.length) {
+          upEl.innerHTML = '<div class="empty-note">目前沒有排定的活動，請留意公告。</div>';
+        } else {
+          // 依月份分組，13 週的練球才不會變成一面牆
+          let html = '';
+          let curMonth = '';
+          future.forEach((x) => {
+            const d = parseISO(x.date);
+            const key = `${d.getFullYear()}年${d.getMonth() + 1}月`;
+            if (key !== curMonth) {
+              curMonth = key;
+              html += `<h3 class="month-head">${key}</h3>`;
+            }
+            html += itemHTML(x, false);
+          });
+          upEl.innerHTML = html;
+        }
+
+        if (past.length) {
+          pastWrap.innerHTML = `
+            <details class="past-box">
+              <summary>已結束的活動（${past.length}）</summary>
+              <div>${past.map((x) => itemHTML(x, true)).join('')}</div>
+            </details>`;
+        }
+      } catch (err) {
+        upEl.innerHTML = '<div class="empty-note">時程資料暫時讀不到，請稍後再試。</div>';
+        console.error(err);
+      }
+    })();
+  </script>
+
+</body>
+</html>

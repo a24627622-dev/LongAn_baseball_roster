@@ -1,6 +1,7 @@
 /* 龍安棒球隊 對外官網樣式（階段 C）
    對內工具用 style.css（480px 手機容器），兩者互不影響。
-   色碼與 style.css 的品牌色完全相同，改色時兩邊都要改。 */
+   色碼與 style.css 的品牌色完全相同，改色時兩邊都要改。
+   （統一成共用色票檔排在階段 B，那時本來就要動 lineup.html） */
 
 :root {
   --primary-color: #b91c1c;   /* 龍安熱血深紅 */
@@ -78,16 +79,9 @@ img { max-width: 100%; }
   flex: none;
 }
 
-.brand span {
-  font-size: 1.05rem;
-  font-weight: 700;
-  letter-spacing: .5px;
-}
+.brand span { font-size: 1.05rem; font-weight: 700; letter-spacing: .5px; }
 
-.site-nav {
-  display: flex;
-  gap: 4px;
-}
+.site-nav { display: flex; gap: 4px; }
 
 .site-nav a {
   color: #d1d5db;
@@ -102,31 +96,23 @@ img { max-width: 100%; }
 }
 
 .site-nav a:hover { color: #fff; background: rgba(255,255,255,.08); }
+.site-nav a.active { color: var(--gold-color); background: rgba(217,119,6,.14); }
 
-.site-nav a.active {
-  color: var(--gold-color);
-  background: rgba(217,119,6,.14);
-}
-
-/* ---------- 下一場比賽 ---------- */
-.next-game {
-  background: var(--dark-color);
-  color: #fff;
+/* ---------- 大版位：本週／下次活動 ---------- */
+.hero {
   border-radius: 16px;
   padding: 22px;
   margin: 20px 0;
-  border-left: 6px solid var(--primary-color);
 }
 
-.next-game .label {
+.hero .label {
   font-size: .8rem;
   font-weight: 700;
   letter-spacing: 2px;
-  color: var(--gold-color);
   margin-bottom: 10px;
 }
 
-.next-game .matchup {
+.hero .headline {
   font-size: clamp(1.5rem, 6vw, 2.1rem);
   font-weight: 800;
   line-height: 1.25;
@@ -134,17 +120,14 @@ img { max-width: 100%; }
   overflow-wrap: break-word;
 }
 
-.next-game .when {
+.hero .when {
   font-size: clamp(1.05rem, 4vw, 1.3rem);
   font-weight: 700;
-  color: #fde68a;
   margin-bottom: 14px;
 }
 
-.next-game .countdown {
+.hero .countdown {
   display: inline-block;
-  background: var(--primary-color);
-  color: #fff;
   font-size: .85rem;
   font-weight: 700;
   padding: 3px 12px;
@@ -153,7 +136,7 @@ img { max-width: 100%; }
   vertical-align: 2px;
 }
 
-.next-game dl {
+.hero dl {
   margin: 0;
   display: grid;
   grid-template-columns: auto 1fr;
@@ -161,26 +144,52 @@ img { max-width: 100%; }
   font-size: .98rem;
 }
 
-.next-game dt { color: #9ca3af; font-weight: 600; }
-.next-game dd { margin: 0; font-weight: 600; overflow-wrap: break-word; }
+.hero dt { font-weight: 600; }
+.hero dd { margin: 0; font-weight: 600; overflow-wrap: break-word; }
 
-.next-game .note {
+.hero .note {
   margin-top: 12px;
   padding-top: 12px;
-  border-top: 1px solid #374151;
-  color: #e5e7eb;
   font-size: .92rem;
 }
 
-.next-game.empty {
+/* 比賽：深黑＋紅邊＋大字，視覺最重 */
+.hero.game {
+  background: var(--dark-color);
+  color: #fff;
+  border-left: 6px solid var(--primary-color);
+}
+.hero.game .label { color: var(--gold-color); }
+.hero.game .when { color: #fde68a; }
+.hero.game .countdown { background: var(--primary-color); color: #fff; }
+.hero.game dt { color: #9ca3af; }
+.hero.game .note { border-top: 1px solid #374151; color: #e5e7eb; }
+
+/* 練球：白底＋金邊，收斂，不跟比賽搶 */
+.hero.practice {
+  background: var(--card-bg);
+  color: var(--text-primary);
+  border: 1px solid var(--border);
+  border-left: 6px solid var(--gold-color);
+}
+.hero.practice .label { color: var(--gold-color); }
+.hero.practice .when { color: var(--dark-color); }
+.hero.practice .countdown { background: var(--gold-color); color: #fff; }
+.hero.practice dt { color: var(--text-muted); }
+.hero.practice .note { border-top: 1px solid var(--border); color: var(--text-muted); }
+
+.hero.empty {
   background: var(--card-bg);
   color: var(--text-muted);
-  border-left-color: var(--border);
   border: 1px solid var(--border);
   border-left: 6px solid var(--border);
   text-align: center;
   font-weight: 600;
 }
+
+/* 地點未定時的灰字 */
+.tbd { color: #94a3b8; font-weight: 600; }
+.hero.game .tbd { color: #9ca3af; }
 
 /* ---------- 版面網格 ---------- */
 .cols {
@@ -192,9 +201,19 @@ img { max-width: 100%; }
 
 @media (min-width: 720px) {
   .cols { grid-template-columns: 1.3fr 1fr; align-items: start; }
+  /* 桌機：公告佔左欄兩列，右欄上放比賽小卡、下放快速前往 */
+  .col-news  { grid-column: 1; grid-row: 1 / span 2; }
+  .col-pin   { grid-column: 2; grid-row: 1; }
+  .col-links { grid-column: 2; grid-row: 2; }
+  /* 大版位已經是那場比賽時不放小卡，版面退回單純兩欄 */
+  .cols.no-pin .col-news  { grid-row: 1; }
+  .cols.no-pin .col-links { grid-row: 1; }
 }
 
-/* ---------- 區塊 ---------- */
+/* 手機是單欄，DOM 順序即顯示順序：比賽小卡 → 公告 → 快速前往 */
+.col-pin:empty { display: none; }
+
+/* ---------- 區塊標題 ---------- */
 .section-head {
   display: flex;
   align-items: baseline;
@@ -220,6 +239,36 @@ img { max-width: 100%; }
 }
 
 .more-link:hover { text-decoration: underline; }
+
+/* ---------- 下一場比賽小卡（釘在旁邊） ---------- */
+.game-pin {
+  display: block;
+  background: var(--dark-color);
+  color: #fff;
+  border-radius: 12px;
+  border-left: 5px solid var(--primary-color);
+  padding: 16px;
+  margin-bottom: 12px;
+  text-decoration: none;
+}
+
+.game-pin .pin-label {
+  font-size: .75rem;
+  font-weight: 700;
+  letter-spacing: 1.5px;
+  color: var(--gold-color);
+  margin-bottom: 6px;
+}
+
+.game-pin .pin-title {
+  font-size: 1.15rem;
+  font-weight: 800;
+  margin-bottom: 2px;
+  overflow-wrap: break-word;
+}
+
+.game-pin .pin-when { font-size: .92rem; color: #fde68a; font-weight: 600; }
+.game-pin .pin-meta { font-size: .85rem; color: #9ca3af; margin-top: 6px; }
 
 /* ---------- 公告 ---------- */
 .news-item {
@@ -258,15 +307,126 @@ img { max-width: 100%; }
   overflow-wrap: break-word;
 }
 
-.news-item p {
-  margin: 0 0 8px;
-  font-size: .95rem;
+.news-item p { margin: 0 0 8px; font-size: .95rem; overflow-wrap: break-word; }
+.news-item p:last-child { margin-bottom: 0; }
+
+/* ---------- 時程頁 ---------- */
+.sched-group { margin-bottom: 28px; }
+
+.sched-item {
+  background: var(--card-bg);
+  border: 1px solid var(--border);
+  border-left: 5px solid var(--gold-color);
+  border-radius: 12px;
+  padding: 14px 16px;
+  margin-bottom: 10px;
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 4px;
+}
+
+.sched-item.game { border-left-color: var(--primary-color); }
+
+.sched-head {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.sched-date {
+  font-weight: 800;
+  font-size: 1.05rem;
+  color: var(--dark-color);
+  white-space: nowrap;
+}
+
+.sched-kind {
+  font-size: .75rem;
+  font-weight: 700;
+  padding: 2px 9px;
+  border-radius: 999px;
+  background: #fef3c7;
+  color: #92400e;
+  white-space: nowrap;
+}
+
+.sched-item.game .sched-kind { background: #fee2e2; color: #991b1b; }
+
+.sched-title {
+  font-weight: 700;
+  font-size: 1rem;
   overflow-wrap: break-word;
 }
 
-.news-item p:last-child { margin-bottom: 0; }
+.sched-detail { font-size: .92rem; color: var(--text-muted); overflow-wrap: break-word; }
 
-/* ---------- 空狀態 / 錯誤 ---------- */
+.sched-note {
+  font-size: .9rem;
+  color: var(--text-primary);
+  background: var(--bg-color);
+  border-radius: 8px;
+  padding: 6px 10px;
+  margin-top: 4px;
+}
+
+/* 比分 */
+.sched-score {
+  font-weight: 800;
+  font-size: 1rem;
+  padding: 2px 10px;
+  border-radius: 8px;
+  background: var(--bg-color);
+  color: var(--dark-color);
+  white-space: nowrap;
+}
+.sched-score.win { background: #dcfce7; color: #166534; }
+.sched-score.lose { background: #fee2e2; color: #991b1b; }
+.sched-score.tie { background: #e2e8f0; color: #334155; }
+
+/* 取消：灰底、刪除線、紅標籤 */
+.sched-item.cancelled {
+  background: #f1f5f9;
+  border-left-color: #cbd5e1;
+  opacity: .85;
+}
+.sched-item.cancelled .sched-date,
+.sched-item.cancelled .sched-title { text-decoration: line-through; color: var(--text-muted); }
+.sched-item.cancelled .sched-kind { background: #e2e8f0; color: #64748b; }
+
+.cancel-tag {
+  font-size: .75rem;
+  font-weight: 700;
+  padding: 2px 9px;
+  border-radius: 999px;
+  background: var(--primary-color);
+  color: #fff;
+  white-space: nowrap;
+}
+
+/* 已結束的往下收 */
+details.past-box { margin-top: 8px; }
+
+details.past-box > summary {
+  cursor: pointer;
+  font-weight: 700;
+  color: var(--text-muted);
+  padding: 10px 14px;
+  background: var(--card-bg);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  list-style: none;
+}
+
+details.past-box > summary::-webkit-details-marker { display: none; }
+details.past-box > summary::after { content: ' ▾'; }
+details.past-box[open] > summary::after { content: ' ▴'; }
+details.past-box > summary:hover { color: var(--text-primary); }
+details.past-box > div { margin-top: 12px; }
+
+.sched-item.past { opacity: .72; }
+
+/* ---------- 空狀態 ---------- */
 .empty-note {
   background: var(--card-bg);
   border: 1px dashed var(--border);
@@ -320,3 +480,18 @@ img { max-width: 100%; }
 
 .site-footer a { color: #6b7280; text-decoration: none; }
 .site-footer a:hover { color: var(--gold-color); text-decoration: underline; }
+
+/* 單欄頁（公告、時程）內容區 */
+.page-body { padding-bottom: 28px; }
+
+/* ---------- 時程頁的月份分隔 ---------- */
+.month-head {
+  font-size: .95rem;
+  font-weight: 800;
+  color: var(--text-muted);
+  letter-spacing: 1px;
+  margin: 22px 0 10px;
+  padding-bottom: 6px;
+  border-bottom: 2px solid var(--border);
+}
+.month-head:first-child { margin-top: 4px; }

@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>公告 - 龍安棒球隊</title>
+  <meta name="description" content="龍安棒球隊的最新公告。">
+  <link rel="icon" href="logo-192.png">
+  <link rel="stylesheet" href="site.css">
+</head>
+<body>
+
+  <header class="site-header">
+    <div class="wrap">
+      <a class="brand" href="index.html">
+        <img src="logo-192.png" alt="龍安棒球隊隊徽" onerror="this.style.display='none'">
+        <span>龍安棒球隊</span>
+      </a>
+      <nav class="site-nav">
+        <a href="index.html">首頁</a>
+        <a href="news.html" class="active">公告</a>
+        <a href="schedule.html">賽事時程</a>
+      </nav>
+    </div>
+  </header>
+
+  <main class="wrap page-body">
+
+    <div class="section-head" style="margin-top:20px">
+      <h2>公告</h2>
+      <a class="more-link" href="schedule.html">賽事時程 →</a>
+    </div>
+    <div id="news-list"><div class="empty-note">載入中…</div></div>
+
+  </main>
+
+  <footer class="site-footer">
+    <div class="wrap">
+      <span>龍安棒球隊</span>
+      <a href="tools/">球隊管理</a>
+    </div>
+  </footer>
+
+  <script src="site.js"></script>
+  <script>
+    (async function () {
+      const el = document.getElementById('news-list');
+      try {
+        const list = sortAnnouncements(await loadJSON('data/announcements.json'));
+        el.innerHTML = list.length
+          ? list.map(announcementHTML).join('')
+          : '<div class="empty-note">目前沒有公告。</div>';
+      } catch (err) {
+        el.innerHTML = '<div class="empty-note">公告暫時讀不到，請稍後再試。</div>';
+        console.error(err);
+      }
+    })();
+  </script>
+
+</body>
+</html>

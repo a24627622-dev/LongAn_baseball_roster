@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>龍安棒球隊 - 系統大廳</title>
+  <title>龍安棒球隊 - 球隊管理</title>
   <link rel="stylesheet" href="../style.css">
 </head>
 <body>
@@ -20,26 +20,37 @@
 
     <main class="app-content">
       
-      <div class="card card-dev">
+      <div class="card card-active">
         <div class="card-title">
           <span>📢 官方公告 & 最新消息</span>
-          <span class="badge badge-dev">開發中</span>
+          <span class="badge badge-online">線上使用中</span>
         </div>
         <p class="card-desc">
           球隊最新公佈事項、練球比賽時間異動及重要發布公告。
         </p>
-        <a href="#" class="btn btn-outline btn-disabled">功能開發中</a>
+        <a href="../news.html" class="btn btn-primary">查看公告頁 ➔</a>
       </div>
 
-      <div class="card card-dev">
+      <div class="card card-active">
         <div class="card-title">
-          <span>📅 賽事時程 & 練球</span>
-          <span class="badge badge-dev">開發中</span>
+          <span>✏️ 公告產生器</span>
+          <span class="badge badge-online">線上使用中</span>
         </div>
         <p class="card-desc">
-          聯賽賽程表、熱身賽安排、每週練球地點與出席預估登記。
+          填表單產生格式正確的公告 JSON，複製後貼到 GitHub 就能發布。不用手寫括號逗號。
         </p>
-        <a href="#" class="btn btn-outline btn-disabled">功能開發中</a>
+        <a href="announcement-builder.html" class="btn btn-primary">開啟產生器 ➔</a>
+      </div>
+
+      <div class="card card-active">
+        <div class="card-title">
+          <span>📅 賽事時程 & 練球</span>
+          <span class="badge badge-online">線上使用中</span>
+        </div>
+        <p class="card-desc">
+          聯賽賽程表與每週練球安排。資料來源是 data/schedule.json。
+        </p>
+        <a href="../schedule.html" class="btn btn-primary">查看時程頁 ➔</a>
       </div>
 
       <div class="card card-dev">
@@ -102,8 +113,12 @@
 
     <nav class="bottom-nav">
       <a href="index.html" class="nav-item active">
-        <span class="nav-icon">🏠</span>
-        <span>首頁</span>
+        <span class="nav-icon">🛠️</span>
+        <span>球隊管理</span>
+      </a>
+      <a href="../index.html" class="nav-item">
+        <span class="nav-icon">🌐</span>
+        <span>官網</span>
       </a>
       <a href="../lineup.html" class="nav-item">
         <span class="nav-icon">📋</span>

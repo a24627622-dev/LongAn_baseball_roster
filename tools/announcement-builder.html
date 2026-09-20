@@ -1,0 +1,251 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>公告產生器 - 龍安棒球隊</title>
+  <link rel="icon" href="../logo-192.png">
+  <link rel="stylesheet" href="../site.css">
+  <style>
+    .form-card {
+      background: var(--card-bg);
+      border: 1px solid var(--border);
+      border-left: 5px solid var(--accent-color);
+      border-radius: 12px;
+      padding: 16px;
+      margin-bottom: 16px;
+    }
+    label { display: block; font-weight: 700; font-size: .9rem; margin: 12px 0 4px; color: var(--dark-color); }
+    label:first-child { margin-top: 0; }
+    input[type=text], input[type=date], textarea {
+      width: 100%;
+      font: inherit;
+      padding: 10px 12px;
+      border: 1px solid #cbd5e1;
+      border-radius: 8px;
+      background: #fff;
+      color: var(--text-primary);
+    }
+    textarea { min-height: 110px; resize: vertical; line-height: 1.6; }
+    input:focus, textarea:focus { outline: 2px solid var(--accent-color); outline-offset: 1px; }
+    .checkline { display: flex; align-items: center; gap: 8px; margin-top: 12px; font-weight: 700; font-size: .9rem; }
+    .checkline input { width: 20px; height: 20px; }
+    .hint { font-size: .82rem; color: var(--text-muted); font-weight: 400; margin-top: 4px; }
+    .btn-row { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 14px; }
+    button {
+      font: inherit; font-weight: 700; cursor: pointer;
+      min-height: 46px; padding: 0 18px;
+      border: none; border-radius: 10px;
+      background: var(--primary-color); color: #fff;
+      flex: 1 1 auto;
+    }
+    button.secondary { background: transparent; color: var(--accent-color); border: 2px solid var(--accent-color); }
+    button.tiny { min-height: 34px; padding: 0 12px; font-size: .82rem; flex: 0 0 auto; }
+    button:disabled { background: #e2e8f0; color: #94a3b8; cursor: not-allowed; border-color: #e2e8f0; }
+    #output {
+      width: 100%; min-height: 220px; font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      font-size: .82rem; line-height: 1.5; white-space: pre; overflow-wrap: normal; overflow-x: auto;
+      padding: 12px; border: 1px solid #cbd5e1; border-radius: 8px; background: #0f172a; color: #e2e8f0;
+    }
+    .list-row {
+      display: flex; align-items: flex-start; gap: 10px;
+      padding: 10px 0; border-bottom: 1px solid var(--border);
+    }
+    .list-row:last-child { border-bottom: none; }
+    .list-main { flex: 1; min-width: 0; }
+    .list-title { font-weight: 700; overflow-wrap: break-word; }
+    .list-meta { font-size: .8rem; color: var(--text-muted); }
+    .steps { counter-reset: s; padding-left: 0; list-style: none; }
+    .steps li { counter-increment: s; position: relative; padding-left: 30px; margin-bottom: 8px; font-size: .92rem; }
+    .steps li::before {
+      content: counter(s); position: absolute; left: 0; top: 1px;
+      width: 21px; height: 21px; border-radius: 50%;
+      background: var(--primary-color); color: #fff;
+      font-size: .75rem; font-weight: 700;
+      display: flex; align-items: center; justify-content: center;
+    }
+    .gh-link {
+      font-weight: 700; text-decoration: none;
+      min-height: 46px; padding: 0 18px;
+      border-radius: 10px;
+      background: transparent; color: var(--accent-color); border: 2px solid var(--accent-color);
+      display: flex; align-items: center; justify-content: center;
+      flex: 1 1 auto;
+    }
+    .flash { font-size: .88rem; font-weight: 700; color: #166534; margin-top: 8px; min-height: 1.2em; }
+  </style>
+</head>
+<body>
+
+  <header class="site-header">
+    <div class="wrap">
+      <a class="brand" href="index.html">
+        <img src="../logo-192.png" alt="龍安棒球隊隊徽" onerror="this.style.display='none'">
+        <span>公告產生器</span>
+      </a>
+      <nav class="site-nav">
+        <a href="index.html">球隊管理</a>
+        <a href="../index.html">官網</a>
+      </nav>
+    </div>
+  </header>
+
+  <main class="wrap page-body">
+
+    <div class="section-head" style="margin-top:20px"><h2>1. 寫公告</h2></div>
+    <div class="form-card">
+      <label for="f-date">日期</label>
+      <input type="date" id="f-date">
+
+      <label for="f-title">標題</label>
+      <input type="text" id="f-title" placeholder="例：10/25 大漢聯盟開打">
+
+      <label for="f-body">內文</label>
+      <textarea id="f-body" placeholder="換行直接按 Enter 就好，網站上會自動分段。"></textarea>
+      <div class="hint">換行直接按 Enter，不用自己打 \n。</div>
+
+      <div class="checkline">
+        <input type="checkbox" id="f-pinned">
+        <label for="f-pinned" style="margin:0">置頂（排在所有公告最前面）</label>
+      </div>
+
+      <div class="btn-row">
+        <button id="btn-add">加入這則公告</button>
+        <button id="btn-clear" class="secondary">清空欄位</button>
+      </div>
+      <div class="flash" id="flash"></div>
+    </div>
+
+    <div class="section-head"><h2>2. 確認清單</h2></div>
+    <div class="form-card" id="list-card">
+      <div id="list">載入目前的公告…</div>
+    </div>
+
+    <div class="section-head"><h2>3. 複製並貼到 GitHub</h2></div>
+    <div class="form-card">
+      <ol class="steps">
+        <li>按下面的「複製全部內容」</li>
+        <li>按「開啟 GitHub 編輯頁」（手機瀏覽器也可以）</li>
+        <li>在 GitHub 的編輯框裡<strong>全選、刪掉舊的</strong>，貼上新的</li>
+        <li>捲到最下面按 <strong>Commit changes</strong></li>
+        <li>約一分鐘後官網就更新了</li>
+      </ol>
+      <textarea id="output" readonly spellcheck="false"></textarea>
+      <div class="btn-row">
+        <button id="btn-copy">複製全部內容</button>
+        <a class="gh-link" href="https://github.com/a24627622-dev/LongAn_baseball_roster/edit/main/data/announcements.json" target="_blank" rel="noopener">開啟 GitHub 編輯頁 ↗</a>
+      </div>
+      <div class="flash" id="copy-flash"></div>
+    </div>
+
+  </main>
+
+  <footer class="site-footer">
+    <div class="wrap">
+      <span>公告產生器｜這個頁面不會寫入任何資料，只幫你把文字轉成正確格式</span>
+    </div>
+  </footer>
+
+  <script src="../site.js"></script>
+  <script>
+    let items = [];
+
+    function render() {
+      // 清單（依實際顯示順序：置頂在前、再依日期新到舊）
+      const sorted = sortAnnouncements(items);
+      const listEl = document.getElementById('list');
+
+      if (!sorted.length) {
+        listEl.innerHTML = '<div class="hint">目前沒有任何公告。上面加一則試試。</div>';
+      } else {
+        listEl.innerHTML = sorted.map((it) => {
+          const i = items.indexOf(it);
+          const firstLine = String(it.body || '').split('\n')[0] || '';
+          return `
+            <div class="list-row">
+              <div class="list-main">
+                <div class="list-title">${it.pinned ? '📌 ' : ''}${escapeHtml(it.title)}</div>
+                <div class="list-meta">${escapeHtml(it.date)}　${escapeHtml(firstLine.slice(0, 30))}${firstLine.length > 30 ? '…' : ''}</div>
+              </div>
+              <button class="tiny secondary" data-pin="${i}">${it.pinned ? '取消置頂' : '設為置頂'}</button>
+              <button class="tiny" data-del="${i}">刪除</button>
+            </div>`;
+        }).join('');
+      }
+
+      // 完整檔案內容
+      document.getElementById('output').value = JSON.stringify(sorted, null, 2) + '\n';
+    }
+
+    document.getElementById('list').addEventListener('click', (e) => {
+      const del = e.target.getAttribute('data-del');
+      const pin = e.target.getAttribute('data-pin');
+      if (del !== null && del !== undefined) {
+        if (confirm(`確定刪除「${items[del].title}」？`)) { items.splice(Number(del), 1); render(); }
+      } else if (pin !== null && pin !== undefined) {
+        items[Number(pin)].pinned = !items[Number(pin)].pinned;
+        render();
+      }
+    });
+
+    document.getElementById('btn-add').addEventListener('click', () => {
+      const date = document.getElementById('f-date').value;
+      const title = document.getElementById('f-title').value.trim();
+      const body = document.getElementById('f-body').value.replace(/\r\n/g, '\n').trim();
+      const pinned = document.getElementById('f-pinned').checked;
+      const flash = document.getElementById('flash');
+
+      if (!date) { flash.style.color = '#991b1b'; flash.textContent = '請選日期。'; return; }
+      if (!title) { flash.style.color = '#991b1b'; flash.textContent = '請填標題。'; return; }
+
+      items.push({ date, title, body, pinned });
+      clearForm();
+      flash.style.color = '#166534';
+      flash.textContent = `已加入「${title}」，記得到第 3 步複製貼上才算發布。`;
+      render();
+      document.getElementById('output').scrollIntoView({ behavior: 'smooth', block: 'center' });
+    });
+
+    function clearForm() {
+      document.getElementById('f-title').value = '';
+      document.getElementById('f-body').value = '';
+      document.getElementById('f-pinned').checked = false;
+      document.getElementById('f-date').value = todayStr();
+    }
+
+    document.getElementById('btn-clear').addEventListener('click', () => {
+      clearForm();
+      document.getElementById('flash').textContent = '';
+    });
+
+    document.getElementById('btn-copy').addEventListener('click', async () => {
+      const ta = document.getElementById('output');
+      const flash = document.getElementById('copy-flash');
+      try {
+        await navigator.clipboard.writeText(ta.value);
+      } catch (e) {
+        ta.removeAttribute('readonly');
+        ta.select();
+        document.execCommand('copy');
+        ta.setAttribute('readonly', '');
+      }
+      flash.style.color = '#166534';
+      flash.textContent = '已複製，接著按「開啟 GitHub 編輯頁」。';
+    });
+
+    (async function init() {
+      clearForm();
+      try {
+        items = await loadJSON('../data/announcements.json');
+        if (!Array.isArray(items)) items = [];
+      } catch (e) {
+        items = [];
+        document.getElementById('list').innerHTML =
+          '<div class="hint">讀不到目前的公告（可能還沒上線）。現在加的公告會從空白開始。</div>';
+      }
+      render();
+    })();
+  </script>
+
+</body>
+</html>

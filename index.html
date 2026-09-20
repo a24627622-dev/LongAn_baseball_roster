@@ -2,116 +2,123 @@
 <html lang="zh-TW">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>龍安棒球隊 - 系統大廳</title>
-  <link rel="stylesheet" href="style.css">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>龍安棒球隊</title>
+  <meta name="description" content="龍安棒球隊官方網站：最新公告、賽事時程與練球安排。">
+  <link rel="icon" href="logo.png">
+  <link rel="stylesheet" href="site.css">
 </head>
 <body>
 
-  <div class="mobile-container">
-    
-    <header class="app-header">
-      <div class="header-brand">
-        <img src="logo.png" alt="龍安隊徽" class="team-logo" onerror="this.style.display='none'">
-        <h1>龍安棒球隊管理系統</h1>
-      </div>
-      <span class="team-tag">LONGAN</span>
-    </header>
-
-    <main class="app-content">
-      
-      <div class="card card-dev">
-        <div class="card-title">
-          <span>📢 官方公告 & 最新消息</span>
-          <span class="badge badge-dev">開發中</span>
-        </div>
-        <p class="card-desc">
-          球隊最新公佈事項、練球比賽時間異動及重要發布公告。
-        </p>
-        <a href="#" class="btn btn-outline btn-disabled">功能開發中</a>
-      </div>
-
-      <div class="card card-dev">
-        <div class="card-title">
-          <span>📅 賽事時程 & 練球</span>
-          <span class="badge badge-dev">開發中</span>
-        </div>
-        <p class="card-desc">
-          聯賽賽程表、熱身賽安排、每週練球地點與出席預估登記。
-        </p>
-        <a href="#" class="btn btn-outline btn-disabled">功能開發中</a>
-      </div>
-
-      <div class="card card-dev">
-        <div class="card-title">
-          <span>🏆 賽事成績</span>
-          <span class="badge badge-dev">開發中</span>
-        </div>
-        <p class="card-desc">
-          過往比賽對戰勝負紀錄、球隊整體數據戰績與聯賽排名。
-        </p>
-        <a href="#" class="btn btn-outline btn-disabled">功能開發中</a>
-      </div>
-
-      <div class="card card-dev">
-        <div class="card-title">
-          <span>👥 球員名單 & 成績紀錄</span>
-          <span class="badge badge-dev">開發中</span>
-        </div>
-        <p class="card-desc">
-          全隊隊員名冊、背號、守位資料及個人生涯打擊/投球累積數據。
-        </p>
-        <a href="#" class="btn btn-outline btn-disabled">功能開發中</a>
-      </div>
-
-      <div class="card card-active">
-        <div class="card-title">
-          <span>📋 陣容調度助手</span>
-          <span class="badge badge-online">線上使用中</span>
-        </div>
-        <p class="card-desc">
-          本日比賽出席點名、九人/十人先發排定、場上調度換人與產生 LINE 報備文字。
-        </p>
-        <a href="lineup.html" class="btn btn-primary">進入調度助手 ➔</a>
-      </div>
-
-      <div class="card card-ready">
-        <div class="card-title">
-          <span>📊 球員成績登記助手</span>
-          <span class="badge badge-ready">準備中</span>
-        </div>
-        <p class="card-desc">
-          填寫個人 AB、H、2B、3B、HR、RBI 等打擊數據與投球成績，自動計算 AVG 與 OPS。
-          目前改由文字紀錄轉換工具接手，重新開放前暫不提供入口。
-        </p>
-        <span class="btn btn-outline" style="opacity:.45; cursor:not-allowed;">準備中</span>
-      </div>
-
-      <div class="card card-dev">
-        <div class="card-title">
-          <span>📸 照片影片上傳助手</span>
-          <span class="badge badge-dev">開發中</span>
-        </div>
-        <p class="card-desc">
-          比賽精彩花絮照片、投手/打擊動作影片紀錄快速雲端彙整。
-        </p>
-        <a href="#" class="btn btn-outline btn-disabled">功能開發中</a>
-      </div>
-
-    </main>
-
-    <nav class="bottom-nav">
-      <a href="index.html" class="nav-item active">
-        <span class="nav-icon">🏠</span>
-        <span>首頁</span>
+  <header class="site-header">
+    <div class="wrap">
+      <a class="brand" href="index.html">
+        <img src="logo.png" alt="龍安棒球隊隊徽" onerror="this.style.display='none'">
+        <span>龍安棒球隊</span>
       </a>
-      <a href="lineup.html" class="nav-item">
-        <span class="nav-icon">📋</span>
-        <span>陣容調度</span>
-      </a>
-    </nav>
+      <nav class="site-nav">
+        <a href="index.html" class="active">首頁</a>
+        <a href="news.html">公告</a>
+        <a href="schedule.html">賽事時程</a>
+      </nav>
+    </div>
+  </header>
 
-  </div>
+  <main class="wrap">
+
+    <section id="next-game" class="next-game empty" aria-live="polite">
+      載入中…
+    </section>
+
+    <div class="cols">
+
+      <section>
+        <div class="section-head">
+          <h2>最新公告</h2>
+          <a class="more-link" href="news.html">全部公告 →</a>
+        </div>
+        <div id="news-list">
+          <div class="empty-note">載入中…</div>
+        </div>
+      </section>
+
+      <section>
+        <div class="section-head">
+          <h2>快速前往</h2>
+        </div>
+        <a class="entry" href="schedule.html">
+          <strong>賽事時程 &amp; 練球</strong>
+          <span>接下來的比賽與練球安排</span>
+        </a>
+        <a class="entry" href="news.html">
+          <strong>公告</strong>
+          <span>球隊最新公佈事項</span>
+        </a>
+      </section>
+
+    </div>
+
+  </main>
+
+  <footer class="site-footer">
+    <div class="wrap">
+      <span>龍安棒球隊</span>
+      <a href="tools/">隊職員專區</a>
+    </div>
+  </footer>
+
+  <script src="site.js"></script>
+  <script>
+    (async function () {
+      const gameEl = document.getElementById('next-game');
+      const newsEl = document.getElementById('news-list');
+
+      // ---- 下一場比賽 ----
+      try {
+        const schedule = await loadJSON('data/schedule.json');
+        const next = pickNext(schedule, 'game');
+
+        if (!next) {
+          gameEl.className = 'next-game empty';
+          gameEl.textContent = '目前沒有排定的比賽，請留意公告。';
+        } else {
+          const cd = countdownText(next.date);
+          const rows = [];
+          if (next.gatherTime) rows.push(['集合', next.gatherTime]);
+          if (next.startTime) rows.push(['開賽', next.startTime]);
+          if (next.venue) rows.push(['球場', next.venue]);
+
+          gameEl.className = 'next-game';
+          gameEl.innerHTML = `
+            <div class="label">下一場比賽</div>
+            <h1 class="matchup">龍安 vs ${escapeHtml(next.opponent || '未定')}</h1>
+            <div class="when">${fmtDateLong(next.date)}${cd ? `<span class="countdown">${cd}</span>` : ''}</div>
+            <dl>
+              ${rows.map(([k, v]) => `<dt>${k}</dt><dd>${escapeHtml(v)}</dd>`).join('')}
+            </dl>
+            ${next.note ? `<div class="note">${escapeHtml(next.note)}</div>` : ''}
+          `;
+        }
+      } catch (err) {
+        gameEl.className = 'next-game empty';
+        gameEl.textContent = '賽事資料暫時讀不到，請稍後再試。';
+        console.error(err);
+      }
+
+      // ---- 最新公告（最多 3 則）----
+      try {
+        const list = sortAnnouncements(await loadJSON('data/announcements.json'));
+        if (list.length === 0) {
+          newsEl.innerHTML = '<div class="empty-note">目前沒有公告。</div>';
+        } else {
+          newsEl.innerHTML = list.slice(0, 3).map(announcementHTML).join('');
+        }
+      } catch (err) {
+        newsEl.innerHTML = '<div class="empty-note">公告暫時讀不到，請稍後再試。</div>';
+        console.error(err);
+      }
+    })();
+  </script>
 
 </body>
 </html>

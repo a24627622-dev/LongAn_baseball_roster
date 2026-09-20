@@ -372,9 +372,14 @@
                     <button @click="goToStep(2)" class="text-slate-600 text-sm font-medium border px-4 py-2 rounded-xl">⬅ 檢視先發</button>
 
                     <div class="flex items-center gap-2 flex-wrap">
-                        <button @click="uploadSubstitutionsToGAS" :disabled="saving || currentBatchPending.length === 0"
+                        <button @click="uploadSubstitutionsToGAS"
+                                :disabled="saving || currentBatchPending.length === 0 || activeDefenseNotice.conflicts.length > 0"
                                 class="bg-purple-600 hover:bg-purple-500 disabled:bg-slate-300 disabled:cursor-not-allowed text-white px-6 py-2.5 rounded-xl font-bold shadow flex items-center gap-2 transition">
-                            <span>📤</span> {{ saving ? '更新上傳中...' : (currentBatchPending.length > 0 ? '更換確認並更新上傳 GAS ➔' : '無新更換需上傳') }}
+                            <span>📤</span>
+                            <span v-if="saving">更新上傳中...</span>
+                            <span v-else-if="activeDefenseNotice.conflicts.length > 0">⚠️ 守位重複無法上傳</span>
+                            <span v-else-if="currentBatchPending.length > 0">更換確認並更新上傳 GAS ➔</span>
+                            <span v-else>無新更換需上傳</span>
                         </button>
 
                         <button @click="finishGame" :disabled="saving"
@@ -950,13 +955,25 @@
                     return attendedPlayers.value.filter(p => !usedIds.includes(p.id));
                 });
 
-                // 更換視窗的候選名單:板凳球員 + (DH 制尚未取消時)目前場上投手,讓投手可以進入打序(= 取消 DH)
+                // 更換視窗的候選名單:板凳球員 + DH 制下目前場上的投手。
+                // DH 制的投手不在 benchPlayers 裡(他已上場),但必須選得到,原因有兩個:
+                //   1. DH 尚未取消時,投手進入打序 = 取消 DH(Rule 5.11(a))
+                //   2. DH 剛因「DH 去守備」而取消時,Rule 5.11(a)(5) 要求
+                //      投手接替「被換下的守備球員」的棒次 —— 這時仍然必須選得到他,
+                //      否則打線會永遠停在缺投手的非法狀態。
+                // 因此唯一的排除條件是:他已經在打序裡了。
                 const subCandidates = computed(() => {
                     const list = benchPlayers.value.map(p => ({ ...p, isCurrentDHPitcher: false }));
-                    if (hasDHInLineup.value && !isDHCancelled.value && activePitchers.value.length > 0) {
+                    if (hasDHInLineup.value && activePitchers.value.length > 0) {
                         const cur = activePitchers.value[activePitchers.value.length - 1];
-                        const pObj = getPlayerObj(cur.id);
-                        if (pObj) list.unshift({ ...pObj, isCurrentDHPitcher: true });
+                        const alreadyBatting = activeLineup.value.some(slot =>
+                            (slot.starter && String(slot.starter.id) === String(cur.id)) ||
+                            (slot.substitutes || []).some(s => String(s.id) === String(cur.id))
+                        );
+                        if (!alreadyBatting) {
+                            const pObj = getPlayerObj(cur.id);
+                            if (pObj) list.unshift({ ...pObj, isCurrentDHPitcher: true });
+                        }
                     }
                     return list;
                 });
@@ -1295,6 +1312,13 @@
 
                 const uploadSubstitutionsToGAS = () => {
                     if (currentBatchPending.value.length === 0) return;
+                    // 守位重複在比賽的任何瞬間都不可能成立,一律擋下。
+                    // 「尚缺守位」不擋 —— 代打/代跑之後守備還沒輪到,那是合法的中間狀態。
+                    if (activeDefenseNotice.value.conflicts.length > 0) {
+                        alert('⚠️ 守位重複，無法上傳：' + activeDefenseNotice.value.conflicts.join('、') +
+                              '\n\n同一個守備位置不能有兩個人。請先調整守位再上傳。');
+                        return;
+                    }
                     saving.value = true;
 
                     postToGAS({

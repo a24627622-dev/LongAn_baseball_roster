@@ -128,7 +128,23 @@ function setStarters(app, spec) {
 }
 function sub(app, order, name, pos) {
   app.openSubModal(order);
-  app.subModal.value.selectedPlayerOption = name === 'SAME' ? 'SAME_PLAYER' : byName(app, name);
+  if (name === 'SAME') {
+    app.subModal.value.selectedPlayerOption = 'SAME_PLAYER';
+  } else {
+    // 保真度檢查：只允許選得到的球員。真實 UI 的下拉選單只列出 subCandidates，
+    // 直接塞 id 會做出 UI 不可能做到的操作（例如已退場的球員重新上場），
+    // 那種測試即使通過也沒有意義。
+    const id = byName(app, name);
+    const ok = app.subCandidates.value.some(c => String(c.id) === String(id));
+    if (!ok) {
+      const list = app.subCandidates.value.map(c => c['球員姓名']).join('、') || '(空)';
+      app.subModal.value.open = false;
+      throw new Error(
+        `${name} 不在第 ${order} 棒的候選名單裡，真實 UI 選不到他（可能已退場）。目前候選：${list}`
+      );
+    }
+    app.subModal.value.selectedPlayerOption = id;
+  }
   app.subModal.value.selectedPosCode = pos;
   const willCancel = app.willCancelDH.value;
   app.confirmSubstitution();

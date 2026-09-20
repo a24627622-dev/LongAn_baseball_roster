@@ -76,7 +76,13 @@ const cases = [];
 const scenario = (group, name, fn) => cases.push({ group, name, fn });
 
 // 每個案例共同的基本健全性檢查
-function invariants(backend, label) {
+function invariants(app, backend, label) {
+  // 守位重複在比賽的任何瞬間都不可能成立 —— 任何案例都不得產生。
+  // 「尚缺守位」不檢查：代打／代跑之後守備還沒輪到，那是合法的中間狀態。
+  const notice = app.activeDefenseNotice.value;
+  assert.strictEqual(notice.conflicts.length, 0,
+    `${label}：出現重複守位 ${notice.conflicts.join('、')} —— 這在規則上不可能成立`);
+
   assert.strictEqual(totalsRowNumbers(backend).length, 2,
     `${label}：應該剛好有 2 列「成績合計」（打者表 1、投手表 1），實際 ${totalsRowNumbers(backend).length}`);
   assert.ok(battersTotalsAdjacent(backend),
@@ -110,7 +116,7 @@ scenario(A, 'A1 先發上傳：投手在打序第6棒，投手表只有先發投
   assert.strictEqual(pitcherRows(backend), '先發投手:陳一');
   assert.strictEqual(batterNames(backend).length, 9);
   assert.ok(batterNames(backend).includes('6P陳一'), 'A1：投手應該出現在打序第6棒');
-  invariants(backend, 'A1');
+  invariants(app, backend, 'A1');
 });
 
 scenario(A, 'A2 單次換投：新投手接第6棒，投手表長出後援投手', async () => {
@@ -124,7 +130,7 @@ scenario(A, 'A2 單次換投：新投手接第6棒，投手表長出後援投手
   assert.strictEqual(pitcherRows(backend), '先發投手:陳一,後援投手:許投');
   assert.strictEqual(batterNames(backend).length, 10);
   assert.ok(batterNames(backend).includes('6P↳ 許投'));
-  invariants(backend, 'A2');
+  invariants(app, backend, 'A2');
 });
 
 scenario(A, 'A3 代打後改守備：野手調度不影響投手表', async () => {
@@ -138,7 +144,7 @@ scenario(A, 'A3 代打後改守備：野手調度不影響投手表', async () =
 
   assert.strictEqual(pitcherRows(backend), '先發投手:陳一', 'A3：野手調度不該動到投手表');
   assert.strictEqual(batterNames(backend).length, 11);
-  invariants(backend, 'A3');
+  invariants(app, backend, 'A3');
 });
 
 scenario(A, 'A4 連續兩次換投：三位投手依序排列且不重複', async () => {
@@ -153,7 +159,7 @@ scenario(A, 'A4 連續兩次換投：三位投手依序排列且不重複', asyn
 
   assert.strictEqual(pitcherRows(backend), '先發投手:陳一,後援投手:許投,後援投手:鄭投');
   assert.strictEqual(batterNames(backend).length, 11);
-  invariants(backend, 'A4');
+  invariants(app, backend, 'A4');
 });
 
 scenario(A, 'A5 手動填的打擊成績，在之後調度重寫時保留', async () => {
@@ -170,7 +176,7 @@ scenario(A, 'A5 手動填的打擊成績，在之後調度重寫時保留', asyn
 
   assert.deepStrictEqual(readBatterStat(backend, '林二'), [3, 2], 'A5：林二的 AB/H 被清掉了');
   assert.deepStrictEqual(readBatterStat(backend, '陳一'), [2, 0], 'A5：陳一的 AB/H 被清掉了');
-  invariants(backend, 'A5');
+  invariants(app, backend, 'A5');
 });
 
 // ==================================================================
@@ -190,7 +196,7 @@ scenario(B, 'B1 先發上傳：投手不在打序，但投手表抓得到', asyn
   assert.strictEqual(pitcherRows(backend), '先發投手:陳一');
   assert.strictEqual(batterNames(backend).length, 9);
   assert.ok(!batterNames(backend).some(n => n.includes('陳一')), 'B1：投手不該出現在打者表');
-  invariants(backend, 'B1');
+  invariants(app, backend, 'B1');
 });
 
 scenario(B, 'B2 獨立換投：打者表不受影響，DH 仍然有效', async () => {
@@ -205,7 +211,7 @@ scenario(B, 'B2 獨立換投：打者表不受影響，DH 仍然有效', async (
   assert.strictEqual(pitcherRows(backend), '先發投手:陳一,後援投手:許投');
   assert.strictEqual(batterNames(backend).length, 9, 'B2：獨立換投不該改變打者表列數');
   assert.strictEqual(app.isDHCancelled.value, false, 'B2：獨立換投不該取消 DH');
-  invariants(backend, 'B2');
+  invariants(app, backend, 'B2');
 });
 
 scenario(B, 'B3 三次換投（含野手上來投）：四位投手不重複', async () => {
@@ -223,7 +229,7 @@ scenario(B, 'B3 三次換投（含野手上來投）：四位投手不重複', a
     '先發投手:陳一,後援投手:許投,後援投手:鄭投,後援投手:謝替');
   assert.strictEqual(batterNames(backend).length, 9);
   assert.strictEqual(app.isDHCancelled.value, false);
-  invariants(backend, 'B3');
+  invariants(app, backend, 'B3');
 });
 
 scenario(B, 'B4 DH 被代打：依規則不算取消 DH', async () => {
@@ -240,7 +246,7 @@ scenario(B, 'B4 DH 被代打：依規則不算取消 DH', async () => {
   assert.strictEqual(app.isDHCancelled.value, false, 'B4：DH 被代打後仍應維持 DH 制');
   assert.strictEqual(pitcherRows(backend), '先發投手:陳一', 'B4：代打不該動到投手表');
   assert.strictEqual(batterNames(backend).length, 10);
-  invariants(backend, 'B4');
+  invariants(app, backend, 'B4');
 });
 
 scenario(B, 'B5 DH 被代跑後由代跑者接任 DH：仍不算取消', async () => {
@@ -257,42 +263,64 @@ scenario(B, 'B5 DH 被代跑後由代跑者接任 DH：仍不算取消', async (
   assert.strictEqual(app.isDHCancelled.value, false);
   assert.strictEqual(pitcherRows(backend), '先發投手:陳一');
   assert.strictEqual(batterNames(backend).length, 11);
-  invariants(backend, 'B5');
+  invariants(app, backend, 'B5');
 });
 
 // ==================================================================
 // 情境 C：先發 DH，中途取消
+// 依 MLB Rule 5.11(a) 設計。關鍵條款：
+//   (5)  DH 上場守備時棒次不變，但投手必須接替「被換下的守備球員」的棒次
+//   (7)  DH 的棒次是鎖住的
+//   (8)  投手從投手丘轉任其他守位 → DH 終止
+//   (9)  代打者之後上場投球 → DH 終止
+//   (12) DH 上場守備 → DH 終止
+// 每一案的終點都必須是「九個守位齊全、沒有重複」的合法打線。
 // ==================================================================
 const C = '情境C 先發DH中途取消';
 
-scenario(C, 'C1 原本的 DH 去守備 → 取消 DH', async () => {
+scenario(C, 'C1 DH 去守備＋投手接替被換下者的棒次 → 打線合法 [Rule 5.11(a)(5)(12)]', async () => {
   const { app, backend } = boot();
   app.gameInfo.value.opponent = 'C1';
   setStarters(app, DH9);
   app.independentPitcherId.value = byName(app, '陳一');
   await app.uploadStartersToGAS(); await tick();
 
-  assert.strictEqual(sub(app, 6, 'SAME', 'RF'), true, 'C1：DH 去守備應判定為取消 DH');
+  // 楊十（DH，第6棒）去守 RF，接替王六（第5棒 RF）
+  assert.strictEqual(sub(app, 6, 'SAME', 'RF'), true, 'C1：DH 去守備應警告取消 DH');
+  // Rule 5.11(a)(5)：投手必須接替「被換下的守備球員」王六 的第5棒
+  sub(app, 5, '陳一', 'P');
   await app.uploadSubstitutionsToGAS(); await tick();
 
   assert.strictEqual(app.isDHCancelled.value, true);
-  invariants(backend, 'C1');
+  assert.strictEqual(app.activeDefenseNotice.value.isComplete, true,
+    'C1：完成 Rule 5.11(a)(5) 的兩步之後，九個守位應該齊全');
+  // Rule 5.11(a)(7)：DH 的棒次鎖住 —— 楊十仍然打第6棒
+  const onField = app.activeLineup.value.map(s =>
+    (s.substitutes && s.substitutes.length ? s.substitutes[s.substitutes.length - 1] : s.starter));
+  assert.strictEqual(onField[5].name, '楊十', 'C1：DH 的棒次不得改變');
+  assert.strictEqual(onField[5].pos, 'RF');
+  assert.strictEqual(onField[4].name, '陳一', 'C1：投手應接替第5棒（被換下的王六）');
+  assert.strictEqual(pitcherRows(backend), '先發投手:陳一');
+  invariants(app, backend, 'C1');
 });
 
-scenario(C, 'C2 其他棒次出現 P → 取消 DH，投手進入打者表', async () => {
+scenario(C, 'C2 投手轉守其他守位 → 取消 DH，新投手接替另一棒 [Rule 5.11(a)(8)]', async () => {
   const { app, backend } = boot();
   app.gameInfo.value.opponent = 'C2';
   setStarters(app, DH9);
   app.independentPitcherId.value = byName(app, '陳一');
   await app.uploadStartersToGAS(); await tick();
 
-  assert.strictEqual(sub(app, 3, '許投', 'P'), true, 'C2：任一棒出現 P 應判定為取消 DH');
+  // 投手陳一轉守 LF，接替蔡九的第9棒 → 依 (8) 終止 DH
+  assert.strictEqual(sub(app, 9, '陳一', 'LF'), true, 'C2：投手轉守其他位置應警告取消 DH');
+  // 新投手許投接替楊十（原 DH）的第6棒
+  sub(app, 6, '許投', 'P');
   await app.uploadSubstitutionsToGAS(); await tick();
 
   assert.strictEqual(app.isDHCancelled.value, true);
-  assert.ok(batterNames(backend).includes('3P↳ 許投'), 'C2：新投手應出現在打者表第3棒');
+  assert.strictEqual(app.activeDefenseNotice.value.isComplete, true, 'C2：九個守位應該齊全');
   assert.strictEqual(pitcherRows(backend), '先發投手:陳一,後援投手:許投');
-  invariants(backend, 'C2');
+  invariants(app, backend, 'C2');
 });
 
 scenario(C, 'C3 現任投手進入打序 → 取消 DH，投手表不重複', async () => {
@@ -302,14 +330,15 @@ scenario(C, 'C3 現任投手進入打序 → 取消 DH，投手表不重複', as
   app.independentPitcherId.value = byName(app, '陳一');
   await app.uploadStartersToGAS(); await tick();
 
-  assert.strictEqual(sub(app, 6, '陳一', 'P'), true, 'C3：投手進入打序應判定為取消 DH');
+  assert.strictEqual(sub(app, 6, '陳一', 'P'), true, 'C3：投手進入打序應警告取消 DH');
   await app.uploadSubstitutionsToGAS(); await tick();
 
   assert.strictEqual(app.isDHCancelled.value, true);
+  assert.strictEqual(app.activeDefenseNotice.value.isComplete, true);
   assert.strictEqual(pitcherRows(backend), '先發投手:陳一',
     'C3：同一位投手既是先發又進打序，投手表只該有一列');
   assert.ok(batterNames(backend).includes('6P↳ 陳一'));
-  invariants(backend, 'C3');
+  invariants(app, backend, 'C3');
 });
 
 scenario(C, 'C4 取消 DH 後再換投：走一般換投路徑', async () => {
@@ -318,14 +347,15 @@ scenario(C, 'C4 取消 DH 後再換投：走一般換投路徑', async () => {
   setStarters(app, DH9);
   app.independentPitcherId.value = byName(app, '陳一');
   await app.uploadStartersToGAS(); await tick();
-  sub(app, 6, '陳一', 'P');                     // 取消 DH
+  sub(app, 6, '陳一', 'P');
   await app.uploadSubstitutionsToGAS(); await tick();
-  sub(app, 6, '許投', 'P');                     // 取消後換投
+  assert.strictEqual(sub(app, 6, '許投', 'P'), false, 'C4：DH 已取消，不該再警告一次');
   await app.uploadSubstitutionsToGAS(); await tick();
 
   assert.strictEqual(app.isDHCancelled.value, true);
+  assert.strictEqual(app.activeDefenseNotice.value.isComplete, true);
   assert.strictEqual(pitcherRows(backend), '先發投手:陳一,後援投手:許投');
-  invariants(backend, 'C4');
+  invariants(app, backend, 'C4');
 });
 
 scenario(C, 'C5 取消前換過投、取消後再換投：投手表完整且不重複', async () => {
@@ -334,18 +364,104 @@ scenario(C, 'C5 取消前換過投、取消後再換投：投手表完整且不�
   setStarters(app, DH9);
   app.independentPitcherId.value = byName(app, '陳一');
   await app.uploadStartersToGAS(); await tick();
-  dhPitcherChange(app, '許投');                 // DH 制下換投
+  dhPitcherChange(app, '許投');
   await app.uploadSubstitutionsToGAS(); await tick();
-  sub(app, 6, '許投', 'P');                     // 現任投手進打序 → 取消 DH
+  sub(app, 6, '許投', 'P');
   await app.uploadSubstitutionsToGAS(); await tick();
-  sub(app, 6, '鄭投', 'P');                     // 取消後再換投
+  sub(app, 6, '鄭投', 'P');
   await app.uploadSubstitutionsToGAS(); await tick();
 
   assert.strictEqual(app.isDHCancelled.value, true);
+  assert.strictEqual(app.activeDefenseNotice.value.isComplete, true);
   assert.strictEqual(pitcherRows(backend), '先發投手:陳一,後援投手:許投,後援投手:鄭投');
   assert.ok(batterNames(backend).includes('6P↳ 許投'));
   assert.ok(batterNames(backend).includes('6P↳ 鄭投'));
-  invariants(backend, 'C5');
+  invariants(app, backend, 'C5');
+});
+
+scenario(C, 'C6 代打者之後上場投球 → 取消 DH [Rule 5.11(a)(9)]', async () => {
+  const { app, backend } = boot();
+  app.gameInfo.value.opponent = 'C6';
+  setStarters(app, DH9);
+  app.independentPitcherId.value = byName(app, '陳一');
+  await app.uploadStartersToGAS(); await tick();
+
+  // 謝替代打黃三（第2棒）—— 單純代打不該取消 DH
+  assert.strictEqual(sub(app, 2, '謝替', 'PH'), false, 'C6：單純代打不該取消 DH');
+  assert.strictEqual(app.isDHCancelled.value, false);
+  // 該代打者接著上場投球 → 依 (9) 終止 DH
+  assert.strictEqual(sub(app, 2, 'SAME', 'P'), true, 'C6：代打者上場投球應取消 DH');
+  // 補完守備：楊十（原 DH）去守空出來的 3B
+  sub(app, 6, 'SAME', '3B');
+  await app.uploadSubstitutionsToGAS(); await tick();
+
+  assert.strictEqual(app.isDHCancelled.value, true);
+  assert.strictEqual(app.activeDefenseNotice.value.isComplete, true, 'C6：九個守位應該齊全');
+  assert.strictEqual(pitcherRows(backend), '先發投手:陳一,後援投手:謝替');
+  invariants(app, backend, 'C6');
+});
+
+// ==================================================================
+// 規則守門：確認工具會擋住規則上不可能的狀態
+// ==================================================================
+const G = '規則守門';
+
+scenario(G, 'G1 守位重複時，調度上傳被擋下', async () => {
+  const { app, backend } = boot();
+  app.gameInfo.value.opponent = 'G1';
+  setStarters(app, DH9);
+  app.independentPitcherId.value = byName(app, '陳一');
+  await app.uploadStartersToGAS(); await tick();
+  const rowsBefore = gameSheet(backend).rows.length;
+
+  // 只讓 DH 去守 RF，不補投手 → 兩個 RF（王六、楊十）
+  sub(app, 6, 'SAME', 'RF');
+  assert.ok(app.activeDefenseNotice.value.conflicts.length > 0,
+    'G1：應該偵測到重複守位');
+
+  await app.uploadSubstitutionsToGAS(); await tick();
+  assert.strictEqual(gameSheet(backend).rows.length, rowsBefore,
+    'G1：守位重複時不該寫入任何東西到試算表');
+});
+
+scenario(G, 'G2 已退場的球員不會出現在候選名單 [Rule 5.11(a)(4) 同理]', async () => {
+  const { app } = boot();
+  app.gameInfo.value.opponent = 'G2';
+  setStarters(app, DH9);
+  app.independentPitcherId.value = byName(app, '陳一');
+  await app.uploadStartersToGAS(); await tick();
+
+  app.openSubModal(2);
+  assert.ok(app.subCandidates.value.some(c => c['球員姓名'] === '陳一'),
+    'G2：換投前，現任投手陳一應該選得到');
+  app.subModal.value.open = false;
+
+  dhPitcherChange(app, '許投');            // 陳一退場
+  await app.uploadSubstitutionsToGAS(); await tick();
+
+  app.openSubModal(2);
+  assert.ok(!app.subCandidates.value.some(c => c['球員姓名'] === '陳一'),
+    'G2：退場的陳一不得重新出現在候選名單');
+  assert.ok(app.subCandidates.value.some(c => c['球員姓名'] === '許投'),
+    'G2：現任投手許投應該選得到');
+  app.subModal.value.open = false;
+});
+
+scenario(G, 'G3 DH 因去守備而取消後，投手仍然選得到（回歸測試）', async () => {
+  const { app } = boot();
+  app.gameInfo.value.opponent = 'G3';
+  setStarters(app, DH9);
+  app.independentPitcherId.value = byName(app, '陳一');
+  await app.uploadStartersToGAS(); await tick();
+
+  sub(app, 6, 'SAME', 'RF');               // DH 去守備 → isDHCancelled 變 true
+  assert.strictEqual(app.isDHCancelled.value, true);
+
+  app.openSubModal(5);
+  assert.ok(app.subCandidates.value.some(c => c['球員姓名'] === '陳一'),
+    'G3：DH 取消後，Rule 5.11(a)(5) 仍要求投手能接替被換下者的棒次，' +
+    '所以他必須留在候選名單裡（舊版以 !isDHCancelled 為條件，這一步會做不到）');
+  app.subModal.value.open = false;
 });
 
 // ---------- 執行器 ----------

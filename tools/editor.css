@@ -1,0 +1,128 @@
+/* /tools/ 的產生器共用樣式（公告產生器、時程編輯器） */
+
+.form-card {
+  background: var(--card-bg);
+  border: 1px solid var(--border);
+  border-left: 5px solid var(--accent-color);
+  border-radius: 12px;
+  padding: 16px;
+  margin-bottom: 16px;
+}
+
+label { display: block; font-weight: 700; font-size: .9rem; margin: 12px 0 4px; color: var(--dark-color); }
+label:first-child { margin-top: 0; }
+
+input[type=text], input[type=date], input[type=time], input[type=number], textarea, select {
+  width: 100%;
+  font: inherit;
+  padding: 10px 12px;
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  background: #fff;
+  color: var(--text-primary);
+}
+textarea { min-height: 110px; resize: vertical; line-height: 1.6; }
+input:focus, textarea:focus, select:focus { outline: 2px solid var(--accent-color); outline-offset: 1px; }
+input:disabled { background: #f1f5f9; color: var(--text-muted); }
+
+.checkline { display: flex; align-items: center; gap: 8px; margin-top: 12px; font-weight: 700; font-size: .9rem; }
+.checkline input { width: 20px; height: 20px; flex: none; }
+.checkline label { margin: 0; }
+
+.hint { font-size: .82rem; color: var(--text-muted); font-weight: 400; margin-top: 4px; }
+
+.btn-row { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 14px; }
+
+button {
+  font: inherit; font-weight: 700; cursor: pointer;
+  min-height: 46px; padding: 0 18px;
+  border: none; border-radius: 10px;
+  background: var(--primary-color); color: #fff;
+  flex: 1 1 auto;
+}
+button.secondary { background: transparent; color: var(--accent-color); border: 2px solid var(--accent-color); }
+button.danger { background: #64748b; }
+button.tiny { min-height: 34px; padding: 0 12px; font-size: .82rem; flex: 0 0 auto; }
+button:disabled { background: #e2e8f0; color: #94a3b8; cursor: not-allowed; border-color: #e2e8f0; }
+
+.gh-link {
+  font-weight: 700; text-decoration: none;
+  min-height: 46px; padding: 0 18px;
+  border-radius: 10px;
+  background: transparent; color: var(--accent-color); border: 2px solid var(--accent-color);
+  display: flex; align-items: center; justify-content: center;
+  flex: 1 1 auto;
+}
+
+#output {
+  width: 100%; min-height: 200px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: .78rem; line-height: 1.5;
+  white-space: pre; overflow-wrap: normal; overflow-x: auto;
+  padding: 12px; border: 1px solid #cbd5e1; border-radius: 8px;
+  background: #0f172a; color: #e2e8f0;
+}
+
+.steps { counter-reset: s; padding-left: 0; list-style: none; }
+.steps li { counter-increment: s; position: relative; padding-left: 30px; margin-bottom: 8px; font-size: .92rem; }
+.steps li::before {
+  content: counter(s); position: absolute; left: 0; top: 1px;
+  width: 21px; height: 21px; border-radius: 50%;
+  background: var(--primary-color); color: #fff;
+  font-size: .75rem; font-weight: 700;
+  display: flex; align-items: center; justify-content: center;
+}
+
+.flash { font-size: .88rem; font-weight: 700; color: #166534; margin-top: 8px; min-height: 1.2em; }
+
+/* ---- 時程編輯器的每一筆 ---- */
+.ev {
+  border: 1px solid var(--border);
+  border-left: 5px solid var(--gold-color);
+  border-radius: 12px;
+  background: var(--card-bg);
+  margin-bottom: 10px;
+  overflow: hidden;
+}
+.ev.is-game { border-left-color: var(--primary-color); }
+.ev.is-cancelled { border-left-color: #cbd5e1; background: #f1f5f9; }
+
+.ev > summary {
+  cursor: pointer;
+  padding: 12px 14px;
+  list-style: none;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.ev > summary::-webkit-details-marker { display: none; }
+.ev > summary::after { content: '▾'; margin-left: auto; color: var(--text-muted); font-size: .8rem; }
+.ev[open] > summary::after { content: '▴'; }
+
+.ev-date { font-weight: 800; white-space: nowrap; }
+.ev.is-cancelled .ev-date { text-decoration: line-through; color: var(--text-muted); }
+
+.ev-kind {
+  font-size: .72rem; font-weight: 700;
+  padding: 2px 8px; border-radius: 999px;
+  background: #fef3c7; color: #92400e; white-space: nowrap;
+}
+.ev.is-game .ev-kind { background: #fee2e2; color: #991b1b; }
+
+.ev-sum { font-size: .85rem; color: var(--text-muted); overflow-wrap: anywhere; }
+
+.ev-body { padding: 0 14px 14px; border-top: 1px solid var(--border); }
+
+.two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+@media (max-width: 420px) { .two-col { grid-template-columns: 1fr; } }
+
+/* ---- 公告產生器的清單 ---- */
+.list-row {
+  display: flex; align-items: flex-start; gap: 10px;
+  padding: 10px 0; border-bottom: 1px solid var(--border);
+}
+.list-row:last-child { border-bottom: none; }
+.list-main { flex: 1; min-width: 0; }
+.list-title { font-weight: 700; overflow-wrap: break-word; }
+.list-meta { font-size: .8rem; color: var(--text-muted); }

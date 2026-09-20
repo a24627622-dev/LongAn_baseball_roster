@@ -6,74 +6,7 @@
   <title>公告產生器 - 龍安棒球隊</title>
   <link rel="icon" href="../logo-192.png">
   <link rel="stylesheet" href="../site.css">
-  <style>
-    .form-card {
-      background: var(--card-bg);
-      border: 1px solid var(--border);
-      border-left: 5px solid var(--accent-color);
-      border-radius: 12px;
-      padding: 16px;
-      margin-bottom: 16px;
-    }
-    label { display: block; font-weight: 700; font-size: .9rem; margin: 12px 0 4px; color: var(--dark-color); }
-    label:first-child { margin-top: 0; }
-    input[type=text], input[type=date], textarea {
-      width: 100%;
-      font: inherit;
-      padding: 10px 12px;
-      border: 1px solid #cbd5e1;
-      border-radius: 8px;
-      background: #fff;
-      color: var(--text-primary);
-    }
-    textarea { min-height: 110px; resize: vertical; line-height: 1.6; }
-    input:focus, textarea:focus { outline: 2px solid var(--accent-color); outline-offset: 1px; }
-    .checkline { display: flex; align-items: center; gap: 8px; margin-top: 12px; font-weight: 700; font-size: .9rem; }
-    .checkline input { width: 20px; height: 20px; }
-    .hint { font-size: .82rem; color: var(--text-muted); font-weight: 400; margin-top: 4px; }
-    .btn-row { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 14px; }
-    button {
-      font: inherit; font-weight: 700; cursor: pointer;
-      min-height: 46px; padding: 0 18px;
-      border: none; border-radius: 10px;
-      background: var(--primary-color); color: #fff;
-      flex: 1 1 auto;
-    }
-    button.secondary { background: transparent; color: var(--accent-color); border: 2px solid var(--accent-color); }
-    button.tiny { min-height: 34px; padding: 0 12px; font-size: .82rem; flex: 0 0 auto; }
-    button:disabled { background: #e2e8f0; color: #94a3b8; cursor: not-allowed; border-color: #e2e8f0; }
-    #output {
-      width: 100%; min-height: 220px; font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
-      font-size: .82rem; line-height: 1.5; white-space: pre; overflow-wrap: normal; overflow-x: auto;
-      padding: 12px; border: 1px solid #cbd5e1; border-radius: 8px; background: #0f172a; color: #e2e8f0;
-    }
-    .list-row {
-      display: flex; align-items: flex-start; gap: 10px;
-      padding: 10px 0; border-bottom: 1px solid var(--border);
-    }
-    .list-row:last-child { border-bottom: none; }
-    .list-main { flex: 1; min-width: 0; }
-    .list-title { font-weight: 700; overflow-wrap: break-word; }
-    .list-meta { font-size: .8rem; color: var(--text-muted); }
-    .steps { counter-reset: s; padding-left: 0; list-style: none; }
-    .steps li { counter-increment: s; position: relative; padding-left: 30px; margin-bottom: 8px; font-size: .92rem; }
-    .steps li::before {
-      content: counter(s); position: absolute; left: 0; top: 1px;
-      width: 21px; height: 21px; border-radius: 50%;
-      background: var(--primary-color); color: #fff;
-      font-size: .75rem; font-weight: 700;
-      display: flex; align-items: center; justify-content: center;
-    }
-    .gh-link {
-      font-weight: 700; text-decoration: none;
-      min-height: 46px; padding: 0 18px;
-      border-radius: 10px;
-      background: transparent; color: var(--accent-color); border: 2px solid var(--accent-color);
-      display: flex; align-items: center; justify-content: center;
-      flex: 1 1 auto;
-    }
-    .flash { font-size: .88rem; font-weight: 700; color: #166534; margin-top: 8px; min-height: 1.2em; }
-  </style>
+  <link rel="stylesheet" href="editor.css">
 </head>
 <body>
 

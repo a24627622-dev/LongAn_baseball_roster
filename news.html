@@ -47,9 +47,41 @@
       const el = document.getElementById('news-list');
       try {
         const list = sortAnnouncements(await loadJSON('data/announcements.json'));
-        el.innerHTML = list.length
-          ? list.map(announcementHTML).join('')
-          : '<div class="empty-note">目前沒有公告。</div>';
+
+        if (!list.length) {
+          el.innerHTML = '<div class="empty-note">目前沒有公告。</div>';
+          return;
+        }
+
+        // 只有一個年度時不分年，維持乾淨；跨年度才加標題並把舊的收起來
+        const yearOf = (it) => String(it.date).slice(0, 4);
+        const years = [...new Set(list.map(yearOf))].sort().reverse();
+
+        if (years.length === 1) {
+          el.innerHTML = list.map(announcementHTML).join('');
+          return;
+        }
+
+        const thisYear = String(new Date().getFullYear());
+        const current = list.filter((it) => yearOf(it) === thisYear);
+        const older = list.filter((it) => yearOf(it) !== thisYear);
+
+        let html = '';
+        if (current.length) {
+          html += `<h3 class="month-head">${thisYear}年</h3>` + current.map(announcementHTML).join('');
+        }
+        if (older.length) {
+          const byYear = years.filter((y) => y !== thisYear).map((y) => {
+            const rows = older.filter((it) => yearOf(it) === y);
+            return `<h3 class="month-head">${y}年</h3>` + rows.map(announcementHTML).join('');
+          }).join('');
+          html += `
+            <details class="past-box">
+              <summary>更早的公告（${older.length}）</summary>
+              <div>${byYear}</div>
+            </details>`;
+        }
+        el.innerHTML = html;
       } catch (err) {
         el.innerHTML = '<div class="empty-note">公告暫時讀不到，請稍後再試。</div>';
         console.error(err);

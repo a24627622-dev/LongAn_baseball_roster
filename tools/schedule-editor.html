@@ -1,0 +1,370 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>時程編輯器 - 龍安棒球隊</title>
+  <link rel="icon" href="../logo-192.png">
+  <link rel="stylesheet" href="../site.css">
+  <link rel="stylesheet" href="editor.css">
+</head>
+<body>
+
+  <header class="site-header">
+    <div class="wrap">
+      <a class="brand" href="index.html">
+        <img src="../logo-192.png" alt="龍安棒球隊隊徽" onerror="this.style.display='none'">
+        <span>時程編輯器</span>
+      </a>
+      <nav class="site-nav">
+        <a href="index.html">球隊管理</a>
+        <a href="../schedule.html">時程頁</a>
+      </nav>
+    </div>
+  </header>
+
+  <main class="wrap page-body">
+
+    <div class="section-head" style="margin-top:20px"><h2>1. 編輯活動</h2></div>
+    <div class="hint" style="margin-bottom:12px">
+      點一筆展開就能改。球隊慣例是週日活動、有比賽就不練球、練球 08:00~12:00。
+    </div>
+    <div id="list"><div class="hint">載入中…</div></div>
+
+    <div class="form-card" style="border-left-color:var(--gold-color)">
+      <label for="new-date">新增一筆活動</label>
+      <div class="two-col">
+        <input type="date" id="new-date">
+        <select id="new-type">
+          <option value="practice">練球</option>
+          <option value="game">比賽</option>
+        </select>
+      </div>
+      <div class="btn-row"><button id="btn-new">新增</button></div>
+      <div class="flash" id="new-flash"></div>
+    </div>
+
+    <div class="section-head"><h2>2. 複製並貼到 GitHub</h2></div>
+    <div class="form-card">
+      <ol class="steps">
+        <li>按「複製全部內容」</li>
+        <li>按「開啟 GitHub 編輯頁」</li>
+        <li>在編輯框裡<strong>全選、刪掉舊的</strong>，貼上新的</li>
+        <li>最下面按 <strong>Commit changes</strong></li>
+        <li>約一分鐘後官網就更新了</li>
+      </ol>
+      <textarea id="output" readonly spellcheck="false"></textarea>
+      <div class="btn-row">
+        <button id="btn-copy">複製全部內容</button>
+        <a class="gh-link" href="https://github.com/a24627622-dev/LongAn_baseball_roster/edit/main/data/schedule.json" target="_blank" rel="noopener">開啟 GitHub 編輯頁 ↗</a>
+      </div>
+      <div class="flash" id="copy-flash"></div>
+    </div>
+
+  </main>
+
+  <footer class="site-footer">
+    <div class="wrap">
+      <span>時程編輯器｜這個頁面不會寫入任何資料，只幫你把文字轉成正確格式</span>
+    </div>
+  </footer>
+
+  <script src="../site.js"></script>
+  <script>
+    let items = [];
+
+    /* 開賽前一小時 */
+    function minusOneHour(hhmm) {
+      if (!/^\d{1,2}:\d{2}$/.test(hhmm || '')) return '';
+      let [h, m] = hhmm.split(':').map(Number);
+      h = (h + 23) % 24;
+      return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
+    }
+
+    /* 存進 JSON 時，每種類型只留該有的欄位 */
+    function normalize(it) {
+      const base = { type: it.type, date: it.date };
+      if (it.type === 'game') {
+        const ln = it.scoreLongan, op = it.scoreOpp;
+        const hasScore = ln !== '' && ln != null && op !== '' && op != null;
+        return Object.assign(base, {
+          gatherTime: it.autoGather ? minusOneHour(it.startTime) : (it.gatherTime || ''),
+          startTime: it.startTime || '',
+          venue: it.venue || '',
+          opponent: it.opponent || '',
+          score: hasScore ? { longan: Number(ln), opponent: Number(op) } : null,
+          resultUrl: null,
+          cancelled: !!it.cancelled,
+          note: it.note || '',
+        });
+      }
+      return Object.assign(base, {
+        startTime: it.startTime || '',
+        endTime: it.endTime || '',
+        venue: it.venue || '',
+        cancelled: !!it.cancelled,
+        note: it.note || '',
+      });
+    }
+
+    /* 讀進來的 JSON 轉成編輯用的狀態 */
+    function toState(raw) {
+      const s = {
+        type: raw.type === 'game' ? 'game' : 'practice',
+        date: raw.date || '',
+        startTime: raw.startTime || '',
+        endTime: raw.endTime || '',
+        venue: raw.venue || '',
+        opponent: raw.opponent || '',
+        gatherTime: raw.gatherTime || '',
+        cancelled: !!raw.cancelled,
+        note: raw.note || '',
+        scoreLongan: raw.score && typeof raw.score.longan === 'number' ? String(raw.score.longan) : '',
+        scoreOpp: raw.score && typeof raw.score.opponent === 'number' ? String(raw.score.opponent) : '',
+      };
+      // 集合時間剛好是開賽前一小時就維持「自動」
+      s.autoGather = s.type !== 'game' ? true : (!s.gatherTime || s.gatherTime === minusOneHour(s.startTime));
+      return s;
+    }
+
+    function summaryText(it) {
+      if (it.type === 'game') {
+        const sc = (it.scoreLongan !== '' && it.scoreOpp !== '') ? `　${it.scoreLongan}:${it.scoreOpp}` : '';
+        return `龍安 vs ${it.opponent || '未定'}　${it.startTime || '--:--'} 開賽　${it.venue || '地點未定'}${sc}`;
+      }
+      return `${it.startTime || '--:--'} ~ ${it.endTime || '--:--'}　${it.venue || '地點未定'}`;
+    }
+
+    function bodyHTML(it, i) {
+      const common = `
+        <label>地點</label>
+        <input type="text" data-i="${i}" data-f="venue" value="${escapeHtml(it.venue)}" placeholder="留空白 = 網站顯示「地點未定，請留意公告」">
+
+        <label>備註</label>
+        <input type="text" data-i="${i}" data-f="note" value="${escapeHtml(it.note)}" placeholder="例：因雨取消，改期至 11/08">
+
+        <div class="checkline">
+          <input type="checkbox" id="c-${i}" data-i="${i}" data-f="cancelled" ${it.cancelled ? 'checked' : ''}>
+          <label for="c-${i}">這場取消（時程頁會顯示刪除線和「已取消」，首頁會自動跳過）</label>
+        </div>`;
+
+      if (it.type === 'game') {
+        return `
+          <label>對手</label>
+          <input type="text" data-i="${i}" data-f="opponent" value="${escapeHtml(it.opponent)}" placeholder="例：ZERO">
+
+          <div class="two-col">
+            <div>
+              <label>開賽時間</label>
+              <input type="time" data-i="${i}" data-f="startTime" value="${escapeHtml(it.startTime)}">
+            </div>
+            <div>
+              <label>集合時間</label>
+              <input type="time" data-i="${i}" data-f="gatherTime" value="${escapeHtml(it.autoGather ? minusOneHour(it.startTime) : it.gatherTime)}" ${it.autoGather ? 'disabled' : ''}>
+            </div>
+          </div>
+          <div class="checkline">
+            <input type="checkbox" id="ag-${i}" data-i="${i}" data-f="autoGather" ${it.autoGather ? 'checked' : ''}>
+            <label for="ag-${i}">集合時間 = 開賽前一小時（自動）</label>
+          </div>
+          ${common}
+
+          <label>比分（比完再填，留空白代表還沒打）</label>
+          <div class="two-col">
+            <input type="number" data-i="${i}" data-f="scoreLongan" value="${escapeHtml(it.scoreLongan)}" placeholder="龍安" min="0">
+            <input type="number" data-i="${i}" data-f="scoreOpp" value="${escapeHtml(it.scoreOpp)}" placeholder="對手" min="0">
+          </div>
+
+          <div class="btn-row">
+            <button class="secondary tiny" data-switch="${i}">改成練球</button>
+            <button class="danger tiny" data-del="${i}">刪除這筆</button>
+          </div>`;
+      }
+
+      return `
+        <div class="two-col">
+          <div>
+            <label>開始時間</label>
+            <input type="time" data-i="${i}" data-f="startTime" value="${escapeHtml(it.startTime)}">
+          </div>
+          <div>
+            <label>結束時間</label>
+            <input type="time" data-i="${i}" data-f="endTime" value="${escapeHtml(it.endTime)}">
+          </div>
+        </div>
+        ${common}
+
+        <div class="btn-row">
+          <button class="secondary tiny" data-switch="${i}">改成比賽</button>
+          <button class="danger tiny" data-del="${i}">刪除這筆</button>
+        </div>`;
+    }
+
+    function rowHTML(it, i) {
+      const cls = ['ev', it.type === 'game' ? 'is-game' : '', it.cancelled ? 'is-cancelled' : ''].join(' ');
+      return `
+        <details class="${cls}" data-row="${i}">
+          <summary>
+            <span class="ev-date">${fmtDate(it.date)}</span>
+            <span class="ev-kind">${it.type === 'game' ? '比賽' : '練球'}</span>
+            ${it.cancelled ? '<span class="cancel-tag">已取消</span>' : ''}
+            <span class="ev-sum">${escapeHtml(summaryText(it))}</span>
+          </summary>
+          <div class="ev-body">${bodyHTML(it, i)}</div>
+        </details>`;
+    }
+
+    function sortItems() {
+      items.sort((a, b) => String(a.date).localeCompare(String(b.date)));
+    }
+
+    function refreshOutput() {
+      document.getElementById('output').value =
+        JSON.stringify(items.map(normalize), null, 2) + '\n';
+    }
+
+    function renderAll() {
+      sortItems();
+      const el = document.getElementById('list');
+      el.innerHTML = items.length
+        ? items.map(rowHTML).join('')
+        : '<div class="hint">目前沒有任何活動。用下面的「新增一筆活動」加。</div>';
+      refreshOutput();
+    }
+
+    /* 只重畫某一列（切換類型時用），保持其他列的展開狀態 */
+    function renderRow(i) {
+      const old = document.querySelector(`[data-row="${i}"]`);
+      if (!old) return renderAll();
+      const tmp = document.createElement('div');
+      tmp.innerHTML = rowHTML(items[i], i).trim();
+      const fresh = tmp.firstChild;
+      fresh.open = true;
+      old.replaceWith(fresh);
+      refreshOutput();
+    }
+
+    function refreshSummary(i) {
+      const row = document.querySelector(`[data-row="${i}"]`);
+      if (!row) return;
+      const it = items[i];
+      row.className = ['ev', it.type === 'game' ? 'is-game' : '', it.cancelled ? 'is-cancelled' : ''].join(' ');
+      row.querySelector('.ev-sum').textContent = summaryText(it);
+      const tag = row.querySelector('.cancel-tag');
+      if (it.cancelled && !tag) {
+        row.querySelector('.ev-kind').insertAdjacentHTML('afterend', '<span class="cancel-tag">已取消</span>');
+      } else if (!it.cancelled && tag) {
+        tag.remove();
+      }
+    }
+
+    const listEl = document.getElementById('list');
+
+    listEl.addEventListener('input', (e) => {
+      const i = e.target.getAttribute('data-i');
+      const f = e.target.getAttribute('data-f');
+      if (i === null || !f) return;
+      const it = items[Number(i)];
+      it[f] = e.target.type === 'checkbox' ? e.target.checked : e.target.value;
+
+      // 開賽時間改了、且集合是自動 → 同步更新那個欄位的顯示
+      if (f === 'startTime' && it.type === 'game' && it.autoGather) {
+        const g = document.querySelector(`[data-i="${i}"][data-f="gatherTime"]`);
+        if (g) g.value = minusOneHour(it.startTime);
+      }
+      if (f === 'autoGather') {
+        const g = document.querySelector(`[data-i="${i}"][data-f="gatherTime"]`);
+        if (g) {
+          g.disabled = it.autoGather;
+          if (it.autoGather) g.value = minusOneHour(it.startTime);
+        }
+      }
+      refreshSummary(Number(i));
+      refreshOutput();
+    });
+
+    listEl.addEventListener('change', (e) => {
+      if (e.target.type === 'checkbox') listEl.dispatchEvent(new Event('input'));
+    });
+
+    listEl.addEventListener('click', (e) => {
+      const sw = e.target.getAttribute('data-switch');
+      const del = e.target.getAttribute('data-del');
+
+      if (sw !== null && sw !== undefined) {
+        e.preventDefault();
+        const i = Number(sw);
+        const it = items[i];
+        if (it.type === 'game') {
+          it.type = 'practice';
+          it.startTime = '08:00'; it.endTime = '12:00';
+          it.opponent = ''; it.gatherTime = ''; it.scoreLongan = ''; it.scoreOpp = '';
+          it.autoGather = true;
+        } else {
+          it.type = 'game';
+          // 不沿用練球的 08:00，否則集合會被自動算成 07:00。
+          // 用 10:00 當預設（大漢聯盟的慣例開賽時間），使用者再自己改。
+          it.startTime = '10:00';
+          it.endTime = '';
+          it.autoGather = true;
+        }
+        renderRow(i);
+      } else if (del !== null && del !== undefined) {
+        e.preventDefault();
+        const it = items[Number(del)];
+        if (confirm(`確定刪除 ${fmtDate(it.date)} 這筆？`)) {
+          items.splice(Number(del), 1);
+          renderAll();
+        }
+      }
+    });
+
+    document.getElementById('btn-new').addEventListener('click', () => {
+      const date = document.getElementById('new-date').value;
+      const type = document.getElementById('new-type').value;
+      const flash = document.getElementById('new-flash');
+      if (!date) { flash.style.color = '#991b1b'; flash.textContent = '請先選日期。'; return; }
+      if (items.some((x) => x.date === date)) {
+        flash.style.color = '#991b1b';
+        flash.textContent = `${fmtDate(date)} 已經有一筆了，直接編輯那一筆就好。`;
+        return;
+      }
+      items.push(toState(type === 'game'
+        ? { type: 'game', date, gatherTime: '09:00', startTime: '10:00', venue: '', opponent: '', cancelled: false, note: '' }
+        : { type: 'practice', date, startTime: '08:00', endTime: '12:00', venue: '', cancelled: false, note: '' }));
+      renderAll();
+      flash.style.color = '#166534';
+      flash.textContent = `已新增 ${fmtDate(date)}，記得到第 2 步複製貼上才算發布。`;
+      const row = document.querySelector(`[data-row="${items.findIndex((x) => x.date === date)}"]`);
+      if (row) { row.open = true; row.scrollIntoView({ behavior: 'smooth', block: 'center' }); }
+    });
+
+    document.getElementById('btn-copy').addEventListener('click', async () => {
+      const ta = document.getElementById('output');
+      const flash = document.getElementById('copy-flash');
+      try {
+        await navigator.clipboard.writeText(ta.value);
+      } catch (e) {
+        ta.removeAttribute('readonly'); ta.select();
+        document.execCommand('copy'); ta.setAttribute('readonly', '');
+      }
+      flash.style.color = '#166534';
+      flash.textContent = '已複製，接著按「開啟 GitHub 編輯頁」。';
+    });
+
+    (async function init() {
+      document.getElementById('new-date').value = todayStr();
+      try {
+        const raw = await loadJSON('../data/schedule.json');
+        items = (Array.isArray(raw) ? raw : []).map(toState);
+      } catch (e) {
+        items = [];
+        document.getElementById('list').innerHTML =
+          '<div class="hint">讀不到目前的時程。新增的活動會從空白開始。</div>';
+      }
+      renderAll();
+    })();
+  </script>
+
+</body>
+</html>

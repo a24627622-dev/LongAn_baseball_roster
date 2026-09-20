@@ -1,0 +1,6 @@
+{
+  "port": 8080,
+  "TEAM_PASSCODE": "longan-dev",
+  "AUTH_ENFORCED": false,
+  "delayMs": 0
+}

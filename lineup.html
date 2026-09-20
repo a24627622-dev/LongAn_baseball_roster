@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>龍安棒球隊點名與先發陣容助手</title>
+    <meta name="robots" content="noindex, nofollow"><!-- 隊務工具頁，不讓搜尋引擎收錄 -->
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
     <style>
@@ -23,6 +24,16 @@
       </div>
 
       <div style="display: flex; align-items: center; gap: 8px;">
+        <span v-if="apiModeLabel" :title="'後端：' + (apiModeLabel.includes('正式') ? '正式 Google 試算表' : '測試環境')"
+              :style="{ background: apiModeLabel.includes('正式') ? '#dc2626' : '#7c3aed', color: 'white', padding: '4px 8px', borderRadius: '8px', fontSize: '0.75rem', whiteSpace: 'nowrap' }">
+          {{ apiModeLabel }}
+        </span>
+        <button v-if="isLoggedIn" @click="logout" title="已登入隊務權限，點擊登出" style="background: #065f46; color: white; border: none; padding: 4px 8px; border-radius: 8px; font-size: 0.75rem; cursor: pointer;">
+          🔓 隊務
+        </button>
+        <button v-else @click="openLogin" title="隊務登入" style="background: #7f1d1d; color: white; border: none; padding: 4px 8px; border-radius: 8px; font-size: 0.75rem; cursor: pointer;">
+          🔒 登入
+        </button>
         <button @click="clearDraft" style="background: #4b5563; color: white; border: none; padding: 4px 8px; border-radius: 8px; font-size: 0.75rem; cursor: pointer;">
           🗑️ 重置
         </button>
@@ -292,7 +303,7 @@
                             </div>
                             <div class="flex items-center gap-2">
                                 <span class="text-blue-300 text-[11px]">{{ idx === 0 ? (hasDHInLineup ? '先發投手 (DH制)' : '先發投手') : (p.reason || '中繼/後援') }}</span>
-                                <button v-if="p.isIndependentSub && !p.isUploaded" @click="removeIndependentPitcher(p.id)" class="text-red-300 hover:text-red-100 font-bold text-xs px-1">✕</button>
+                                <button v-if="p.isIndependentSub && !p.isUploaded" @click="removeIndependentPitcher(p.timestamp)" class="text-red-300 hover:text-red-100 font-bold text-xs px-1">✕</button>
                             </div>
                         </div>
                     </div>
@@ -359,11 +370,18 @@
 
                 <div class="pt-4 flex justify-between items-center flex-wrap gap-3">
                     <button @click="goToStep(2)" class="text-slate-600 text-sm font-medium border px-4 py-2 rounded-xl">⬅ 檢視先發</button>
-                    
-                    <button @click="uploadSubstitutionsToGAS" :disabled="saving || currentBatchPending.length === 0" 
-                            class="bg-purple-600 hover:bg-purple-500 disabled:bg-slate-300 disabled:cursor-not-allowed text-white px-6 py-2.5 rounded-xl font-bold shadow flex items-center gap-2 transition">
-                        <span>📤</span> {{ saving ? '更新上傳中...' : (currentBatchPending.length > 0 ? '更換確認並更新上傳 GAS ➔' : '無新更換需上傳') }}
-                    </button>
+
+                    <div class="flex items-center gap-2 flex-wrap">
+                        <button @click="uploadSubstitutionsToGAS" :disabled="saving || currentBatchPending.length === 0"
+                                class="bg-purple-600 hover:bg-purple-500 disabled:bg-slate-300 disabled:cursor-not-allowed text-white px-6 py-2.5 rounded-xl font-bold shadow flex items-center gap-2 transition">
+                            <span>📤</span> {{ saving ? '更新上傳中...' : (currentBatchPending.length > 0 ? '更換確認並更新上傳 GAS ➔' : '無新更換需上傳') }}
+                        </button>
+
+                        <button @click="finishGame" :disabled="saving"
+                                class="bg-emerald-600 hover:bg-emerald-500 disabled:bg-slate-300 disabled:cursor-not-allowed text-white px-6 py-2.5 rounded-xl font-bold shadow flex items-center gap-2 transition">
+                            <span>🏁</span> {{ saving ? '處理中...' : '比賽完成' }}
+                        </button>
+                    </div>
                 </div>
             </section>
 
@@ -389,10 +407,14 @@
                             🔄 [不更動球員] #{{ subModal.currentActivePlayer.number }} {{ subModal.currentActivePlayer.name }} (僅調整守位)
                         </option>
                         <option disabled>---------------------------------</option>
-                        <option v-for="bp in benchPlayers" :key="bp.id" :value="bp.id">
-                            #{{ bp['背號'] || '?' }} {{ bp['球員姓名'] }} {{ bp.isPitcher ? '⚾[投手]' : '' }} {{ getPlayerPositionsText(bp) }}
+                        <option v-for="bp in subCandidates" :key="bp.id" :value="bp.id">
+                            {{ bp.isCurrentDHPitcher ? '⚾ [目前投手進入打序 → 取消DH]' : '' }} #{{ bp['背號'] || '?' }} {{ bp['球員姓名'] }} {{ (!bp.isCurrentDHPitcher && bp.isPitcher) ? '⚾[投手]' : '' }} {{ getPlayerPositionsText(bp) }}
                         </option>
                     </select>
+                </div>
+
+                <div v-if="willCancelDH" class="p-2.5 bg-red-50 border border-red-200 rounded-xl text-xs text-red-700 font-bold">
+                    ⚠️ 這筆更換會讓 DH 指定打擊被取消（投手進入打序／DH 轉守備），之後不能再指定 DH。
                 </div>
 
                 <div>
@@ -449,6 +471,24 @@
             </div>
         </div>
 
+        <div v-if="authModal.open" class="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-[60] p-4">
+            <div class="bg-white rounded-2xl p-6 max-w-sm w-full shadow-2xl space-y-4">
+                <h3 class="text-lg font-bold text-slate-800 flex items-center gap-2"><span>🔐</span> 隊務登入</h3>
+                <p v-if="authModal.message" class="text-xs text-amber-800 bg-amber-50 border border-amber-200 rounded-lg p-2">{{ authModal.message }}</p>
+                <p class="text-xs text-slate-500">上傳陣容與回讀比賽資料需要隊務密碼，登入後這支手機會保持登入 30 天。</p>
+                <input type="password" v-model="authModal.passcode" @keyup.enter="submitLogin" autocomplete="current-password"
+                       placeholder="請輸入隊務密碼" class="w-full border rounded-xl p-2.5 text-sm">
+                <p v-if="authModal.error" class="text-xs text-red-600 font-bold">⚠️ {{ authModal.error }}</p>
+                <div class="flex justify-end gap-2">
+                    <button @click="cancelLogin" class="px-4 py-2 text-sm border rounded-xl">取消</button>
+                    <button @click="submitLogin" :disabled="authModal.busy || !authModal.passcode"
+                            class="px-5 py-2 text-sm font-bold text-white bg-blue-600 disabled:bg-slate-300 rounded-xl">
+                        {{ authModal.busy ? '驗證中...' : '登入' }}
+                    </button>
+                </div>
+            </div>
+        </div>
+
     </div>
 
     <script>
@@ -457,7 +497,111 @@
         createApp({
             setup() {
                 // 統一發布之 GAS Web App 網址
-                const GOOGLE_APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxnxwpLSBT2Pm1y9-Rhsw1-tzN5TmQlvHWbw1zFoUlIWS5y8GYqnNkOiOwkJ6y0kEdp/exec';
+                const PROD_GAS_URL = 'https://script.google.com/macros/s/AKfycbxiAU0ZEuamWUpI_uX8DmSkmxuMcUxNd-BzwT9YgfahXU8pdfAxl5LKGkaKfglsirOx/exec';
+                // 後端網址切換：
+                //   - 在本機（localhost）開啟時，預設連到本機開發伺服器的假 GAS（/gas），不會動到正式試算表
+                //   - 網址加 ?api=prod 可強制連正式 GAS；加 ?api=<另一個 script.google.com 的 /exec 網址> 可連測試用 GAS
+                //   - 其他情況（GitHub Pages 正式網站）一律使用正式 GAS
+                // 本機或區網（手機連電腦測試）的網址
+                const isLocalHost = (h) => /^(localhost|127\.0\.0\.1|192\.168\.\d+\.\d+|10\.\d+\.\d+\.\d+|172\.(1[6-9]|2\d|3[01])\.\d+\.\d+)$/.test(h || '');
+                const GOOGLE_APPS_SCRIPT_URL = (() => {
+                    try {
+                        const api = new URLSearchParams(location.search).get('api');
+                        if (api === 'prod') return PROD_GAS_URL;
+                        if (api && /^https:\/\/script\.google\.com\/macros\/s\/[\w-]+\/exec$/.test(api)) return api;
+                        if (isLocalHost(location.hostname)) return '/gas';
+                    } catch (e) { /* 取不到網址資訊時使用正式 GAS */ }
+                    return PROD_GAS_URL;
+                })();
+                const apiModeLabel = GOOGLE_APPS_SCRIPT_URL === '/gas' ? '🧪 本機假資料'
+                    : (GOOGLE_APPS_SCRIPT_URL !== PROD_GAS_URL ? '🧪 測試 GAS'
+                    : (isLocalHost((typeof location !== 'undefined' && location.hostname) || '') ? '⚠️ 正式資料' : ''));
+
+                // ----------------------------------------------------
+                // 🔐 隊務登入(密碼驗證在 GAS 端進行,前端只負責保存通行證 token)
+                // ----------------------------------------------------
+                const AUTH_TOKEN_KEY = 'longan_auth_token';
+                const authModal = ref({ open: false, passcode: '', error: '', busy: false, message: '' });
+                let authResolver = null;
+
+                const readToken = () => {
+                    try { return localStorage.getItem(AUTH_TOKEN_KEY) || ''; } catch (e) { return ''; }
+                };
+                const tokenExpiry = (token) => {
+                    try {
+                        const b64 = token.split('.')[0].replace(/-/g, '+').replace(/_/g, '/');
+                        const json = decodeURIComponent(escape(atob(b64 + '==='.slice((b64.length + 3) % 4))));
+                        return JSON.parse(json).exp || 0;
+                    } catch (e) { return 0; }
+                };
+                const authToken = ref(readToken());
+                const isLoggedIn = computed(() => !!authToken.value && tokenExpiry(authToken.value) > Date.now());
+                const setToken = (t) => {
+                    authToken.value = t || '';
+                    try {
+                        if (t) localStorage.setItem(AUTH_TOKEN_KEY, t); else localStorage.removeItem(AUTH_TOKEN_KEY);
+                    } catch (e) { /* 無痕模式等情況存不了,就只在這次開啟期間有效 */ }
+                };
+
+                const rawPost = async (body) => {
+                    const res = await fetch(GOOGLE_APPS_SCRIPT_URL, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+                        body: JSON.stringify(body)
+                    });
+                    const text = await res.text();
+                    try { return JSON.parse(text); }
+                    catch (e) { throw new Error('伺服器回應格式錯誤（請確認 GAS 已部署新版本）'); }
+                };
+
+                // 需要登入時跳出密碼視窗,回傳 Promise<boolean>
+                const requestLogin = (message) => new Promise(resolve => {
+                    authResolver = resolve;
+                    authModal.value = { open: true, passcode: '', error: '', busy: false, message: message || '' };
+                });
+                const openLogin = () => requestLogin('');
+                const submitLogin = async () => {
+                    if (!authModal.value.passcode) return;
+                    authModal.value.busy = true;
+                    authModal.value.error = '';
+                    try {
+                        const r = await rawPost({ action: 'login', passcode: authModal.value.passcode });
+                        if (r && r.success && r.token) {
+                            setToken(r.token);
+                            authModal.value.open = false;
+                            if (authResolver) { authResolver(true); authResolver = null; }
+                        } else {
+                            authModal.value.error = (r && r.message) || '登入失敗';
+                        }
+                    } catch (e) {
+                        authModal.value.error = e.message;
+                    } finally {
+                        authModal.value.busy = false;
+                        authModal.value.passcode = '';
+                    }
+                };
+                const cancelLogin = () => {
+                    authModal.value.open = false;
+                    if (authResolver) { authResolver(false); authResolver = null; }
+                };
+                const logout = () => {
+                    if (confirm('確定要登出隊務權限嗎？')) setToken('');
+                };
+
+                // 所有寫入/讀取比賽資料的 POST 都走這裡:自動帶 token,遇到 AUTH_REQUIRED 會請使用者登入後重送一次
+                const postToGAS = async (body) => {
+                    let r = await rawPost({ ...body, token: authToken.value });
+                    if (r && r.code === 'AUTH_REQUIRED') {
+                        setToken('');
+                        const ok = await requestLogin(r.message);
+                        if (!ok) throw new Error('尚未完成隊務登入，資料沒有送出');
+                        r = await rawPost({ ...body, token: authToken.value });
+                    }
+                    if (!r || r.success === false) {
+                        throw new Error((r && r.message) || '伺服器沒有回應');
+                    }
+                    return r;
+                };
 
                 const players = ref([]);
                 const loading = ref(false);
@@ -517,7 +661,7 @@
                 // ----------------------------------------------------
                 // 💾 自動防呆暫存機制 (LocalStorage Auto-Save)
                 // ----------------------------------------------------
-                watch([gameInfo, currentStep, lineup, activeLineup, currentBatchPending, uploadedBatches, independentPitcherId], () => {
+                watch([gameInfo, currentStep, lineup, activeLineup, currentBatchPending, uploadedBatches, independentPitcherId, extraPitchersHistory], () => {
                     if (players.value.length === 0) return;
                     const state = {
                         gameInfo: gameInfo.value,
@@ -527,6 +671,7 @@
                         currentBatchPending: currentBatchPending.value,
                         uploadedBatches: uploadedBatches.value,
                         independentPitcherId: independentPitcherId.value,
+                        extraPitchersHistory: extraPitchersHistory.value,
                         attendedIds: players.value.filter(p => p.isAttended).map(p => p.id),
                         timestamp: Date.now()
                     };
@@ -547,6 +692,7 @@
                                 currentBatchPending.value = draft.currentBatchPending || [];
                                 uploadedBatches.value = draft.uploadedBatches || [];
                                 independentPitcherId.value = draft.independentPitcherId || '';
+                                extraPitchersHistory.value = draft.extraPitchersHistory || [];
                                 
                                 if (draft.attendedIds && Array.isArray(draft.attendedIds)) {
                                     players.value.forEach(p => {
@@ -599,40 +745,80 @@
                 // ----------------------------------------------------
                 // ☁️ 雲端 GAS 回讀歷史比賽紀錄
                 // ----------------------------------------------------
-                const loadFromGAS = () => {
+                const loadFromGAS = async () => {
                     if (!gameInfo.value.opponent) {
                         alert('⚠️ 請先輸入「對手名稱」，才能搜尋對應的雲端紀錄！');
                         return;
                     }
-                    const gameId = `${gameInfo.value.date}_${gameInfo.value.gameNum}_${gameInfo.value.opponent}`;
                     saving.value = true;
 
-                    fetch(GOOGLE_APPS_SCRIPT_URL, {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-                        body: JSON.stringify({ action: 'getGameLineup', gameId: gameId })
-                    })
-                    .then(res => res.json())
-                    .then(res => {
-                        saving.value = false;
-                        if (res.success) {
-                            if (res.mode === 'json' && res.data) {
-                                if (res.data.activeLineup) activeLineup.value = res.data.activeLineup;
-                                if (res.data.lineup) lineup.value = res.data.lineup;
-                                alert('✅ 已成功從雲端回讀該場比賽的完整先發與調度紀錄！');
-                                goToStep(3);
-                            } else {
-                                alert('✅ 找到雲端紀錄，已同步載入！');
-                                goToStep(3);
-                            }
-                        } else {
-                            alert('⚠️ ' + (res.message || '找不到該場比賽的雲端紀錄！'));
+                    // 依姓名(必要)+背號(輔助)比對現有球員名單,補回正確的 id,
+                    // 並把回讀到的球員標記為已出席,讓步驟三的板凳清單正確排除他們
+                    const matchPlayer = (p) => {
+                        if (!p) return p;
+                        const found = players.value.find(pl =>
+                            pl['球員姓名'] === p.name && String(pl['背號'] || '') === String(p.number || '')
+                        ) || players.value.find(pl => pl['球員姓名'] === p.name);
+                        if (found) {
+                            found.isAttended = true;
+                            return { ...p, id: found.id, isUploaded: true };
                         }
-                    })
-                    .catch(err => {
+                        return { ...p, isUploaded: true }; // 名單裡對不到的話保留原樣(id 為 null)
+                    };
+                    // 守位代號:優先用 pos,沒有的話從 posLabel(例如 "DH (10)")取第一段
+                    let restoreSeq = 0;
+                    const posCodeOf = (p) => (p && (p.pos || String(p.posLabel || '').split(' ')[0])) || '';
+
+                    try {
+                        const res = await postToGAS({ action: 'getGameLineup', gameInfo: gameInfo.value });
+                        if (res.mode === 'json' && res.data && Array.isArray(res.data.activeLineup) && res.data.activeLineup.length > 0) {
+                            activeLineup.value = res.data.activeLineup.map(slot => {
+                                const starter = matchPlayer(slot.starter);
+                                starter.pos = posCodeOf(starter);
+                                return {
+                                    starter,
+                                    substitutes: (slot.substitutes || []).map(sub => {
+                                        const m = matchPlayer(sub);
+                                        m.pos = posCodeOf(m);
+                                        m.timestamp = m.timestamp || (100 + (restoreSeq++));
+                                        return m;
+                                    })
+                                };
+                            });
+                            // 步驟二的先發表也要一起還原,hasDHInLineup 等 DH 判斷才會正確
+                            lineup.value = activeLineup.value.map(slot => ({
+                                positionCode: slot.starter.pos,
+                                playerId: slot.starter.id || ''
+                            }));
+                            independentPitcherId.value = '';
+                            extraPitchersHistory.value = [];
+                            // DH 制:投手不在打序裡,要靠後端回傳的 pitchers 還原
+                            const pitchers = Array.isArray(res.data.pitchers) ? res.data.pitchers.map(matchPlayer) : [];
+                            if (hasDHInLineup.value && pitchers.length > 0) {
+                                const inLineupIds = new Set();
+                                activeLineup.value.forEach(slot => (slot.substitutes || []).forEach(sub => inLineupIds.add(sub.id)));
+                                independentPitcherId.value = pitchers[0].id || '';
+                                pitchers.slice(1).forEach((pp, i) => {
+                                    if (pp.id && !inLineupIds.has(pp.id)) {
+                                        extraPitchersHistory.value.push({
+                                            id: pp.id, name: pp.name, number: pp.number,
+                                            timestamp: i + 1, isUploaded: true
+                                        });
+                                    }
+                                });
+                            }
+                            currentBatchPending.value = [];
+                            uploadedBatches.value = [];
+                            alert('✅ 已成功從雲端回讀該場比賽的完整先發與調度紀錄！');
+                            goToStep(3);
+                        } else {
+                            alert('⚠️ 找到該場比賽分頁，但目前還沒有先發陣容資料可以回讀。');
+                        }
+                    } catch (err) {
+                        alert('⚠️ 回讀失敗：' + err.message);
+                    } finally {
                         saving.value = false;
-                        alert('回讀失敗：' + err);
-                    });
+                    }
                 };
 
                 onMounted(() => {
@@ -674,16 +860,25 @@
                     return attendedPlayers.value.filter(p => !startingIds.includes(p.id));
                 });
 
+                // DH 取消判定(依棒球規則):
+                // 1) 原本 DH 那一棒,後來有人被放到「守備位置」(P/C/1B...RF);代打(PH)/代跑(PR)不算,之後仍可再指定 DH
+                // 2) 任何一棒出現守位 P(投手進入打序)
+                // 3) DH 制下的投手(先發或後援)被放進打序(不論守什麼位置)
+                const DEFENSIVE_POSITIONS = ['P', 'C', '1B', '2B', '3B', 'SS', 'LF', 'CF', 'RF'];
                 const isDHCancelled = computed(() => {
                     if (!hasDHInLineup.value) return false;
-                    const dhSlot = activeLineup.value.find(s => s.starter && s.starter.pos === 'DH');
-                    if (!dhSlot) return false;
+                    const dhPitcherIds = new Set();
+                    if (independentPitcherId.value) dhPitcherIds.add(parseInt(independentPitcherId.value));
+                    extraPitchersHistory.value.forEach(p => dhPitcherIds.add(p.id));
 
-                    const currentActive = (dhSlot.substitutes && dhSlot.substitutes.length > 0)
-                        ? dhSlot.substitutes[dhSlot.substitutes.length - 1]
-                        : dhSlot.starter;
-
-                    return currentActive.pos !== 'DH';
+                    return activeLineup.value.some(slot => {
+                        const startedAsDH = slot.starter && slot.starter.pos === 'DH';
+                        return (slot.substitutes || []).some(sub =>
+                            (startedAsDH && DEFENSIVE_POSITIONS.includes(sub.pos)) ||
+                            sub.pos === 'P' ||
+                            (sub.id && dhPitcherIds.has(sub.id))
+                        );
+                    });
                 });
 
                 const attendedPlayers = computed(() => players.value.filter(p => p.isAttended));
@@ -753,6 +948,28 @@
                     extraPitchersHistory.value.forEach(p => usedIds.push(p.id));
 
                     return attendedPlayers.value.filter(p => !usedIds.includes(p.id));
+                });
+
+                // 更換視窗的候選名單:板凳球員 + (DH 制尚未取消時)目前場上投手,讓投手可以進入打序(= 取消 DH)
+                const subCandidates = computed(() => {
+                    const list = benchPlayers.value.map(p => ({ ...p, isCurrentDHPitcher: false }));
+                    if (hasDHInLineup.value && !isDHCancelled.value && activePitchers.value.length > 0) {
+                        const cur = activePitchers.value[activePitchers.value.length - 1];
+                        const pObj = getPlayerObj(cur.id);
+                        if (pObj) list.unshift({ ...pObj, isCurrentDHPitcher: true });
+                    }
+                    return list;
+                });
+
+                const willCancelDH = computed(() => {
+                    if (!subModal.value.open || !hasDHInLineup.value || isDHCancelled.value) return false;
+                    const code = subModal.value.selectedPosCode;
+                    const slot = activeLineup.value[subModal.value.battingOrder - 1];
+                    const startedAsDH = !!(slot && slot.starter && slot.starter.pos === 'DH');
+                    const cand = subCandidates.value.find(c => String(c.id) === String(subModal.value.selectedPlayerOption));
+                    if (cand && cand.isCurrentDHPitcher) return true;
+                    if (code === 'P') return true;
+                    return startedAsDH && DEFENSIVE_POSITIONS.includes(code);
                 });
 
                 const activePitchers = computed(() => {
@@ -841,9 +1058,11 @@
 
                     pitcherEvents.sort((a, b) => a.timestamp - b.timestamp);
 
+                    // 同一位投手連續出現(例如 DH 制投手進入打序、守位仍是 P)只算一次
                     const finalPitchers = [];
                     pitcherEvents.forEach(pe => {
-                        if (!finalPitchers.some(x => x.id === pe.id && x.timestamp === pe.timestamp)) {
+                        const last = finalPitchers[finalPitchers.length - 1];
+                        if (!last || last.id !== pe.id) {
                             finalPitchers.push(pe);
                         }
                     });
@@ -956,25 +1175,21 @@
 
                     const pitcherPayload = activePitchers.value;
 
-                    fetch(GOOGLE_APPS_SCRIPT_URL, {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-                        body: JSON.stringify({
-                            action: 'saveStarters',
-                            gameInfo: gameInfo.value,
-                            lineup: starterPayload,
-                            pitchers: pitcherPayload
-                        })
+                    postToGAS({
+                        action: 'saveStarters',
+                        gameInfo: gameInfo.value,
+                        lineup: starterPayload,
+                        pitchers: pitcherPayload
                     }).then(() => {
-                        saving.value = false;
                         currentBatchPending.value = [];
                         uploadedBatches.value = [];
                         extraPitchersHistory.value = [];
                         alert('✅ 先發陣容與先發投手已成功上傳至 Google Sheet！');
                         goToStep(3);
                     }).catch(err => {
+                        alert('⚠️ 上傳失敗：' + err.message);
+                    }).finally(() => {
                         saving.value = false;
-                        alert('上傳失敗: ' + err);
                     });
                 };
 
@@ -1073,84 +1288,113 @@
                     }
                 };
 
-                const removeIndependentPitcher = (pitcherId) => {
-                    extraPitchersHistory.value = extraPitchersHistory.value.filter(p => p.id !== pitcherId);
-                    currentBatchPending.value = currentBatchPending.value.filter(item => item.id !== pitcherId);
+                const removeIndependentPitcher = (timestamp) => {
+                    extraPitchersHistory.value = extraPitchersHistory.value.filter(p => p.timestamp !== timestamp);
+                    currentBatchPending.value = currentBatchPending.value.filter(item => item.timestamp !== timestamp);
                 };
 
                 const uploadSubstitutionsToGAS = () => {
                     if (currentBatchPending.value.length === 0) return;
                     saving.value = true;
 
-                    fetch(GOOGLE_APPS_SCRIPT_URL, {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-                        body: JSON.stringify({
-                            action: 'saveSubstitutions',
-                            gameInfo: gameInfo.value,
-                            activeLineup: activeLineup.value,
-                            pitchers: activePitchers.value
-                        })
+                    postToGAS({
+                        action: 'saveSubstitutions',
+                        gameInfo: gameInfo.value,
+                        activeLineup: activeLineup.value,
+                        pitchers: activePitchers.value
                     }).then(() => {
-                        saving.value = false;
-                        
+                        const batchTimestamps = currentBatchPending.value.map(item => item.timestamp);
                         activeLineup.value.forEach(slot => {
-                            if (slot.substitutes) {
-                                slot.substitutes.forEach(sub => sub.isUploaded = true);
-                            }
+                            (slot.substitutes || []).forEach(sub => {
+                                if (batchTimestamps.includes(sub.timestamp)) sub.isUploaded = true;
+                            });
                         });
-                        extraPitchersHistory.value.forEach(p => p.isUploaded = true);
+                        extraPitchersHistory.value.forEach(p => {
+                            if (batchTimestamps.includes(p.timestamp)) p.isUploaded = true;
+                        });
 
                         uploadedBatches.value.push({
                             batchId: uploadedBatches.value.length + 1,
                             text: currentLeagueReportText.value,
+                            items: JSON.parse(JSON.stringify(currentBatchPending.value)),
                             isCollapsed: true
                         });
 
                         currentBatchPending.value = [];
                         alert('✅ 更換紀錄已成功同步至 Google Sheet！');
                     }).catch(err => {
+                        alert('⚠️ 更新失敗：' + err.message);
+                    }).finally(() => {
                         saving.value = false;
-                        alert('更新失敗: ' + err);
                     });
                 };
 
+                // 只解鎖「最新一批」上傳的更換(舊版會把所有已上傳的更換一起解鎖)
                 const unlockLastBatch = () => {
                     if (uploadedBatches.value.length === 0) return;
 
                     if (!confirm('⚠️ 確定要解鎖並抽回最新一次上傳的更換紀錄嗎？\n解鎖後您可以繼續修改或復原該批更換。')) return;
 
-                    uploadedBatches.value.pop();
-
-                    let unlockedSubs = [];
+                    const batch = uploadedBatches.value.pop();
+                    let items = Array.isArray(batch.items) ? batch.items : null;
+                    if (!items) {
+                        // 舊版草稿沒有記錄批次內容:退回舊行為,解鎖所有已上傳的更換
+                        items = [];
+                        activeLineup.value.forEach(slot => (slot.substitutes || []).forEach(sub => { if (sub.isUploaded) items.push(sub); }));
+                        extraPitchersHistory.value.forEach(p => {
+                            if (p.isUploaded) items.push({ isPitcherOnlyChange: true, number: p.number, name: p.name, id: p.id, timestamp: p.timestamp });
+                        });
+                    }
+                    const ts = items.map(item => item.timestamp);
 
                     activeLineup.value.forEach(slot => {
-                        if (slot.substitutes) {
-                            slot.substitutes.forEach(sub => {
-                                if (sub.isUploaded) {
-                                    sub.isUploaded = false;
-                                    unlockedSubs.push(sub);
-                                }
-                            });
-                        }
+                        (slot.substitutes || []).forEach(sub => {
+                            if (ts.includes(sub.timestamp)) sub.isUploaded = false;
+                        });
                     });
-
                     extraPitchersHistory.value.forEach(p => {
-                        if (p.isUploaded) {
-                            p.isUploaded = false;
-                            unlockedSubs.push({
-                                isPitcherOnlyChange: true,
-                                number: p.number,
-                                name: p.name,
-                                id: p.id,
-                                timestamp: p.timestamp
-                            });
-                        }
+                        if (ts.includes(p.timestamp)) p.isUploaded = false;
                     });
 
-                    currentBatchPending.value = unlockedSubs;
+                    const stillPending = currentBatchPending.value.filter(item => !ts.includes(item.timestamp));
+                    currentBatchPending.value = [...items, ...stillPending];
 
                     alert('🔓 已成功解鎖上一批更換！');
+                };
+
+                // ----------------------------------------------------
+                // 🏁 比賽結案：先完整同步試算表，成功後才清除本機暫存
+                // ----------------------------------------------------
+                const finishGame = () => {
+                    const pendingCount = currentBatchPending.value.length;
+
+                    let msg = '🏁 確定要結束本場比賽嗎？\n\n';
+                    msg += `日期：${gameInfo.value.date || '未填寫'}　${gameInfo.value.gameNum || ''}\n`;
+                    msg += `對手：${gameInfo.value.opponent || '未填寫'}\n\n`;
+                    if (pendingCount > 0) {
+                        msg += `※ 目前尚有 ${pendingCount} 筆未上傳的更換，將會一併上傳。\n\n`;
+                    }
+                    msg += '流程：先把最終陣容與投手資料同步到試算表並蓋上結束時間，\n成功後才會清除本機暫存並回到點名畫面。';
+
+                    if (!confirm(msg)) return;
+
+                    saving.value = true;
+
+                    postToGAS({
+                        action: 'finishGame',
+                        gameInfo: gameInfo.value,
+                        activeLineup: activeLineup.value,
+                        pitchers: activePitchers.value
+                    }).then(() => {
+                        saving.value = false;
+                        alert('🏁 本場比賽已結案！\n試算表已同步完成，本機暫存紀錄已清除。');
+                        localStorage.removeItem('longan_lineup_draft');
+                        location.reload();
+                    }).catch(err => {
+                        // 後端回報失敗、或沒有完成登入時，保留本機暫存
+                        saving.value = false;
+                        alert('⚠️ 結案失敗，本機暫存已保留，可稍後再試一次：\n' + err.message);
+                    });
                 };
 
                 const copyLineup = () => {
@@ -1167,6 +1411,7 @@
                 };
 
                 return {
+                    apiModeLabel, authModal, isLoggedIn, openLogin, submitLogin, cancelLogin, logout, subCandidates, willCancelDH,
                     players, loading, saving, searchQuery, currentStep, gameInfo, subModal, pitcherModal, independentPitcherId, hasDHInLineup, nonStartingBenchCandidates, isDHCancelled,
                     positionOptions, lineup, activeLineup, activePitchers, currentBatchPending, uploadedBatches,
                     positionConflicts, missingPositions, positionNotice,
@@ -1174,7 +1419,7 @@
                     currentLeagueReportText, isSamePositionSelected, copyText, loadFromGAS, clearDraft,
                     fetchData, selectAll, resetAttendance, isPlayerInLineup, getPlayerPositionsText,
                     goToStep, uploadStartersToGAS, openSubModal, confirmSubstitution, confirmIndependentPitcherChange,
-                    removeSubstitute, removeIndependentPitcher, uploadSubstitutionsToGAS, unlockLastBatch, copyLineup
+                    removeSubstitute, removeIndependentPitcher, uploadSubstitutionsToGAS, unlockLastBatch, copyLineup, finishGame
                 };
             }
         }).mount('#app');

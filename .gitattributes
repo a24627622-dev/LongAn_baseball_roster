@@ -1,0 +1,12 @@
+# 全 repo 統一用 LF 換行，根治「GitHub 網頁編輯器貼上」帶進來的 CRLF 混亂
+* text=auto eol=lf
+
+# Windows 批次檔必須維持 CRLF，否則點兩下可能執行失敗
+*.bat text eol=crlf
+
+# 二進位檔不要做任何換行轉換
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.ico binary

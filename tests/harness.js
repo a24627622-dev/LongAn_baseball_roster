@@ -72,12 +72,12 @@ const ROSTER = [
   ['11', '許投', true], ['12', '鄭投', true], ['13', '謝替'], ['14', '郭替'],
 ].map(([n, name, isPitcher], i) => ({ id: i + 1, '背號': n, '球員姓名': name, isPitcher: !!isPitcher, isAttended: true }));
 
-function boot({ props = {}, draft = null, loginPasscode = null, token = null } = {}) {
+function boot({ props = {}, draft = null, loginPasscode = null, token = null, roster = ROSTER } = {}) {
   const captured = { watchers: [] };
   const backend = makeBackend(props);
   const alerts = [];
   const storage = {
-    longan_player_list: JSON.stringify(ROSTER),
+    longan_player_list: JSON.stringify(roster),
   };
   if (draft) storage.longan_lineup_draft = JSON.stringify(draft);
   if (token) storage.longan_auth_token = token;

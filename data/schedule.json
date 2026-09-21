@@ -1,13 +1,136 @@
 [
+[
   {
     "type": "practice",
     "date": "2026-09-27",
+    "startTime": "08:00",
+    "endTime": "12:00",
+    "venue": "基隆大武崙棒球場",
+    "cancelled": false,
+    "note": ""
+  },
+  {
+    "type": "practice",
+    "date": "2026-10-04",
     "startTime": "08:00",
     "endTime": "12:00",
     "venue": "",
     "cancelled": false,
     "note": ""
   },
+  {
+    "type": "practice",
+    "date": "2026-10-11",
+    "startTime": "08:00",
+    "endTime": "12:00",
+    "venue": "",
+    "cancelled": false,
+    "note": ""
+  },
+  {
+    "type": "practice",
+    "date": "2026-10-18",
+    "startTime": "08:00",
+    "endTime": "12:00",
+    "venue": "",
+    "cancelled": false,
+    "note": ""
+  },
+  {
+    "type": "game",
+    "date": "2026-10-25",
+    "gatherTime": "09:00",
+    "startTime": "10:00",
+    "venue": "大漢B球場",
+    "opponent": "ZERO",
+    "score": null,
+    "resultUrl": null,
+    "cancelled": false,
+    "note": ""
+  },
+  {
+    "type": "practice",
+    "date": "2026-11-01",
+    "startTime": "08:00",
+    "endTime": "12:00",
+    "venue": "",
+    "cancelled": false,
+    "note": ""
+  },
+  {
+    "type": "practice",
+    "date": "2026-11-08",
+    "startTime": "08:00",
+    "endTime": "12:00",
+    "venue": "",
+    "cancelled": false,
+    "note": ""
+  },
+  {
+    "type": "practice",
+    "date": "2026-11-15",
+    "startTime": "08:00",
+    "endTime": "12:00",
+    "venue": "",
+    "cancelled": false,
+    "note": ""
+  },
+  {
+    "type": "practice",
+    "date": "2026-11-22",
+    "startTime": "08:00",
+    "endTime": "12:00",
+    "venue": "",
+    "cancelled": false,
+    "note": ""
+  },
+  {
+    "type": "practice",
+    "date": "2026-11-29",
+    "startTime": "08:00",
+    "endTime": "12:00",
+    "venue": "",
+    "cancelled": false,
+    "note": ""
+  },
+  {
+    "type": "practice",
+    "date": "2026-12-06",
+    "startTime": "08:00",
+    "endTime": "12:00",
+    "venue": "",
+    "cancelled": false,
+    "note": ""
+  },
+  {
+    "type": "practice",
+    "date": "2026-12-13",
+    "startTime": "08:00",
+    "endTime": "12:00",
+    "venue": "",
+    "cancelled": false,
+    "note": ""
+  },
+  {
+    "type": "practice",
+    "date": "2026-12-20",
+    "startTime": "08:00",
+    "endTime": "12:00",
+    "venue": "",
+    "cancelled": false,
+    "note": ""
+  },
+  {
+    "type": "practice",
+    "date": "2026-12-27",
+    "startTime": "08:00",
+    "endTime": "12:00",
+    "venue": "",
+    "cancelled": false,
+    "note": ""
+  }
+]
+
   {
     "type": "practice",
     "date": "2026-10-04",

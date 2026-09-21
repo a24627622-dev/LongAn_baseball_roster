@@ -73,59 +73,5 @@
     "venue": "",
     "cancelled": false,
     "note": ""
-  },
-  {
-    "type": "practice",
-    "date": "2026-11-22",
-    "startTime": "08:00",
-    "endTime": "12:00",
-    "venue": "",
-    "cancelled": false,
-    "note": ""
-  },
-  {
-    "type": "practice",
-    "date": "2026-11-29",
-    "startTime": "08:00",
-    "endTime": "12:00",
-    "venue": "",
-    "cancelled": false,
-    "note": ""
-  },
-  {
-    "type": "practice",
-    "date": "2026-12-06",
-    "startTime": "08:00",
-    "endTime": "12:00",
-    "venue": "",
-    "cancelled": false,
-    "note": ""
-  },
-  {
-    "type": "practice",
-    "date": "2026-12-13",
-    "startTime": "08:00",
-    "endTime": "12:00",
-    "venue": "",
-    "cancelled": false,
-    "note": ""
-  },
-  {
-    "type": "practice",
-    "date": "2026-12-20",
-    "startTime": "08:00",
-    "endTime": "12:00",
-    "venue": "",
-    "cancelled": false,
-    "note": ""
-  },
-  {
-    "type": "practice",
-    "date": "2026-12-27",
-    "startTime": "08:00",
-    "endTime": "12:00",
-    "venue": "",
-    "cancelled": false,
-    "note": ""
   }
 ]

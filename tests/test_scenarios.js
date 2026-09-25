@@ -1,4 +1,4 @@
-// 三大調度情境的系統性測試（各 5 個變體，共 15 案）
+// 三大調度情境＋規則守門的系統性測試（共 26 案）
 //   情境 A：一般九人調度，投手需要打擊
 //   情境 B：DH 制，整場都是 DH
 //   情境 C：先發 DH，中途取消
@@ -583,6 +583,147 @@ scenario(G, 'G3 DH 因去守備而取消後，投手仍然選得到（回歸測�
     'G3：DH 取消後，Rule 5.11(a)(5) 仍要求投手能接替被換下者的棒次，' +
     '所以他必須留在候選名單裡（舊版以 !isDHCancelled 為條件，這一步會做不到）');
   app.subModal.value.open = false;
+});
+
+// ==================================================================
+// DH 規則對標（2026-09-26 定案）：擋下不合法的投手棒次、DH 取消後引導下一步
+// ==================================================================
+const D = '情境D DH規則引導';
+
+// 在「已經開著」的更換視窗裡選球員（保真度同 harness 的 sub：只能選候選名單裡的人）
+function pickInOpenModal(app, name) {
+  const id = byName(app, name);
+  const ok = app.subCandidates.value.some(c => String(c.id) === String(id));
+  if (!ok) throw new Error(`${name} 不在第 ${app.subModal.value.battingOrder} 棒的候選名單裡`);
+  app.subModal.value.selectedPlayerOption = id;
+}
+// 開視窗、選好，但不按確認
+function prepare(app, order, name, pos) {
+  app.openSubModal(order);
+  app.subModal.value.selectedPlayerOption = name === 'SAME' ? 'SAME_PLAYER' : byName(app, name);
+  app.subModal.value.selectedPosCode = pos;
+}
+const onFieldList = (app) => app.activeLineup.value.map((s, i) => {
+  const c = s.substitutes && s.substitutes.length ? s.substitutes[s.substitutes.length - 1] : s.starter;
+  return `${i + 1}${c.pos}${c.name}`;
+});
+
+scenario(D, 'D1 DH 有效時，投手不能打 DH 以外的棒次（現任投手、板凳投手都擋）', async () => {
+  const { app } = boot();
+  app.gameInfo.value.opponent = 'D1';
+  setStarters(app, DH9);
+  app.independentPitcherId.value = byName(app, '陳一');
+  await app.uploadStartersToGAS(); await tick();
+  const before = onFieldList(app).join(',');
+
+  // 現任投手陳一放進第5棒守 P（換掉 RF 王六）→ 不合法
+  prepare(app, 5, '陳一', 'P');
+  assert.strictEqual(app.illegalPitcherSlot.value, true, 'D1：現任投手進非 DH 棒次應該被擋');
+  assert.strictEqual(app.willCancelDH.value, false, 'D1：被擋下的更換不會發生，不該同時警告「會取消 DH」');
+  app.confirmSubstitution();
+  // 板凳投手許投放進第3棒守 P → 同樣不合法
+  prepare(app, 3, '許投', 'P');
+  assert.strictEqual(app.illegalPitcherSlot.value, true, 'D1：板凳投手進非 DH 棒次應該被擋');
+  app.confirmSubstitution();
+
+  assert.strictEqual(onFieldList(app).join(','), before, 'D1：被擋下的更換不該寫進打線');
+  assert.strictEqual(app.currentBatchPending.value.length, 0);
+  assert.strictEqual(app.isDHCancelled.value, false, 'D1：被擋下的更換不該取消 DH');
+  app.subModal.value.open = false;
+});
+
+scenario(D, 'D2 不該被擋的合法途徑：投手打 DH 棒、野手自己轉投、投手轉守其他守位', async () => {
+  const { app } = boot();
+  app.gameInfo.value.opponent = 'D2';
+  setStarters(app, DH9);
+  app.independentPitcherId.value = byName(app, '陳一');
+  await app.uploadStartersToGAS(); await tick();
+
+  prepare(app, 6, '陳一', 'P');
+  assert.strictEqual(app.illegalPitcherSlot.value, false, 'D2：投手打 DH 那一棒是合法的');
+  prepare(app, 6, '許投', 'P');
+  assert.strictEqual(app.illegalPitcherSlot.value, false, 'D2：後援投手打 DH 那一棒是合法的');
+  prepare(app, 2, 'SAME', 'P');
+  assert.strictEqual(app.illegalPitcherSlot.value, false, 'D2：野手自己轉投是合法的');
+  prepare(app, 9, '陳一', 'LF');
+  assert.strictEqual(app.illegalPitcherSlot.value, false, 'D2：投手轉守其他守位是合法的');
+  app.subModal.value.open = false;
+});
+
+scenario(D, 'D3 DH 去守備後，自動跳出「投手接替被換下者棒次」的預填視窗，按確認即合法', async () => {
+  const { app, backend } = boot();
+  app.gameInfo.value.opponent = 'D3';
+  setStarters(app, DH9);
+  app.independentPitcherId.value = byName(app, '陳一');
+  await app.uploadStartersToGAS(); await tick();
+
+  sub(app, 6, 'SAME', 'RF');   // 楊十（DH）去守 RF，王六（第5棒 RF）被換下
+  const m = app.subModal.value;
+  assert.strictEqual(m.open, true, 'D3：DH 去守備後應自動跳出下一步的更換視窗');
+  assert.strictEqual(m.battingOrder, 5, 'D3：應該開在被換下的王六那一棒');
+  assert.strictEqual(String(m.selectedPlayerOption), String(byName(app, '陳一')), 'D3：應預填現任投手');
+  assert.strictEqual(m.selectedPosCode, 'P');
+  assert.ok(m.guide, 'D3：應顯示規則說明');
+
+  app.confirmSubstitution();   // 只按確認
+  await app.uploadSubstitutionsToGAS(); await tick();
+
+  assert.deepStrictEqual(onFieldList(app),
+    ['1CF林二', '23B黃三', '3SS張四', '4C李五', '5P陳一', '6RF楊十', '71B吳七', '82B劉八', '9LF蔡九'],
+    'D3：結果應與 C1 手動操作相同');
+  assert.strictEqual(app.activeDefenseNotice.value.isComplete, true);
+  assert.strictEqual(pitcherRows(backend), '先發投手:陳一');
+  invariants(app, backend, 'D3');
+});
+
+scenario(D, 'D4 投手轉守後，自動跳出 DH 那一棒的換投視窗；選好新投手按確認即合法', async () => {
+  const { app, backend } = boot();
+  app.gameInfo.value.opponent = 'D4';
+  setStarters(app, DH9);
+  app.independentPitcherId.value = byName(app, '陳一');
+  await app.uploadStartersToGAS(); await tick();
+
+  sub(app, 9, '陳一', 'LF');   // 投手陳一轉守 LF，接替蔡九
+  const m = app.subModal.value;
+  assert.strictEqual(m.open, true, 'D4：投手轉守後應自動跳出下一步的更換視窗');
+  assert.strictEqual(m.battingOrder, 6, 'D4：應該開在 DH 楊十那一棒');
+  assert.strictEqual(m.selectedPlayerOption, '', 'D4：新投手要由記錄員選，不該預填');
+  assert.strictEqual(m.selectedPosCode, 'P');
+  assert.ok(m.guide, 'D4：應顯示規則說明');
+
+  app.confirmSubstitution();   // 還沒選人就按確認 → 什麼都不該發生
+  assert.strictEqual(app.activeLineup.value[5].substitutes.length, 0, 'D4：沒選球員不該產生更換');
+
+  pickInOpenModal(app, '許投');
+  app.confirmSubstitution();
+  await app.uploadSubstitutionsToGAS(); await tick();
+
+  assert.deepStrictEqual(onFieldList(app),
+    ['1CF林二', '23B黃三', '3SS張四', '4C李五', '5RF王六', '6P許投', '71B吳七', '82B劉八', '9LF陳一'],
+    'D4：結果應與 C2 手動操作相同');
+  assert.strictEqual(app.activeDefenseNotice.value.isComplete, true);
+  assert.strictEqual(pitcherRows(backend), '先發投手:陳一,後援投手:許投');
+  invariants(app, backend, 'D4');
+});
+
+scenario(D, 'D5 DH 已取消、投手未進打序：顯示提示但不擋上傳；補上投手後提示消失', async () => {
+  const { app, backend } = boot();
+  app.gameInfo.value.opponent = 'D5';
+  setStarters(app, DH9);
+  app.independentPitcherId.value = byName(app, '陳一');
+  await app.uploadStartersToGAS(); await tick();
+  assert.strictEqual(app.pitcherNotBattingAfterDH.value, false, 'D5：DH 有效時不該提示');
+
+  sub(app, 9, '陳一', 'LF');
+  app.subModal.value.open = false;   // 記錄員先關掉引導視窗
+  assert.strictEqual(app.pitcherNotBattingAfterDH.value, true, 'D5：DH 取消且沒人守 P 應提示');
+
+  const callsBefore = backend.calls.length;
+  await app.uploadSubstitutionsToGAS(); await tick();
+  assert.ok(backend.calls.length > callsBefore, 'D5：這是中間狀態，不該擋上傳');
+
+  sub(app, 6, '許投', 'P');
+  assert.strictEqual(app.pitcherNotBattingAfterDH.value, false, 'D5：投手進打序後提示應消失');
 });
 
 // ---------- 執行器 ----------

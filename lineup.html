@@ -221,6 +221,10 @@
                     <span>⚠️</span> 比賽進行中已取消 DH 指定打擊（回歸投手需要打擊模式），後續不可再選 DH 守位！
                 </div>
 
+                <div v-if="pitcherNotBattingAfterDH" class="p-3 bg-red-50 border border-red-200 rounded-xl text-red-700 text-xs font-bold flex items-center gap-2">
+                    <span>⚠️</span> DH 已取消，投手尚未進入打序。請把投手安排進打線（可以先上傳，之後再補）。
+                </div>
+
                 <div :class="['p-3.5 rounded-xl text-xs space-y-1 border transition', 
                              activeDefenseNotice.isComplete ? 'bg-emerald-50 border-emerald-200 text-emerald-800' : 'bg-amber-50 border-amber-200 text-amber-900']">
                     <div class="font-bold flex items-center gap-1 text-sm">
@@ -405,15 +409,20 @@
                     <span class="bg-blue-600 text-white px-2 py-0.5 rounded text-[11px]">目前守位：{{ subModal.currentActivePlayer.posLabel }}</span>
                 </div>
                 
+                <div v-if="subModal.guide" class="p-2.5 bg-amber-50 border border-amber-200 rounded-xl text-xs text-amber-900 font-bold">
+                    💡 {{ subModal.guide }}
+                </div>
+
                 <div>
                     <label class="block text-xs font-bold text-slate-600 mb-1">1. 選擇替補球員或調整守位</label>
                     <select v-model="subModal.selectedPlayerOption" class="w-full border rounded-xl p-2.5 text-sm font-medium bg-slate-50">
+                        <option v-if="subModal.selectedPlayerOption === ''" value="" disabled>請選擇球員</option>
                         <option value="SAME_PLAYER" class="font-bold text-blue-800">
                             🔄 [不更動球員] #{{ subModal.currentActivePlayer.number }} {{ subModal.currentActivePlayer.name }} (僅調整守位)
                         </option>
                         <option disabled>---------------------------------</option>
                         <option v-for="bp in subCandidates" :key="bp.id" :value="bp.id">
-                            {{ bp.isCurrentDHPitcher ? '⚾ [目前投手進入打序 → 取消DH]' : '' }} #{{ bp['背號'] || '?' }} {{ bp['球員姓名'] }} {{ (!bp.isCurrentDHPitcher && bp.isPitcher) ? '⚾[投手]' : '' }} {{ getPlayerPositionsText(bp) }}
+                            {{ bp.isCurrentDHPitcher ? (isDHCancelled ? '⚾ [目前投手進入打序]' : '⚾ [目前投手進入打序 → 取消DH]') : '' }} #{{ bp['背號'] || '?' }} {{ bp['球員姓名'] }} {{ (!bp.isCurrentDHPitcher && bp.isPitcher) ? '⚾[投手]' : '' }} {{ getPlayerPositionsText(bp) }}
                         </option>
                     </select>
                 </div>
@@ -434,13 +443,18 @@
                     </select>
                 </div>
 
+                <div v-if="illegalPitcherSlot" class="p-2.5 bg-red-50 border border-red-200 rounded-xl text-xs text-red-600 font-bold">
+                    ⛔ DH 仍有效時，投手只能打 DH 那一棒（MLB 規則）。
+                    要讓投手打其他棒次，請先讓 DH 上場守備（DH 取消），再把投手放進被換下球員的棒次。
+                </div>
+
                 <div v-if="isSamePositionSelected" class="p-2.5 bg-red-50 border border-red-200 rounded-xl text-xs text-red-600 font-bold flex items-center gap-1.5">
                     <span>⚠️</span> 選擇的新守位與目前守位相同，無需變更！
                 </div>
 
                 <div class="flex justify-end gap-2 pt-2">
                     <button @click="subModal.open = false" class="px-4 py-2 text-sm font-medium text-slate-600 border rounded-xl hover:bg-slate-100">取消</button>
-                    <button @click="confirmSubstitution" :disabled="isSamePositionSelected" 
+                    <button @click="confirmSubstitution" :disabled="isSamePositionSelected || illegalPitcherSlot || subModal.selectedPlayerOption === ''" 
                             class="px-5 py-2 text-sm font-bold text-white bg-blue-600 hover:bg-blue-500 disabled:bg-slate-300 disabled:cursor-not-allowed rounded-xl shadow transition">
                         確認更換
                     </button>
@@ -625,7 +639,8 @@
                     battingOrder: 1,
                     currentActivePlayer: {},
                     selectedPlayerOption: 'SAME_PLAYER',
-                    selectedPosCode: 'PH'
+                    selectedPosCode: 'PH',
+                    guide: ''
                 });
 
                 const pitcherModal = ref({
@@ -980,6 +995,7 @@
 
                 const willCancelDH = computed(() => {
                     if (!subModal.value.open || !hasDHInLineup.value || isDHCancelled.value) return false;
+                    if (illegalPitcherSlot.value) return false;   // 會被擋下的更換不會發生,不提示取消
                     const code = subModal.value.selectedPosCode;
                     const slot = activeLineup.value[subModal.value.battingOrder - 1];
                     const startedAsDH = !!(slot && slot.starter && slot.starter.pos === 'DH');
@@ -987,6 +1003,33 @@
                     if (cand && cand.isCurrentDHPitcher) return true;
                     if (code === 'P') return true;
                     return startedAsDH && DEFENSIVE_POSITIONS.includes(code);
+                });
+
+                // DH 棒次是鎖住的(Rule 5.11(a)),哪一棒是 DH 棒次只看先發
+                const isDHSlot = (battingOrder) => {
+                    const slot = activeLineup.value[battingOrder - 1];
+                    return !!(slot && slot.starter && slot.starter.pos === 'DH');
+                };
+
+                // DH 仍有效時,投手只能打 DH 那一棒(Rule 5.11(a):投手只能代打 DH)。
+                // 換上另一位球員守 P、卻放在非 DH 棒次 → 擋下。
+                // 不擋的合法途徑:野手自己轉投(SAME_PLAYER)、代打者上場投球(SAME_PLAYER)、
+                // 投手轉守其他守位(守位不是 P)、DH 去守備之後補位(那時 DH 已取消)。
+                const illegalPitcherSlot = computed(() => {
+                    if (!subModal.value.open || !hasDHInLineup.value || isDHCancelled.value) return false;
+                    if (subModal.value.selectedPlayerOption === 'SAME_PLAYER') return false;
+                    if (subModal.value.selectedPosCode !== 'P') return false;
+                    return !isDHSlot(subModal.value.battingOrder);
+                });
+
+                // DH 已取消,但打序裡沒有人守 P:換人做到一半的中間狀態,只提示、不擋上傳
+                const pitcherNotBattingAfterDH = computed(() => {
+                    if (!hasDHInLineup.value || !isDHCancelled.value) return false;
+                    return !activeLineup.value.some(slot => {
+                        const cur = (slot.substitutes && slot.substitutes.length > 0)
+                            ? slot.substitutes[slot.substitutes.length - 1] : slot.starter;
+                        return cur && cur.pos === 'P';
+                    });
                 });
 
                 const activePitchers = computed(() => {
@@ -1221,12 +1264,17 @@
                         battingOrder: battingOrder,
                         currentActivePlayer: currentActive,
                         selectedPlayerOption: 'SAME_PLAYER',
-                        selectedPosCode: currentActive.pos
+                        selectedPosCode: currentActive.pos,
+                        guide: ''
                     };
                 };
 
                 const confirmSubstitution = () => {
-                    if (isSamePositionSelected.value) return;
+                    if (isSamePositionSelected.value || illegalPitcherSlot.value) return;
+
+                    // 引導下一步要用「這筆更換之前」的 DH 狀態判斷
+                    const dhWasActive = hasDHInLineup.value && !isDHCancelled.value;
+                    const selectedCand = subCandidates.value.find(c => String(c.id) === String(subModal.value.selectedPlayerOption));
 
                     let player = null;
                     let reason = '比賽中更換';
@@ -1266,6 +1314,44 @@
                     activeLineup.value[subModal.value.battingOrder - 1].substitutes.push(subRecord);
                     currentBatchPending.value.push(subRecord);
                     subModal.value.open = false;
+
+                    if (dhWasActive) openDHFollowUp(subRecord, selectedCand);
+                };
+
+                // DH 因這筆更換而取消時,依規則預先開好下一步的更換視窗(可改棒次、可取消)
+                const openDHFollowUp = (subRecord, selectedCand) => {
+                    const pos = subRecord.pos;
+                    const isFieldPos = DEFENSIVE_POSITIONS.includes(pos) && pos !== 'P';
+
+                    // ① DH 去守備:投手接替「被換下的守備球員」的棒次
+                    if (isDHSlot(subRecord.battingOrder) && isFieldPos) {
+                        const pitcherCand = subCandidates.value.find(c => c.isCurrentDHPitcher);
+                        if (!pitcherCand) return;
+                        const replacedIdx = activeLineup.value.findIndex((slot, idx) => {
+                            if (idx === subRecord.battingOrder - 1) return false;
+                            const cur = (slot.substitutes && slot.substitutes.length > 0)
+                                ? slot.substitutes[slot.substitutes.length - 1] : slot.starter;
+                            return cur && cur.pos === pos;
+                        });
+                        if (replacedIdx < 0) return;
+                        openSubModal(replacedIdx + 1);
+                        subModal.value.selectedPlayerOption = pitcherCand.id;
+                        subModal.value.selectedPosCode = 'P';
+                        subModal.value.guide = `依 MLB 規則：DH 上場守備後，投手要接替被換下守備球員（第 ${replacedIdx + 1} 棒）的棒次。` +
+                            '已預先填好，按「確認更換」即可；多重換人時可改到其他棒次，或按取消自行安排。';
+                        return;
+                    }
+
+                    // ② 投手轉守其他守位:原 DH 沒有守位了,新投手接替 DH 的棒次
+                    if (selectedCand && selectedCand.isCurrentDHPitcher && isFieldPos) {
+                        const dhIdx = activeLineup.value.findIndex(slot => slot.starter && slot.starter.pos === 'DH');
+                        if (dhIdx < 0) return;
+                        openSubModal(dhIdx + 1);
+                        subModal.value.selectedPlayerOption = '';
+                        subModal.value.selectedPosCode = 'P';
+                        subModal.value.guide = `依 MLB 規則：投手轉守其他守位後 DH 取消，新投手要接替 DH（第 ${dhIdx + 1} 棒）的棒次。` +
+                            '請選擇新投手；也可以改到其他棒次，或按取消自行安排。';
+                    }
                 };
 
                 const confirmIndependentPitcherChange = () => {
@@ -1435,7 +1521,7 @@
                 };
 
                 return {
-                    apiModeLabel, authModal, isLoggedIn, openLogin, submitLogin, cancelLogin, logout, subCandidates, willCancelDH,
+                    apiModeLabel, authModal, isLoggedIn, openLogin, submitLogin, cancelLogin, logout, subCandidates, willCancelDH, illegalPitcherSlot, pitcherNotBattingAfterDH,
                     players, loading, saving, searchQuery, currentStep, gameInfo, subModal, pitcherModal, independentPitcherId, hasDHInLineup, nonStartingBenchCandidates, isDHCancelled,
                     positionOptions, lineup, activeLineup, activePitchers, currentBatchPending, uploadedBatches,
                     positionConflicts, missingPositions, positionNotice,

@@ -2,6 +2,8 @@
 
 這份手冊教你在自己的電腦上修改、測試網站，**完全不動到正式網站與正式 Google 試算表**。
 
+> 📌 **Claude 做好一個 PR，要你「本機測試 → Merge 上線」時，直接看[第 11 節](#11-claude-做好-pr-之後本機測試--merge-上線)。**
+
 ## 先搞懂：三個環境
 
 | 環境 | 網址 | 資料寫到哪裡 | 誰看得到 |
@@ -242,6 +244,62 @@ git commit -m "V01.02.00 本機測試版"   # 存成一個版本
 2. 合併到 main 分支並 push，GitHub Pages 會自動更新。
 
 上線那天可以再請 Claude 帶你一步一步做。
+
+> Claude 在雲端做好的改動，會以 PR（Pull Request）的形式交給你，上線流程見第 11 節。
+
+---
+
+## 11. Claude 做好 PR 之後：本機測試 → Merge 上線
+
+Claude（雲端）改好程式後，會推到一個 `claude/...` 開頭的分支，並開一個 PR。
+**在你按 Merge 之前，正式網站完全不受影響。**
+
+### 11-1 先找到分支名稱
+
+打開 PR 頁面（Claude 會給你連結，或到 GitHub repo →上方「Pull requests」分頁找）。
+標題下方有一行「…wants to merge … into `main` from `claude/xxxxx`」，最後那個就是分支名稱。
+
+### 11-2 把分支抓到電腦上
+
+VS Code 打開專案資料夾 →「終端機 → 新增終端」，輸入（`<分支名稱>` 換成上一步看到的）：
+
+```
+git fetch origin
+git switch <分支名稱>
+```
+
+- 出現「你有未 commit 的修改」而切不過去時，**不要強制切換**，把訊息貼給 Claude
+- Claude 之後又推了修正到同一個 PR 時，在這個分支上執行 `git pull` 就會拿到最新版
+
+### 11-3 啟動本機伺服器並測試
+
+跟第 2 節一樣，二選一：
+
+- 點兩下 `dev/start.bat`
+- 或在終端機輸入 `node dev/server.js`，再開 http://localhost:8080/lineup.html
+
+頁首要看到紫色「🧪 本機假資料」，才代表資料只寫進本機假試算表。
+手機測試：連同一個 Wi-Fi，開伺服器視窗印出的「手機（同一個 Wi-Fi）」網址。
+
+**要測什麼**：看 PR 說明的「上線步驟」，或 `docs/CHANGELOG.md` 最新版本段落的「部署」。
+測完在伺服器視窗按 `Ctrl + C` 關掉。有問題就跟 Claude 說「哪一步、畫面長怎樣」，
+Claude 會推修正到同一個 PR，回到 11-2 用 `git pull` 再測一次。
+
+### 11-4 Merge 上線（GitHub 網頁，手機也可以）
+
+1. **如果這次有改 `gas/*.gs`**：先把 .gs 貼進正式 Apps Script，「部署 → 管理部署作業 → 編輯 → 版本選『建立新版本』」。
+   **GAS 一定要先部署，再 Merge**，否則操作者會卡住。（CHANGELOG 會寫明「GAS 不用動」或要動哪些檔）
+2. 打開 PR 頁面，捲到最下面按綠色 **Merge pull request** → **Confirm merge**
+3. 約一分鐘後正式網站更新。用手機開正式網址確認一次
+
+### 11-5 電腦切回 main
+
+```
+git switch main
+git pull origin main
+```
+
+之後你自己在電腦上改東西，就是從最新的 main 開始。
 
 ---
 

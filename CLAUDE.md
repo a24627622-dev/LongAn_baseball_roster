@@ -45,3 +45,4 @@ node tests/test_scenarios.js --repeat 5
 - `main` = GitHub Pages = 正式上線，push 後約一分鐘生效
 - 改了 `gas/*.gs`：使用者要貼進 Apps Script 並「建立新版本」才生效。**GAS 要先部署，再 merge `main`**
 - 這個 repo 是公開的：**不要 commit 密碼、金鑰、密碼提示**
+- 開 PR 後，告訴使用者照 `DEVELOPMENT.md` 第 11 節測試與 Merge；PR 說明要寫「上線步驟」（要測什麼、GAS 要不要動）

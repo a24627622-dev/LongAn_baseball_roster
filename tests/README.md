@@ -7,6 +7,8 @@ node tests/test_gas_modules.js
 node tests/test_lineup_logic.js
 node tests/test_scenarios.js
 node tests/test_scenarios.js --repeat 5    # 跑五輪並檢查跨輪一致性
+node tests/test_check_data.js              # 資料檔檢查規則的測試
+node tests/check_data.js                   # 檢查 data/*.json
 ```
 
 ## 檔案
@@ -17,6 +19,9 @@ node tests/test_scenarios.js --repeat 5    # 跑五輪並檢查跨輪一致性
 - `gas_mock.js`：Google Apps Script 執行環境模擬（試算表、指令碼屬性、快取、HMAC 等）。
 - `test_gas_modules.js`（19 項）：Auth.gs 與 Pitchers.gs 的單元測試。
 - `test_lineup_logic.js`（28 項）：完整流程——點名 → 先發 → 調度 → 上傳 → 回讀 → 結案，含登入流程。
+- `test_check_data.js`（16 項）：資料檔檢查規則（根目錄 `data-check.js`）的測試，含 2026-09-21 兩次貼錯事故的重現。
+- `check_data.js`：不是測試，是檢查 `data/schedule.json`、`data/announcements.json` 的指令；
+  GitHub 自動檢查（`.github/workflows/check-data.yml`）也是跑這兩支。
 - `test_scenarios.js`（26 項）：三大調度情境（A×6、B×5、C×7）、規則守門（G×3）、DH 規則引導（D×5），見下。
   各案例的規則依據與細節見 `docs/測試報告_調度三情境.md`。
 

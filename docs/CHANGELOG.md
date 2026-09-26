@@ -32,6 +32,8 @@ GAS 後端維持在 Apps Script 編輯器貼上覆蓋、部署新版本(必須�
 node tests/test_gas_modules.js       # 19 項
 node tests/test_lineup_logic.js      # 28 項
 node tests/test_scenarios.js         # 26 項
+node tests/test_check_data.js        # 16 項（資料檔檢查規則）
+node tests/check_data.js             # 檢查 data/*.json
 node tests/test_scenarios.js --repeat 5
 ```
 
@@ -62,10 +64,62 @@ node tests/test_scenarios.js --repeat 5
 
 ---
 
+## V01.02.04 — 2026-09-26（資料檔自動檢查＋壞資料不再默默消失）
+
+**狀態**：已 commit、已推上分支 `claude/upbeat-lovelace-exzdda`，**尚未 merge `main`**。
+改了對外三頁與兩個編輯器，**GAS 不用動**。目標 10/15 官網上線前 merge。
+
+### 起因
+
+2026-09-21 貼錯兩次（見 `DEVELOPMENT.md`「貼上的正確做法」）。第二次是合法 JSON 但舊陣列巢狀在裡面，
+**最近一筆活動整個消失，頁面完全不報錯**。原因是頁面用 `x.date >= today` 篩選，沒有 `date` 的那筆比較結果是 false，被默默丟掉。
+對應專案現況的提議 B、D，使用者 2026-09-26 定案。
+
+### 新增：資料檔檢查（提議 B）
+
+- **`data-check.js`**（根目錄）：檢查規則，對外頁面與 Node 共用一份
+  - 錯誤：不是合法 JSON、最外層不是陣列、某筆不是物件、缺 `date`／`type`、`type` 不是 game／practice、日期格式錯（含 2/30 這種不存在的日期）、同一天兩筆、公告缺 `date`／`title`
+  - 警告：非週日、沒排序、欄位名打錯、時間格式不是 HH:MM、比分格式不對、`cancelled`／`pinned` 不是 true/false
+  - 同一天兩筆只回報、兩筆都保留（不知道哪筆才對，不亂丟）
+- **`tests/check_data.js`**：本機指令。JSON 壞掉時指出大約第幾行；有錯誤 exit 1
+- **`.github/workflows/check-data.yml`**：`data/*.json` 變動就自動跑（GitHub 網頁直接改也算）。
+  失敗時 commit 旁紅色 ✗＋email 通知。**擋不住上線**（GitHub Pages 照樣部署），只負責通知
+
+### 修改：壞資料不再默默消失（提議 D）
+
+- **`site.js`**：
+  - `loadJSON` 把「格式壞掉」和「網路問題」分開標記
+  - 新增 `loadChecked`：讀檔後用 `data-check.js` 檢查，單筆壞掉就略過並回報筆數，詳細原因寫在 Console（F12）
+  - 新增 `partialNoteHTML`、`editorLoadWarning`
+- **對外三頁**（`index.html`、`news.html`、`schedule.html`）：
+  - 整個檔案壞掉或讀不到 → 維持「暫時讀不到，請稍後再試」（使用者定案：對外不放技術細節）
+  - 單筆壞掉 → 其他資料照常顯示，加一行「部分資料暫時讀不到，請稍後再試。」
+- **兩個編輯器**：讀到壞檔（整份或部分）→ 紅字警告「貼上後會覆蓋掉全部資料／那幾筆會被刪掉」
+  - 順帶修掉既有問題：原本「讀不到檔案」的灰色提示寫在 `#list` 裡，會被下一行的清單渲染立刻蓋掉，**從來沒顯示過**。改放獨立的 `#load-warn`
+
+### 範圍外
+
+從壞檔案救回資料（提議 C）。
+
+### 測試
+
+- **`tests/test_check_data.js`（新增，16 項）**：兩次 9/21 事故的重現、各類錯誤與警告、CLI exit code、repo 現有資料通過
+- 現有資料用新檢查跑過：**兩個檔案都沒有錯誤也沒有警告**
+- 變異測試：拿掉「每筆是物件」→ 3 項紅；拿掉重複日期 → 1 項紅；非週日改成錯誤 → 4 項紅；公告不檢查 title → 1 項紅
+- 瀏覽器實測（本機伺服器＋Playwright，390px）：5 個頁面 × 4 種資料狀態（正確／單筆壞掉／JSON 壞掉／404）全部符合規格
+- 既有 19＋28＋26 項照舊全綠（這次沒動 `lineup.html` 與 GAS）
+
+### 部署
+
+只需 merge `main`（GAS 不用動）。merge 後：
+1. 到 GitHub repo 上方「Actions」分頁，確認「資料檔檢查」出現並是綠色 ✓
+2. 手機開官網三頁看一眼，應該跟之前完全一樣（資料正確時不會有任何新提示）
+
+---
+
 ## V01.02.03 — 2026-09-26（DH 調度對標 MLB 規則：擋下不合法投手棒次、取消 DH 後引導下一步）
 
-**狀態**：已 commit、已推上分支 `claude/upbeat-lovelace-exzdda`（PR #1），**尚未 merge `main`**。
-只改 `lineup.html`，**GAS 不用動**。目標 10/17 前 merge，讓操作者 10/18 練球時試用。
+**狀態**：已 merge `main` 上線（PR #1，2026-09-26）。只改 `lineup.html`，GAS 不用動。
 
 ### 起因
 

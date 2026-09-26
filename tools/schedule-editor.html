@@ -29,6 +29,7 @@
     <div class="hint" style="margin-bottom:12px">
       點一筆展開就能改。球隊慣例是週日活動、有比賽就不練球、練球 08:00~12:00。
     </div>
+    <div id="load-warn"></div>
     <div id="list"><div class="hint">載入中…</div></div>
 
     <div class="form-card" style="border-left-color:var(--gold-color)">
@@ -69,6 +70,7 @@
     </div>
   </footer>
 
+  <script src="../data-check.js"></script>
   <script src="../site.js"></script>
   <script>
     let items = [];
@@ -354,14 +356,18 @@
 
     (async function init() {
       document.getElementById('new-date').value = todayStr();
+      // 提示放在 #load-warn：#list 會被 renderAll() 整個重寫，放那裡的提示會馬上消失
+      let warn;
       try {
-        const raw = await loadJSON('../data/schedule.json');
-        items = (Array.isArray(raw) ? raw : []).map(toState);
+        const { items: ok, badCount } = await loadChecked('../data/schedule.json', 'schedule');
+        items = ok.map(toState);
+        warn = editorLoadWarning(null, badCount);
       } catch (e) {
         items = [];
-        document.getElementById('list').innerHTML =
-          '<div class="hint">讀不到目前的時程。新增的活動會從空白開始。</div>';
+        console.error(e);
+        warn = editorLoadWarning(e, 0, '讀不到目前的時程。新增的活動會從空白開始。');
       }
+      document.getElementById('load-warn').innerHTML = warn.html;
       renderAll();
     })();
   </script>

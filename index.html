@@ -65,6 +65,7 @@
     </div>
   </footer>
 
+  <script src="data-check.js"></script>
   <script src="site.js"></script>
   <script>
     (async function () {
@@ -74,7 +75,7 @@
 
       // ---- 大版位：本週／下次活動 ----
       try {
-        const schedule = await loadJSON('data/schedule.json');
+        const { items: schedule, badCount } = await loadChecked('data/schedule.json', 'schedule');
         const act = nextActivity(schedule);
 
         if (!act) {
@@ -113,6 +114,7 @@
               <div class="pin-meta">${escapeHtml(venueText(game))}</div>
             </a>`;
         }
+        heroEl.insertAdjacentHTML('afterend', partialNoteHTML(badCount));
       } catch (err) {
         heroEl.className = 'hero empty';
         heroEl.textContent = '活動資料暫時讀不到，請稍後再試。';
@@ -121,10 +123,11 @@
 
       // ---- 最新公告（最多 3 則）----
       try {
-        const list = sortAnnouncements(await loadJSON('data/announcements.json'));
-        newsEl.innerHTML = list.length === 0
+        const { items, badCount } = await loadChecked('data/announcements.json', 'announcements');
+        const list = sortAnnouncements(items);
+        newsEl.innerHTML = (list.length === 0
           ? '<div class="empty-note">目前沒有公告。</div>'
-          : list.slice(0, 3).map(announcementHTML).join('');
+          : list.slice(0, 3).map(announcementHTML).join('')) + partialNoteHTML(badCount);
       } catch (err) {
         newsEl.innerHTML = '<div class="empty-note">公告暫時讀不到，請稍後再試。</div>';
         console.error(err);

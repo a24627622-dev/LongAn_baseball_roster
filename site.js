@@ -81,7 +81,53 @@ function bodyToParagraphs(body) {
 async function loadJSON(path) {
   const res = await fetch(path, { cache: 'no-cache' });
   if (!res.ok) throw new Error(`${path} 讀取失敗（HTTP ${res.status}）`);
-  return res.json();
+  const text = await res.text();
+  try {
+    return JSON.parse(text);
+  } catch (e) {
+    // 格式壞掉跟網路問題分開標記：網路問題會自己好，格式壞掉不會
+    const err = new Error(`${path} 不是合法的 JSON：${e.message}`);
+    err.formatError = true;
+    throw err;
+  }
+}
+
+/* 讀資料檔並用 data-check.js 的規則檢查（頁面要先載入 data-check.js）。
+   - 整個檔案不能用 → throw，頁面顯示「暫時讀不到」
+   - 單筆壞掉 → 略過那一筆、回報 badCount，頁面加一行提示。
+     絕不默默丟掉（2026-09-21 最近一筆活動就是這樣消失的）
+   詳細原因一律寫在 Console（F12），對外畫面不放技術細節。 */
+async function loadChecked(path, kind) {
+  const data = await loadJSON(path);
+  const r = kind === 'schedule' ? DataCheck.checkSchedule(data) : DataCheck.checkAnnouncements(data);
+  if (r.fatal) {
+    const err = new Error(`${path}：${r.fatal}`);
+    err.formatError = true;
+    throw err;
+  }
+  r.errors.forEach((e) => console.error(`${path} ${e.where}：${e.msg}`));
+  r.warnings.forEach((w) => console.warn(`${path} ${w.where}：${w.msg}`));
+  return { items: r.valid, badCount: r.badCount };
+}
+
+/* 編輯器（tools/）讀檔的結果說明：檔案壞掉時，從空白或殘缺的清單產生內容，
+   貼回 GitHub 會把資料蓋掉，所以要用紅字擋在前面。
+   回傳 { html, broken }；html 為空字串代表一切正常。 */
+function editorLoadWarning(err, badCount, missingText) {
+  const fix = '請先修好檔案，或請 Claude 修。';
+  if (err && err.formatError) {
+    return { broken: true, html: `<div class="load-warn">⛔ 目前線上的檔案格式壞了。從空白開始產生的內容，貼上後會覆蓋掉全部資料；${fix}</div>` };
+  }
+  if (err) return { broken: false, html: `<div class="hint">${missingText}</div>` };
+  if (badCount > 0) {
+    return { broken: true, html: `<div class="load-warn">⛔ 目前線上的檔案有 ${badCount} 筆格式壞了，這裡看不到它們。產生的內容貼上後，那 ${badCount} 筆會被刪掉；${fix}</div>` };
+  }
+  return { broken: false, html: '' };
+}
+
+/* 部分資料被略過時的提示（對外用語，不放技術細節） */
+function partialNoteHTML(badCount) {
+  return badCount > 0 ? '<div class="partial-note">部分資料暫時讀不到，請稍後再試。</div>' : '';
 }
 
 /* ---------- 活動 ---------- */

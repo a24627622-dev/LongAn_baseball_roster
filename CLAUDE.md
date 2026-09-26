@@ -24,6 +24,13 @@ node tests/test_scenarios.js
 node tests/test_scenarios.js --repeat 5
 ```
 
+改了 `data/*.json`、`data-check.js` 或對外頁面的資料讀取，另外跑：
+
+```
+node tests/test_check_data.js
+node tests/check_data.js
+```
+
 不能為了讓測試變綠而直接改斷言；測試框架不能比真實 UI 寬鬆（見 `docs/測試報告_調度三情境.md` 第九節）。
 
 ## 文件維護（每次更動都要做）

@@ -1,4 +1,4 @@
-// 共用測試框架：把 lineup.html 的 <script> 抽出來在 VM 裡執行（極簡 Vue 替身），
+// 共用測試框架：把 tools/lineup.html 的 <script> 抽出來在 VM 裡執行（極簡 Vue 替身），
 // 後端實際執行 gas/Code.gs + Auth.gs + Pitchers.gs，試算表用模擬物件。
 // tests/test_lineup_logic.js 與 tests/test_scenarios.js 共用這個檔案。
 const fs = require('fs');
@@ -7,10 +7,10 @@ const vm = require('vm');
 const assert = require('assert');
 const { createGasContext, MockSpreadsheet } = require('./gas_mock');
 
-const html = fs.readFileSync(path.join(__dirname, '..', 'lineup.html'), 'utf8');
+const html = fs.readFileSync(path.join(__dirname, '..', 'tools', 'lineup.html'), 'utf8');
 const scriptMatch = html.match(/<script>\r?\n([\s\S]*?)<\/script>/);
 if (!scriptMatch) {
-  throw new Error('在 lineup.html 找不到內嵌的 <script> 區塊（檢查換行符號與 script 標籤格式）');
+  throw new Error('在 tools/lineup.html 找不到內嵌的 <script> 區塊（檢查換行符號與 script 標籤格式）');
 }
 const script = scriptMatch[1];
 

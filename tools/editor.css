@@ -35,7 +35,7 @@ input:disabled { background: #f1f5f9; color: var(--text-muted); }
   border-radius: 10px;
   background: #fef2f2;
   border: 1px solid #fca5a5;
-  color: #b91c1c;
+  color: var(--primary-color);
   font-size: .9rem;
   font-weight: 700;
   line-height: 1.5;

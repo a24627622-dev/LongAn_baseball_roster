@@ -1,0 +1,13 @@
+/* 龍安棒球隊 品牌色（唯一一份）
+   對外官網 site.css 與對內工具 style.css 都從這裡 @import，改色只改這裡。 */
+:root {
+  --primary-color: #b91c1c;   /* 主色系：龍安熱血深紅 */
+  --dark-color: #111827;      /* 主色系：霸氣勁黑 */
+  --accent-color: #ea580c;    /* 副色系：橘紅 */
+  --gold-color: #d97706;      /* 第三色系：冠軍金 */
+
+  --bg-color: #f8fafc;        /* 底色：乾淨純白／淺灰 */
+  --card-bg: #ffffff;
+  --text-primary: #0f172a;
+  --text-muted: #64748b;
+}

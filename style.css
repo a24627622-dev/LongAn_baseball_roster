@@ -1,16 +1,6 @@
-/* 龍安棒球隊 手機 App 視覺外觀 */
-:root {
-  /* 龍安球隊專屬配色 */
-  --primary-color: #b91c1c;   /* 主色系：龍安熱血深紅 */
-  --dark-color: #111827;      /* 主色系：霸氣勁黑 */
-  --accent-color: #ea580c;    /* 副色系：橘紅 */
-  --gold-color: #d97706;      /* 第三色系：冠軍金色 */
-  
-  --bg-color: #f8fafc;        /* 副色系：乾淨純白/淺灰底 */
-  --card-bg: #ffffff;
-  --text-primary: #0f172a;
-  --text-muted: #64748b;
-}
+/* 龍安棒球隊 對內工具（/tools/）手機 App 視覺外觀
+   品牌色在 brand.css，改色只改那裡。 */
+@import url("brand.css");
 
 * {
   box-sizing: border-box;

@@ -15,7 +15,7 @@
 - **正式網站只有在你 `git push` 到 GitHub 的 main 分支後才會更新**，在本機怎麼改都不會影響正式網站。
 - **Apps Script 也一樣**：只有你把程式貼進正式 Apps Script，並按「部署 → 建立新版本」，後端才會變。
 
-`lineup.html` 會自動判斷現在的環境，並在頁首顯示標籤：
+`tools/lineup.html` 會自動判斷現在的環境，並在頁首顯示標籤：
 
 - 紫色「🧪 本機假資料」：安全，資料只會寫進本機的假試算表。
 - 紅色「⚠️ 正式資料」：在本機開啟，但連的是正式後端（網址加了 `?api=prod`）。**這時操作會寫進正式試算表**，除非你確定要這樣做，否則不要操作。
@@ -42,8 +42,8 @@
 1. VS Code →「檔案 → 開啟資料夾」→ 選 `C:\Documents_HTML development\LongAn_baseball_roster`。
 2. 左側檔案總管應該看得到下面這些東西：
    ```
-   lineup.html      陣容調度助手
-   index.html       首頁
+   index.html       對外官網首頁
+   tools/           球隊管理（陣容調度助手 tools/lineup.html、公告產生器、時程編輯器）
    gas/             後端程式（Code.gs、Auth.gs、Pitchers.gs）
    dev/             本機開發伺服器（server.js、config.json、roster.json、start.bat）
    tests/           自動測試
@@ -85,22 +85,22 @@ node dev/server.js
 
 ```
 ⚾ 龍安棒球隊 本機開發伺服器已啟動
-   陣容調度助手：http://localhost:8080/lineup.html
+   陣容調度助手：http://localhost:8080/tools/lineup.html
    首頁：        http://localhost:8080/
    假試算表檢視：http://localhost:8080/dev
-   手機（同一個 Wi-Fi）：http://192.168.x.x:8080/lineup.html
+   手機（同一個 Wi-Fi）：http://192.168.x.x:8080/tools/lineup.html
    隊務密碼：longan-dev　強制登入：false
 ```
 
 **要停止伺服器時**：在那個視窗按 `Ctrl + C`，或直接關掉視窗。
 
-> ⚠️ 請一定要用 `http://localhost:8080/...` 開啟頁面。不要直接在檔案總管點兩下 `lineup.html`（網址會變成 `file:///...`），那樣抓不到本機後端。
+> ⚠️ 請一定要用 `http://localhost:8080/...` 開啟頁面。不要直接在檔案總管點兩下 `tools/lineup.html`（網址會變成 `file:///...`），那樣抓不到本機後端。
 
 ---
 
 ## 3. 操作與檢查
 
-1. 開啟 http://localhost:8080/lineup.html。
+1. 開啟 http://localhost:8080/tools/lineup.html。
 2. **先確認頁首有紫色「🧪 本機假資料」標籤**。
 3. 按「同步名單」，會載入 `dev/roster.json` 裡的測試球員（16 位，其中 4 位是投手）。
 4. 照平常的流程操作：點名 → 排先發 → 上傳 → 調度 → 上傳 → 比賽完成。
@@ -109,7 +109,7 @@ node dev/server.js
    - 每次上傳完，按這頁的「重新整理」就會看到最新內容。
 6. 想重新開始時：
    - 在 `/dev` 頁面按「清空假資料」（球員名單不會被清掉）。
-   - 在 lineup.html 按「🗑️ 重置」，清掉瀏覽器裡的草稿。
+   - 在 tools/lineup.html 按「🗑️ 重置」，清掉瀏覽器裡的草稿。
 
 伺服器的黑色視窗也會即時顯示每一次請求，例如：
 
@@ -124,7 +124,7 @@ POST /gas  action=login  → ❌ AUTH_FAILED 密碼錯誤。
 
 | 你改了什麼 | 要做什麼 |
 |---|---|
-| `lineup.html`、`index.html`、`style.css` | 存檔 → 瀏覽器按 `Ctrl + F5`（強制重新整理） |
+| `tools/lineup.html`、`index.html`、`style.css` | 存檔 → 瀏覽器按 `Ctrl + F5`（強制重新整理） |
 | `gas/*.gs`（後端） | 存檔就好，下一次請求會自動用新程式，**不用重開伺服器** |
 | `dev/config.json`、`dev/roster.json` | 存檔就好（名單改完要在頁面按「同步名單」） |
 | `dev/server.js`、`tests/gas_mock.js` | 按 `Ctrl + C` 停止伺服器，再重新啟動 |
@@ -136,7 +136,7 @@ POST /gas  action=login  → ❌ AUTH_FAILED 密碼錯誤。
 ## 5. 測試「隊務登入」
 
 1. 打開 `dev/config.json`，把 `"AUTH_ENFORCED": false` 改成 `true`，然後存檔。
-2. 在 lineup.html 按「🔒 登入」，或直接上傳，會跳出密碼視窗。
+2. 在 tools/lineup.html 按「🔒 登入」，或直接上傳，會跳出密碼視窗。
 3. 本機的測試密碼是 `longan-dev`（可以在 config.json 改）。
 4. 建議測這幾種情況：
    - **密碼錯誤**：應該顯示「密碼錯誤」。
@@ -153,7 +153,7 @@ POST /gas  action=login  → ❌ AUTH_FAILED 密碼錯誤。
 ## 6. 用手機測試（同一個 Wi-Fi）
 
 1. 電腦和手機連到同一個 Wi-Fi。
-2. 看伺服器啟動訊息裡的「手機（同一個 Wi-Fi）」網址，例如 `http://192.168.1.23:8080/lineup.html`，用手機瀏覽器開啟。
+2. 看伺服器啟動訊息裡的「手機（同一個 Wi-Fi）」網址，例如 `http://192.168.1.23:8080/tools/lineup.html`，用手機瀏覽器開啟。
 3. 手機頁首也應該要顯示紫色「🧪 本機假資料」。
 4. 如果手機連不上：
    - 第一次啟動時，Windows 可能跳出「允許 Node.js 存取網路」，請勾選「私人網路」並按允許。
@@ -212,7 +212,7 @@ git commit -m "V01.02.00 本機測試版"   # 存成一個版本
    - 複製產生的網址（結尾是 `/exec`）。
 5. 在電腦上開啟下面這個網址（`api=` 後面換成你剛剛複製的網址）：
    ```
-   http://localhost:8080/lineup.html?api=https://script.google.com/macros/s/XXXXXXXX/exec
+   http://localhost:8080/tools/lineup.html?api=https://script.google.com/macros/s/XXXXXXXX/exec
    ```
    頁首應該會顯示紫色「🧪 測試 GAS」。
 6. 之後在副本的 Apps Script 修改程式時，每次都要「部署 → 管理部署作業 → 編輯 → 版本選『建立新版本』」，修改才會生效。
@@ -280,7 +280,7 @@ git switch <分支名稱>
 跟第 2 節一樣，二選一：
 
 - 點兩下 `dev/start.bat`
-- 或在終端機輸入 `node dev/server.js`，再開 http://localhost:8080/lineup.html
+- 或在終端機輸入 `node dev/server.js`，再開 http://localhost:8080/tools/lineup.html
 
 頁首要看到紫色「🧪 本機假資料」，才代表資料只寫進本機假試算表。
 手機測試：連同一個 Wi-Fi，開伺服器視窗印出的「手機（同一個 Wi-Fi）」網址。

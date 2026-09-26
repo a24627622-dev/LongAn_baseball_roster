@@ -2,7 +2,7 @@
 // 龍安棒球隊 - 本機開發伺服器（不需要安裝任何套件，只要 Node.js）
 //
 // 啟動：在專案根目錄執行   node dev/server.js
-// 然後用瀏覽器開啟：       http://localhost:8080/lineup.html
+// 然後用瀏覽器開啟：       http://localhost:8080/tools/lineup.html
 //
 // 它做三件事：
 //   1. 把專案資料夾當成網站提供（跟 GitHub Pages 一樣的檔案）
@@ -135,7 +135,7 @@ td.f{color:#94a3b8;text-align:center}
 <h2>🧪 本機假試算表</h2>
 <p class="info">隊務密碼：<b>${esc(cfg.TEAM_PASSCODE)}</b>　｜　強制登入（AUTH_ENFORCED）：<b>${cfg.AUTH_ENFORCED}</b>　｜　設定檔：dev/config.json　｜　公式儲存格以 ƒ 表示（滑鼠停留可看內容）</p>
 <div class="bar">
-  <a href="/lineup.html" target="_blank">開啟陣容調度助手</a>
+  <a href="/tools/lineup.html" target="_blank">開啟陣容調度助手</a>
   <a href="/index.html" target="_blank">開啟首頁</a>
   <button onclick="location.reload()">重新整理</button>
   <form method="post" action="/dev/reset" onsubmit="return confirm('確定清空所有假比賽資料？（球員名單不受影響）')"><button class="danger">清空假資料</button></form>
@@ -213,12 +213,12 @@ server.listen(PORT, () => {
   const cfg = loadConfig();
   console.log('');
   console.log('⚾ 龍安棒球隊 本機開發伺服器已啟動');
-  console.log(`   陣容調度助手：http://localhost:${PORT}/lineup.html`);
+  console.log(`   陣容調度助手：http://localhost:${PORT}/tools/lineup.html`);
   console.log(`   首頁：        http://localhost:${PORT}/`);
   console.log(`   假試算表檢視：http://localhost:${PORT}/dev`);
   const lan = Object.values(os.networkInterfaces()).flat()
     .filter(n => n && n.family === 'IPv4' && !n.internal).map(n => n.address);
-  lan.forEach(ip => console.log(`   手機（同一個 Wi-Fi）：http://${ip}:${PORT}/lineup.html`));
+  lan.forEach(ip => console.log(`   手機（同一個 Wi-Fi）：http://${ip}:${PORT}/tools/lineup.html`));
   console.log(`   隊務密碼：${cfg.TEAM_PASSCODE}　強制登入：${cfg.AUTH_ENFORCED}（dev/config.json 可修改）`);
   console.log('   資料只寫到 dev/data/sheets.json，不會動到正式 Google 試算表。按 Ctrl + C 停止。');
   console.log('');

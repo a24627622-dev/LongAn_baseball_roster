@@ -15,7 +15,7 @@
 
 ## 測試
 
-改完 `lineup.html` 或 `gas/*.gs`，三支都要重跑，全綠才 commit：
+改完 `tools/lineup.html` 或 `gas/*.gs`，三支都要重跑，全綠才 commit：
 
 ```
 node tests/test_gas_modules.js
@@ -40,7 +40,7 @@ node tests/check_data.js
 | 發生了什麼 | 要更新哪裡 |
 |---|---|
 | 完成或新增待辦、優先序改變、使用者做了決定 | `docs/專案現況.md` 對應章節＋檔頭「最後更新」日期 |
-| 改了會上線的程式（`lineup.html`、`gas/*.gs`、對外頁面） | `docs/CHANGELOG.md` 新增版本段落 |
+| 改了會上線的程式（`tools/lineup.html`、`gas/*.gs`、對外頁面） | `docs/CHANGELOG.md` 新增版本段落 |
 | 測試案例增減、規則依據改變 | `docs/測試報告_調度三情境.md`＋`tests/README.md` 的項數 |
 | 簡碼字典有新定案 | `docs/文字記錄簡碼字典.md` |
 | 開發或維護流程改變 | `DEVELOPMENT.md` |

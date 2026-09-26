@@ -7,6 +7,6 @@ if errorlevel 1 (
   pause
   exit /b 1
 )
-start "" http://localhost:8080/lineup.html
+start "" http://localhost:8080/tools/lineup.html
 node dev\server.js
 pause

@@ -13,7 +13,7 @@ node tests/check_data.js                   # 檢查 data/*.json
 
 ## 檔案
 
-- `harness.js`：共用框架。把 `lineup.html` 的 `<script>` 抽出來，用極簡 Vue 替身執行 `setup()`，
+- `harness.js`：共用框架。把 `tools/lineup.html` 的 `<script>` 抽出來，用極簡 Vue 替身執行 `setup()`，
   後端實際執行 `gas/Code.gs` + `Auth.gs` + `Pitchers.gs`，試算表用模擬物件。
   `test_lineup_logic.js` 與 `test_scenarios.js` 共用它。
 - `gas_mock.js`：Google Apps Script 執行環境模擬（試算表、指令碼屬性、快取、HMAC 等）。

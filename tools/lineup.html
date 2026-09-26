@@ -11,7 +11,7 @@
         [v-cloak] { display: none; }
         .bg-pitcher { backgroundColor: #ffd966; }
     </style>
-    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="../style.css">
 </head>
 <body class="bg-slate-100 min-h-screen text-slate-800 pb-16">
     <div class="mobile-container">
@@ -19,7 +19,7 @@
         
      <header class="app-header">
       <div class="header-brand">
-        <img src="logo.png" alt="龍安隊徽" class="team-logo" onerror="this.style.display='none'">
+        <img src="../logo.png" alt="龍安隊徽" class="team-logo" onerror="this.style.display='none'">
         <h1 style="font-size: 1rem;">龍安點名與陣容助手</h1>
       </div>
 
@@ -1536,13 +1536,11 @@
     </script>
 
     <nav class="bottom-nav">
-        <!-- 階段 C：工具大廳已搬到 /tools/，這顆會跳到對外官網，先註解掉避免誤按。
-             完整的導覽處理排在階段 B（lineup.html 搬進 /tools/ 時）。
+        <!-- 不放對外官網的連結：比賽中誤按跳去官網很麻煩（工具大廳裡有官網入口） -->
         <a href="index.html" class="nav-item">
           <span style="font-size: 1.2rem;">🏠</span>
-          <span>首頁</span>
+          <span>球隊管理</span>
         </a>
-        -->
         <a href="lineup.html" class="nav-item active">
           <span style="font-size: 1.2rem;">📋</span>
           <span>陣容調度</span>

@@ -1,18 +1,9 @@
-/* 龍安棒球隊 對外官網樣式（階段 C）
+/* 龍安棒球隊 對外官網樣式
    對內工具用 style.css（480px 手機容器），兩者互不影響。
-   色碼與 style.css 的品牌色完全相同，改色時兩邊都要改。
-   （統一成共用色票檔排在階段 B，那時本來就要動 lineup.html） */
+   品牌色在 brand.css（與 style.css 共用），改色只改那裡。 */
+@import url("brand.css");
 
 :root {
-  --primary-color: #b91c1c;   /* 龍安熱血深紅 */
-  --dark-color: #111827;      /* 霸氣勁黑 */
-  --accent-color: #ea580c;    /* 橘紅 */
-  --gold-color: #d97706;      /* 冠軍金 */
-
-  --bg-color: #f8fafc;
-  --card-bg: #ffffff;
-  --text-primary: #0f172a;
-  --text-muted: #64748b;
   --border: #e2e8f0;
 
   --maxw: 960px;

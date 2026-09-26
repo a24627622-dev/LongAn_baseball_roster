@@ -51,6 +51,7 @@
 
     <div class="section-head"><h2>2. 確認清單</h2></div>
     <div class="form-card" id="list-card">
+      <div id="load-warn"></div>
       <div id="list">載入目前的公告…</div>
     </div>
 
@@ -79,6 +80,7 @@
     </div>
   </footer>
 
+  <script src="../data-check.js"></script>
   <script src="../site.js"></script>
   <script>
     let items = [];
@@ -168,14 +170,18 @@
 
     (async function init() {
       clearForm();
+      // 提示放在 #load-warn：#list 會被 render() 整個重寫，放那裡的提示會馬上消失
+      let warn;
       try {
-        items = await loadJSON('../data/announcements.json');
-        if (!Array.isArray(items)) items = [];
+        const { items: ok, badCount } = await loadChecked('../data/announcements.json', 'announcements');
+        items = ok;
+        warn = editorLoadWarning(null, badCount);
       } catch (e) {
         items = [];
-        document.getElementById('list').innerHTML =
-          '<div class="hint">讀不到目前的公告（可能還沒上線）。現在加的公告會從空白開始。</div>';
+        console.error(e);
+        warn = editorLoadWarning(e, 0, '讀不到目前的公告（可能還沒上線）。現在加的公告會從空白開始。');
       }
+      document.getElementById('load-warn').innerHTML = warn.html;
       render();
     })();
   </script>

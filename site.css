@@ -427,6 +427,18 @@ details.past-box > div { margin-top: 12px; }
 .sched-item.past { opacity: .72; }
 
 /* ---------- 空狀態 ---------- */
+/* 部分資料被略過時的提示（data-check.js 抓到壞掉的單筆） */
+.partial-note {
+  margin: 12px 0;
+  padding: 10px 14px;
+  border-radius: 10px;
+  background: #fffbeb;
+  border: 1px solid #fcd34d;
+  color: #92400e;
+  font-size: .9rem;
+  text-align: center;
+}
+
 .empty-note {
   background: var(--card-bg);
   border: 1px dashed var(--border);

@@ -24,6 +24,13 @@ node tests/test_scenarios.js
 node tests/test_scenarios.js --repeat 5
 ```
 
+改了 `data/*.json`、`data-check.js` 或對外頁面的資料讀取，另外跑：
+
+```
+node tests/test_check_data.js
+node tests/check_data.js
+```
+
 不能為了讓測試變綠而直接改斷言；測試框架不能比真實 UI 寬鬆（見 `docs/測試報告_調度三情境.md` 第九節）。
 
 ## 文件維護（每次更動都要做）
@@ -45,3 +52,4 @@ node tests/test_scenarios.js --repeat 5
 - `main` = GitHub Pages = 正式上線，push 後約一分鐘生效
 - 改了 `gas/*.gs`：使用者要貼進 Apps Script 並「建立新版本」才生效。**GAS 要先部署，再 merge `main`**
 - 這個 repo 是公開的：**不要 commit 密碼、金鑰、密碼提示**
+- 開 PR 後，告訴使用者照 `DEVELOPMENT.md` 第 11 節測試與 Merge；PR 說明要寫「上線步驟」（要測什麼、GAS 要不要動）

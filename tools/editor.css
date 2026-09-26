@@ -29,6 +29,17 @@ input:disabled { background: #f1f5f9; color: var(--text-muted); }
 .checkline input { width: 20px; height: 20px; flex: none; }
 .checkline label { margin: 0; }
 
+.load-warn {
+  margin-bottom: 12px;
+  padding: 12px 14px;
+  border-radius: 10px;
+  background: #fef2f2;
+  border: 1px solid #fca5a5;
+  color: #b91c1c;
+  font-size: .9rem;
+  font-weight: 700;
+  line-height: 1.5;
+}
 .hint { font-size: .82rem; color: var(--text-muted); font-weight: 400; margin-top: 4px; }
 
 .btn-row { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 14px; }

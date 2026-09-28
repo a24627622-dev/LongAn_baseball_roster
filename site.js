@@ -99,7 +99,8 @@ async function loadJSON(path) {
    詳細原因一律寫在 Console（F12），對外畫面不放技術細節。 */
 async function loadChecked(path, kind) {
   const data = await loadJSON(path);
-  const r = kind === 'schedule' ? DataCheck.checkSchedule(data) : DataCheck.checkAnnouncements(data);
+  const check = { schedule: DataCheck.checkSchedule, announcements: DataCheck.checkAnnouncements, players: DataCheck.checkPlayers }[kind];
+  const r = check(data);
   if (r.fatal) {
     const err = new Error(`${path}：${r.fatal}`);
     err.formatError = true;

@@ -32,7 +32,7 @@ GAS 後端維持在 Apps Script 編輯器貼上覆蓋、部署新版本(必須�
 node tests/test_gas_modules.js       # 19 項
 node tests/test_lineup_logic.js      # 28 項
 node tests/test_scenarios.js         # 26 項
-node tests/test_check_data.js        # 16 項（資料檔檢查規則）
+node tests/test_check_data.js        # 20 項（資料檔檢查規則）
 node tests/check_data.js             # 檢查 data/*.json
 node tests/test_scenarios.js --repeat 5
 ```
@@ -64,10 +64,43 @@ node tests/test_scenarios.js --repeat 5
 
 ---
 
+## V01.04.00 — 2026-09-28（比賽文字紀錄 第一階段：記錄規則定案、球員名單）
+
+**狀態**：使用者 2026-09-28 審閱通過。**GAS 不用動**。目標 10/18 前 merge，把速查表交給記錄員。
+審閱時使用者更正：**觸身球不算保送**，獨立記 HBP（打者表的 HBP 欄在第 6 項加）；新增故意四壞 `IBB`（算 BB）。
+
+### 起因
+
+使用者要的流程是「記錄員的口語文字紀錄 → CPBL 式文字轉播（公開）→ 成績紀錄」，頁面要有球員頭像。
+2026-09-27～28 拷問定案，分成幾個 PR 做；這是第一個（工作拆分第 1、2 項）。完整規格見 `專案現況.md` 第 10 節。
+
+### 新增
+
+- **`docs/文字記錄簡碼字典.md` 改寫成 v2**：以記錄員實際使用的計分員符號（`4-3`、`F9`、`K`、`BB`、`E5`、`SF7`）為準，
+  中文簡碼當同義詞；定義打者行格式、`➔` 狀態、換人寫法、對手半局簡記、得分與打點規則、成績計算規則；
+  附 2026-08-30 G4 對雨人的補正版紀錄與預期成績（轉換程式的第一個測試答案）
+- **`tools/record-guide.html`**：記錄員手機速查表
+- **`tools/players-builder.html`**：球員名單產生器。背號、姓名從試算表帶入，填暱稱、勾照片，產生 `data/players.json`
+- **`data/players.json`**（先是空陣列）、**`images/players/silhouette.svg`**（沒照片的預設剪影）
+- **`data-check.js`**：新增 `checkPlayers`（背號必填、不能重複、照片路徑格式），GitHub 自動檢查一併檢查名單檔
+- 工具大廳加上兩張卡片
+
+### 測試
+
+- `tests/test_check_data.js` 16 → 20 項（球員名單 4 項）
+- 本機伺服器＋Playwright 實際打開速查表、名單產生器、工具大廳：無錯誤；產生器能帶入名單、填暱稱、勾照片並輸出正確 JSON
+
+### 部署
+
+只需 merge（GAS 不用動）。merge 後：
+1. 開 `/tools/players-builder.html`，確認正式名單帶得進來，填好暱稱後照步驟更新 `data/players.json`
+2. 把 `/tools/record-guide.html` 的網址發給記錄員
+
+---
+
 ## V01.03.00 — 2026-09-26（階段 B：陣容調度工具搬到 /tools/、品牌色合併）
 
-**狀態**：已 commit、已推上分支 `claude/upbeat-lovelace-exzdda`，**尚未 merge `main`**。**GAS 不用動**。
-目標 10/17 前 merge；10/18 練球時操作者重新登入（通行證 10/23 過期），同時改用新網址。
+**狀態**：已 merge `main` 上線（PR #3，2026-09-26）。GAS 不用動。10/18 練球時操作者重新登入並改用新網址。
 
 ### 起因
 

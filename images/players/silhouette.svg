@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" role="img" aria-label="尚無照片">
+  <!-- 沒有照片的球員一律顯示這個剪影（顏色取自 brand.css 的勁黑與底色） -->
+  <rect width="200" height="200" fill="#e2e8f0"/>
+  <circle cx="100" cy="78" r="38" fill="#94a3b8"/>
+  <path d="M30 200c4-44 34-70 70-70s66 26 70 70z" fill="#94a3b8"/>
+</svg>

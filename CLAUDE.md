@@ -24,6 +24,12 @@ node tests/test_scenarios.js
 node tests/test_scenarios.js --repeat 5
 ```
 
+改了 `record-engine.js`（比賽文字紀錄轉換引擎）或 `docs/文字記錄簡碼字典.md` 第 6 節的範例，另外跑：
+
+```
+node tests/test_record_engine.js
+```
+
 改了 `data/*.json`、`data-check.js` 或對外頁面的資料讀取，另外跑：
 
 ```

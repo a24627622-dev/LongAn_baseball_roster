@@ -7,6 +7,7 @@ node tests/test_gas_modules.js
 node tests/test_lineup_logic.js
 node tests/test_scenarios.js
 node tests/test_scenarios.js --repeat 5    # 跑五輪並檢查跨輪一致性
+node tests/test_record_engine.js           # 比賽文字紀錄轉換引擎
 node tests/test_check_data.js              # 資料檔檢查規則的測試
 node tests/check_data.js                   # 檢查 data/*.json
 ```
@@ -19,6 +20,10 @@ node tests/check_data.js                   # 檢查 data/*.json
 - `gas_mock.js`：Google Apps Script 執行環境模擬（試算表、指令碼屬性、快取、HMAC 等）。
 - `test_gas_modules.js`（19 項）：Auth.gs 與 Pitchers.gs 的單元測試。
 - `test_lineup_logic.js`（28 項）：完整流程——點名 → 先發 → 調度 → 上傳 → 回讀 → 結案，含登入流程。
+- `test_record_engine.js`（34 項）：比賽文字紀錄轉換引擎（根目錄 `record-engine.js`）。
+  標準答案是 2026-08-30 G4 對雨人的賽事戰報：每位打者的 AB、R、H、RBI、BB、K 都要一致；
+  另外測原始（未補正）紀錄要抓得出問題、打點與得分規則、各種 ⚠️ 偵測、對手半局算投手成績。
+  測試資料在 `fixtures/`；字典文件第 6 節的範例必須和 `fixtures/2026-08-30_G4_雨人.txt` 一字不差
 - `test_check_data.js`（20 項）：資料檔檢查規則（根目錄 `data-check.js`）的測試，含 2026-09-21 兩次貼錯事故的重現、球員名單的背號檢查。
 - `check_data.js`：不是測試，是檢查 `data/schedule.json`、`data/announcements.json` 的指令；
   GitHub 自動檢查（`.github/workflows/check-data.yml`）也是跑這兩支。

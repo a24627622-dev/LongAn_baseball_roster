@@ -172,6 +172,7 @@ POST /gas  action=login  → ❌ AUTH_FAILED 密碼錯誤。
 node tests/test_gas_modules.js
 node tests/test_lineup_logic.js
 node tests/test_scenarios.js
+node tests/test_record_engine.js
 node tests/test_check_data.js
 node tests/check_data.js
 ```

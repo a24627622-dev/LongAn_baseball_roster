@@ -1,0 +1,181 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="robots" content="noindex">
+  <title>記錄員速查表 - 龍安棒球隊</title>
+  <link rel="icon" href="../logo-192.png">
+  <link rel="stylesheet" href="../site.css">
+  <link rel="stylesheet" href="editor.css">
+  <style>
+    /* 速查表專用：手機單手滑著看，表格要緊湊、範例要能一眼對照 */
+    .guide h3 { margin: 18px 0 8px; font-size: 1rem; color: var(--dark-color); }
+    .guide p, .guide li { font-size: .92rem; line-height: 1.6; }
+    .guide ul { padding-left: 1.2em; margin: 6px 0; }
+    .code-table { width: 100%; border-collapse: collapse; font-size: .9rem; }
+    .code-table th, .code-table td { padding: 6px 8px; border-bottom: 1px solid var(--border); text-align: left; vertical-align: top; }
+    .code-table th { background: #f1f5f9; font-weight: 700; white-space: nowrap; }
+    .code-table td:first-child { white-space: nowrap; }
+    code, .mono { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
+    code { background: #f1f5f9; padding: 1px 5px; border-radius: 4px; font-size: .88em; }
+    pre.sample {
+      background: var(--dark-color); color: #e2e8f0; padding: 12px 14px; border-radius: 10px;
+      font-size: .82rem; line-height: 1.7; white-space: pre-wrap; overflow-wrap: anywhere; margin: 8px 0;
+    }
+    pre.sample .hl { color: #fbbf24; }
+    .tip { background: #fffbeb; border: 1px solid #fcd34d; color: #92400e; border-radius: 10px; padding: 10px 12px; font-size: .88rem; margin: 10px 0; }
+    .toc { display: flex; flex-wrap: wrap; gap: 6px; margin: 12px 0 4px; }
+    .toc a { font-size: .85rem; padding: 5px 10px; border-radius: 999px; background: #fff; border: 1px solid var(--border); color: var(--dark-color); text-decoration: none; }
+  </style>
+</head>
+<body>
+
+  <header class="site-header">
+    <div class="wrap">
+      <a class="brand" href="index.html">
+        <img src="../logo-192.png" alt="龍安棒球隊隊徽" onerror="this.style.display='none'">
+        <span>記錄員速查表</span>
+      </a>
+      <nav class="site-nav">
+        <a href="index.html">球隊管理</a>
+        <a href="../index.html">官網</a>
+      </nav>
+    </div>
+  </header>
+
+  <main class="wrap page-body guide">
+
+    <nav class="toc">
+      <a href="#format">格式</a>
+      <a href="#codes">結果符號</a>
+      <a href="#events">事件</a>
+      <a href="#subs">換人</a>
+      <a href="#opp">對手半局</a>
+      <a href="#sample">完整範例</a>
+    </nav>
+
+    <div class="tip">
+      描述文字<b>自由寫</b>，程式只認<b>打者</b>和<b>結果符號</b>。看不懂的地方會標 ⚠️ 讓人確認，不用怕寫錯。
+    </div>
+
+    <div class="section-head" id="format"><h2>1. 一行怎麼寫</h2></div>
+    <div class="form-card">
+      <pre class="sample"><span class="hl">#背號</span>：<span class="hl">結果</span> 描述 [N分進帳，龍安 X:Y] ➔ 出局數, 壘包</pre>
+      <ul>
+        <li>每個半局先寫標題：<code>一局上｜龍安攻</code>、<code>一局下｜雨人攻</code></li>
+        <li>打者寫 <code>#56</code>；忘了背號就寫 <code>7棒</code></li>
+        <li><b>有得分</b>一定要寫 <code>[2分進帳]</code></li>
+        <li><code>➔</code> 後面寫這一行<b>結束後</b>的出局數和壘包：<code>1B</code>、<code>2B/3B</code>、<code>滿壘</code></li>
+        <li>一行有好幾個動作，用 <code>➔</code> 串起來，<b>最後一個 ➔ 後面才是狀態</b></li>
+      </ul>
+      <pre class="sample">#91：E4 乘誤上壘 [2分進帳，龍安 2:0] ➔ 2 Outs, 1B/2B</pre>
+    </div>
+
+    <div class="section-head" id="codes"><h2>2. 結果符號</h2></div>
+    <div class="form-card">
+      <p>守位號碼：1 投、2 捕、3 一壘、4 二壘、5 三壘、6 游擊、7 左外、8 中外、9 右外</p>
+
+      <h3>安打</h3>
+      <table class="code-table">
+        <tr><th>寫法</th><th>意思</th></tr>
+        <tr><td><code>1B</code></td><td>一壘安打（內野安打也寫 1B）</td></tr>
+        <tr><td><code>2B</code> <code>3B</code></td><td>二壘、三壘安打</td></tr>
+        <tr><td><code>HR</code></td><td>全壘打</td></tr>
+      </table>
+
+      <h3>上壘（不算打數）</h3>
+      <table class="code-table">
+        <tr><th>寫法</th><th>意思</th></tr>
+        <tr><td><code>BB</code></td><td>四壞保送</td></tr>
+        <tr><td><code>IBB</code></td><td>故意四壞</td></tr>
+        <tr><td><code>HBP</code></td><td>觸身球（不是保送，另外記）</td></tr>
+        <tr><td><code>SF7</code></td><td>犧牲飛球（數字＝接球的守位）</td></tr>
+        <tr><td><code>SAC</code></td><td>犧牲觸擊</td></tr>
+      </table>
+
+      <h3>三振</h3>
+      <table class="code-table">
+        <tr><th>寫法</th><th>意思</th></tr>
+        <tr><td><code>K</code></td><td>揮空三振</td></tr>
+        <tr><td><code>ꓘ</code> 或 <code>見振</code></td><td>站著被三振</td></tr>
+        <tr><td><code>K+PB</code> <code>K+WP</code></td><td>不死三振上壘</td></tr>
+      </table>
+
+      <h3>出局</h3>
+      <table class="code-table">
+        <tr><th>寫法</th><th>意思</th></tr>
+        <tr><td><code>4-3</code> <code>6-3</code></td><td>滾地刺殺（先寫處理球的守位）</td></tr>
+        <tr><td><code>3U</code></td><td>野手自己踩壘</td></tr>
+        <tr><td><code>F9</code> <code>F4</code></td><td>飛球接殺</td></tr>
+        <tr><td><code>L6</code></td><td>平飛球接殺</td></tr>
+        <tr><td><code>P6</code></td><td>內野高飛接殺</td></tr>
+        <tr><td><code>FF2</code></td><td>界外飛球接殺</td></tr>
+        <tr><td><code>6-4-3 DP</code></td><td>雙殺打</td></tr>
+      </table>
+
+      <h3>其他上壘（算打數）</h3>
+      <table class="code-table">
+        <tr><th>寫法</th><th>意思</th></tr>
+        <tr><td><code>E5</code></td><td>因失誤上壘（數字＝失誤的守位）</td></tr>
+        <tr><td><code>FC6</code></td><td>野手選擇</td></tr>
+      </table>
+    </div>
+
+    <div class="section-head" id="events"><h2>3. 事件（寫在括號裡）</h2></div>
+    <div class="form-card">
+      <table class="code-table">
+        <tr><th>寫法</th><th>意思</th></tr>
+        <tr><td><code>SB</code></td><td>盜壘成功：<code>（#39 SB 盜上二壘）</code></td></tr>
+        <tr><td><code>CS</code></td><td>盜壘失敗</td></tr>
+        <tr><td><code>WP</code> <code>PB</code></td><td>暴投、捕逸</td></tr>
+        <tr><td><code>BK</code></td><td>投手犯規</td></tr>
+        <tr><td><code>打點0</code></td><td>要改打點時寫在行尾（平常程式會自己算）</td></tr>
+      </table>
+    </div>
+
+    <div class="section-head" id="subs"><h2>4. 換人（寫在發生的地方）</h2></div>
+    <div class="form-card">
+      <table class="code-table">
+        <tr><th>情況</th><th>寫法</th></tr>
+        <tr><td>代打</td><td><code>#49（代打）：P6 …</code></td></tr>
+        <tr><td>代跑</td><td><code>（二壘跑者 #17 更換代跑 #5）</code></td></tr>
+        <tr><td>守備替補</td><td>半局開頭一行：<code>#55 替補 #2 守左外野</code></td></tr>
+        <tr><td>我方換投</td><td>一行：<code>更換投手 #56</code></td></tr>
+        <tr><td>對手換投</td><td>一行：<code>雨人更換投手</code></td></tr>
+      </table>
+      <div class="tip">陣容調度工具記得<b>誰</b>換了誰，但不知道<b>第幾局</b>換的，所以要寫在紀錄裡。</div>
+    </div>
+
+    <div class="section-head" id="opp"><h2>5. 對手半局（簡記就好）</h2></div>
+    <div class="form-card">
+      <p>對手只要寫<b>棒次＋結果</b>，描述和狀態都可以省略。這是算我方<b>投手成績</b>用的。</p>
+      <pre class="sample">三局下｜雨人攻
+9棒：K
+1棒：3U
+2棒：1B
+3棒：E6
+5棒：K+PB [1分進帳]</pre>
+      <p>某一局來不及記，就寫一行 <code>未記錄</code>。</p>
+    </div>
+
+    <div class="section-head" id="sample"><h2>6. 完整範例</h2></div>
+    <div class="form-card">
+      <p>2026-08-30 對雨人，二局上：</p>
+      <pre class="sample">二局上｜龍安攻
+#39：BB 保送上壘 ➔ 0 Out, 1B
+#1：BB 保送上壘（#39 SB 盜上二壘） ➔ 0 Out, 1B/2B
+雨人更換投手（低肩側投）
+#56：WP 跑者推進二三壘 ➔ 6 游擊平飛未接形成 2B 安打 [2分進帳，龍安 4:0] ➔ 0 Out, 2B
+#17：WP 跑者回本壘 [1分進帳，龍安 5:0] ➔ BB 保送上壘（#17 隨後 SB 盜上二壘） ➔ 0 Out, 2B
+#93：1B 內野安打（二壘跑者 #17 更換代跑 #5） ➔ 0 Out, 1B/2B
+#2：BB 保送上壘 ➔ 0 Out, 滿壘
+#19：SF7 左外野高飛犧牲打 [1分進帳，龍安 6:0] ➔ 1 Out, 1B/2B
+#91：4-6 跑者二壘封殺，傳一壘暴傳 E4，二壘跑者趁亂回本壘 [1分進帳，龍安 7:0] ➔ 2 Outs, 2B
+#12：K 吞振出局 ➔ 3 Outs</pre>
+    </div>
+
+  </main>
+
+</body>
+</html>

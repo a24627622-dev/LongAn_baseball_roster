@@ -1,16 +1,17 @@
-// 資料檔檢查：data/schedule.json、data/announcements.json
+// 資料檔檢查：data/schedule.json、data/announcements.json、data/players.json
 // 規則在根目錄的 data-check.js（對外頁面也用同一份）。
 //
 // 用法：
-//   node tests/check_data.js                     檢查 repo 裡的兩個檔案
+//   node tests/check_data.js                     檢查 repo 裡的三個檔案
 //   node tests/check_data.js --schedule 路徑     指定要檢查的檔案（測試用）
 //   node tests/check_data.js --announcements 路徑
+//   node tests/check_data.js --players 路徑
 //
 // 有「錯誤」就以 exit code 1 結束（GitHub 自動檢查會變紅、寄 email）；
 // 只有「警告」不會失敗。
 const fs = require('fs');
 const path = require('path');
-const { checkSchedule, checkAnnouncements } = require('../data-check');
+const { checkSchedule, checkAnnouncements, checkPlayers } = require('../data-check');
 
 const ROOT = path.resolve(__dirname, '..');
 const arg = (name) => {
@@ -21,6 +22,7 @@ const arg = (name) => {
 const FILES = [
   { label: 'data/schedule.json', file: arg('--schedule') || path.join(ROOT, 'data/schedule.json'), check: checkSchedule },
   { label: 'data/announcements.json', file: arg('--announcements') || path.join(ROOT, 'data/announcements.json'), check: checkAnnouncements },
+  { label: 'data/players.json', file: arg('--players') || path.join(ROOT, 'data/players.json'), check: checkPlayers },
 ];
 
 // JSON.parse 的錯誤只給字元位置，換算成第幾行，方便在 GitHub 編輯框找

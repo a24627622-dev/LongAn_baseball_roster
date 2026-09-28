@@ -1,4 +1,4 @@
-/* 龍安棒球隊 資料檔檢查規則（data/schedule.json、data/announcements.json）
+/* 龍安棒球隊 資料檔檢查規則（data/schedule.json、data/announcements.json、data/players.json）
    對外頁面（瀏覽器）與 tests/check_data.js（Node）共用這一份，規則只寫一次。
 
    分級：
@@ -16,6 +16,7 @@
     practice: ['type', 'date', 'startTime', 'endTime', 'venue', 'cancelled', 'note'],
   };
   const ANNOUNCEMENT_FIELDS = ['date', 'title', 'body', 'pinned'];
+  const PLAYER_FIELDS = ['number', 'name', 'nickname', 'photo'];
 
   const isObject = (x) => x !== null && typeof x === 'object' && !Array.isArray(x);
   const describe = (x) => (Array.isArray(x) ? '陣列' : x === null ? 'null' : typeof x);
@@ -139,7 +140,52 @@
     return r;
   }
 
-  const api = { checkSchedule, checkAnnouncements, isValidDate };
+  /* 球員名單：文字紀錄用「背號」找人，所以背號必填而且不能重複 */
+  function checkPlayers(data) {
+    const r = newResult();
+    if (!Array.isArray(data)) {
+      r.fatal = `最外層應該是陣列 [ ]，實際是${describe(data)}`;
+      return r;
+    }
+    const whereP = (i, item) => `第 ${i + 1} 位` + (isObject(item) && item.number !== undefined ? `（#${item.number}）` : '');
+    data.forEach((item, i) => {
+      const w = whereP(i, item);
+      const errs = [];
+      if (!isObject(item)) {
+        errs.push(`應該是一位 { } 球員，實際是${describe(item)}`);
+      } else {
+        if (typeof item.number !== 'string' || !/^\d{1,3}$/.test(item.number)) errs.push(`number（背號）應為 1～3 位數字的文字，例如 "56"，實際是 ${JSON.stringify(item.number)}`);
+        if (typeof item.name !== 'string' || item.name.trim() === '') errs.push('缺少 name（姓名）');
+      }
+      if (errs.length) {
+        errs.forEach((msg) => r.errors.push({ where: w, msg }));
+        r.badCount++;
+        return;
+      }
+      r.valid.push(item);
+      Object.keys(item).filter((k) => !PLAYER_FIELDS.includes(k)).forEach((k) => {
+        r.warnings.push({ where: w, msg: `不認得的欄位「${k}」（可用的欄位：${PLAYER_FIELDS.join('、')}），是不是打錯字？` });
+      });
+      if ('nickname' in item && typeof item.nickname !== 'string') {
+        r.warnings.push({ where: w, msg: `nickname（暱稱）應該是文字，實際是${describe(item.nickname)}` });
+      }
+      if ('photo' in item && item.photo !== null && !(typeof item.photo === 'string' && /^images\/players\/[\w-]+\.(jpg|jpeg|png|webp)$/.test(item.photo))) {
+        r.warnings.push({ where: w, msg: `photo 應為 null 或 "images/players/背號.jpg"，實際是 ${JSON.stringify(item.photo)}` });
+      }
+    });
+    const seen = {};
+    r.valid.forEach((item) => {
+      const i = data.indexOf(item);
+      if (item.number in seen) {
+        r.errors.push({ where: whereP(i, item), msg: `背號和第 ${seen[item.number] + 1} 位重複（文字紀錄用背號找人，不能重複）` });
+      } else {
+        seen[item.number] = i;
+      }
+    });
+    return r;
+  }
+
+  const api = { checkSchedule, checkAnnouncements, checkPlayers, isValidDate };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   else root.DataCheck = api;
 })(this);

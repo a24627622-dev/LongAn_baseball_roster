@@ -1,0 +1,206 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="robots" content="noindex">
+  <title>球員名單產生器 - 龍安棒球隊</title>
+  <link rel="icon" href="../logo-192.png">
+  <link rel="stylesheet" href="../site.css">
+  <link rel="stylesheet" href="editor.css">
+  <style>
+    .p-table { width: 100%; border-collapse: collapse; font-size: .9rem; }
+    .p-table th, .p-table td { padding: 6px; border-bottom: 1px solid var(--border); text-align: left; vertical-align: middle; }
+    .p-table th { background: #f1f5f9; white-space: nowrap; }
+    .p-table input[type=text] { width: 100%; min-width: 70px; padding: 6px 8px; font-size: .9rem; }
+    .p-table .num { font-weight: 700; white-space: nowrap; }
+    .avatar { width: 40px; height: 40px; border-radius: 50%; object-fit: cover; background: #e2e8f0; display: block; }
+    .tag-new { font-size: .75rem; color: #166534; background: #dcfce7; border-radius: 6px; padding: 1px 6px; margin-left: 4px; }
+    .tag-gone { font-size: .75rem; color: #92400e; background: #fef3c7; border-radius: 6px; padding: 1px 6px; margin-left: 4px; }
+  </style>
+</head>
+<body>
+
+  <header class="site-header">
+    <div class="wrap">
+      <a class="brand" href="index.html">
+        <img src="../logo-192.png" alt="龍安棒球隊隊徽" onerror="this.style.display='none'">
+        <span>球員名單產生器</span>
+      </a>
+      <nav class="site-nav">
+        <a href="index.html">球隊管理</a>
+        <a href="../index.html">官網</a>
+      </nav>
+    </div>
+  </header>
+
+  <main class="wrap page-body">
+
+    <div class="section-head" style="margin-top:20px"><h2>1. 確認名單</h2></div>
+    <div class="hint" style="margin-bottom:12px">
+      背號、姓名從試算表「球員名單」自動帶入；暱稱和「有照片」在這裡填。
+      照片檔名一律是 <code>images/players/背號.jpg</code>（放照片的方法見 DEVELOPMENT.md）。
+    </div>
+    <div id="load-warn"></div>
+    <div class="form-card">
+      <div style="overflow-x:auto">
+        <table class="p-table">
+          <thead><tr><th>照片</th><th>背號</th><th>姓名</th><th>暱稱</th><th>有照片</th></tr></thead>
+          <tbody id="rows"><tr><td colspan="5" class="hint">載入中…</td></tr></tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="section-head"><h2>2. 複製並貼到 GitHub</h2></div>
+    <div class="form-card">
+      <ol class="steps">
+        <li>按下面的「複製全部內容」</li>
+        <li>按「開啟 GitHub 編輯頁」（手機瀏覽器也可以）</li>
+        <li>在 GitHub 的編輯框裡 <strong>Ctrl+A 全選後直接貼上</strong></li>
+        <li>捲到最下面按 <strong>Commit changes</strong></li>
+      </ol>
+      <textarea id="output" readonly spellcheck="false"></textarea>
+      <div class="btn-row">
+        <button id="btn-copy">複製全部內容</button>
+        <a class="gh-link" href="https://github.com/a24627622-dev/LongAn_baseball_roster/edit/main/data/players.json" target="_blank" rel="noopener">開啟 GitHub 編輯頁 ↗</a>
+      </div>
+      <div class="flash" id="copy-flash"></div>
+    </div>
+
+  </main>
+
+  <footer class="site-footer">
+    <div class="wrap">
+      <span>球員名單產生器｜這個頁面不會寫入任何資料，只幫你產生正確格式</span>
+    </div>
+  </footer>
+
+  <script src="../data-check.js"></script>
+  <script src="../site.js"></script>
+  <script>
+    // 與 tools/lineup.html 同一個後端；本機開發（localhost／區網）改用 dev/server.js 的 /gas
+    const PROD_GAS_URL = 'https://script.google.com/macros/s/AKfycbxiAU0ZEuamWUpI_uX8DmSkmxuMcUxNd-BzwT9YgfahXU8pdfAxl5LKGkaKfglsirOx/exec';
+    const isLocalHost = (h) => /^(localhost|127\.0\.0\.1|192\.168\.\d+\.\d+|10\.\d+\.\d+\.\d+|172\.(1[6-9]|2\d|3[01])\.\d+\.\d+)$/.test(h || '');
+    const GAS_URL = isLocalHost(location.hostname) ? '/gas' : PROD_GAS_URL;
+    const SILHOUETTE = '../images/players/silhouette.svg';
+    const photoPath = (num) => `images/players/${num}.jpg`;
+
+    let players = [];   // { number, name, nickname, photo, status: 'new' | 'gone' | '' }
+
+    /* 試算表的「球員姓名」可能寫成「蘇垣華/小天」，斜線後面當暱稱 */
+    function splitName(raw) {
+      const [name, ...rest] = String(raw || '').split('/');
+      return { name: name.trim(), nickname: rest.join('/').trim() };
+    }
+
+    function render() {
+      const tbody = document.getElementById('rows');
+      if (!players.length) {
+        tbody.innerHTML = '<tr><td colspan="5" class="hint">名單是空的。</td></tr>';
+      } else {
+        tbody.innerHTML = players.map((p, i) => `
+          <tr>
+            <td><img class="avatar" src="${p.photo ? '../' + escapeHtml(p.photo) : SILHOUETTE}" alt="" onerror="this.src='${SILHOUETTE}'"></td>
+            <td class="num">#${escapeHtml(p.number)}</td>
+            <td>${escapeHtml(p.name)}${p.status === 'new' ? '<span class="tag-new">新</span>' : ''}${p.status === 'gone' ? '<span class="tag-gone">試算表沒有</span>' : ''}</td>
+            <td><input type="text" data-i="${i}" data-k="nickname" value="${escapeHtml(p.nickname || '')}" placeholder="（可空白）"></td>
+            <td><input type="checkbox" data-i="${i}" data-k="photo" ${p.photo ? 'checked' : ''}></td>
+          </tr>`).join('');
+      }
+      refreshOutput();
+    }
+
+    function refreshOutput() {
+      const out = players
+        .slice()
+        .sort((a, b) => Number(a.number) - Number(b.number))
+        .map((p) => ({ number: p.number, name: p.name, nickname: p.nickname || '', photo: p.photo || null }));
+      document.getElementById('output').value = JSON.stringify(out, null, 2) + '\n';
+    }
+
+    document.getElementById('rows').addEventListener('input', (e) => {
+      const i = e.target.dataset.i;
+      if (i === undefined) return;
+      const p = players[i];
+      if (e.target.dataset.k === 'nickname') p.nickname = e.target.value.trim();
+      if (e.target.dataset.k === 'photo') {
+        p.photo = e.target.checked ? photoPath(p.number) : null;
+        render();
+        return;
+      }
+      refreshOutput();
+    });
+
+    document.getElementById('btn-copy').addEventListener('click', async () => {
+      const ta = document.getElementById('output');
+      const flash = document.getElementById('copy-flash');
+      try {
+        await navigator.clipboard.writeText(ta.value);
+      } catch (e) {
+        ta.removeAttribute('readonly'); ta.select();
+        document.execCommand('copy'); ta.setAttribute('readonly', '');
+      }
+      flash.style.color = '#166534';
+      flash.textContent = '已複製，接著按「開啟 GitHub 編輯頁」。';
+    });
+
+    (async function init() {
+      const warnEl = document.getElementById('load-warn');
+      const warns = [];
+
+      // 1. 目前線上的 players.json：保留已填的暱稱、照片
+      let existing = [];
+      try {
+        const { items, badCount } = await loadChecked('../data/players.json', 'players');
+        existing = items;
+        const w = editorLoadWarning(null, badCount);
+        if (w.html) warns.push(w.html);
+      } catch (e) {
+        console.error(e);
+        const w = editorLoadWarning(e, 0, '讀不到目前的名單檔（可能還沒上線），暱稱和照片會從空白開始。');
+        if (w.html) warns.push(w.html);
+      }
+
+      // 2. 試算表的球員名單：背號、姓名以這裡為準
+      let sheet = null;
+      try {
+        const res = await fetch(GAS_URL);
+        const data = JSON.parse(await res.text());
+        if (!Array.isArray(data)) throw new Error(data && data.message ? data.message : '格式不對');
+        sheet = data
+          .filter((r) => r['背號'] !== '' && r['背號'] !== undefined && r['球員姓名'])
+          .map((r) => ({ number: String(r['背號']).trim(), ...splitName(r['球員姓名']) }));
+      } catch (e) {
+        console.error(e);
+        warns.push('<div class="hint">讀不到試算表的球員名單，下面只顯示目前名單檔的內容。</div>');
+      }
+
+      const byNum = Object.fromEntries(existing.map((p) => [p.number, p]));
+      if (sheet) {
+        const inSheet = new Set(sheet.map((p) => p.number));
+        players = sheet.map((s) => {
+          const old = byNum[s.number];
+          return {
+            number: s.number,
+            name: s.name,
+            nickname: (old && old.nickname) || s.nickname,
+            photo: old ? old.photo : null,
+            status: old ? '' : 'new',
+          };
+        });
+        // 名單檔有、試算表沒有的人先留著並標示，由你決定要不要刪（離隊的人在舊比賽的轉播裡還會出現）
+        existing.filter((p) => !inSheet.has(p.number)).forEach((p) => players.push({ ...p, status: 'gone' }));
+      } else {
+        players = existing.map((p) => ({ ...p, status: '' }));
+      }
+
+      const dup = players.map((p) => p.number).filter((n, i, a) => a.indexOf(n) !== i);
+      if (dup.length) warns.push(`<div class="load-warn">⛔ 背號重複：${[...new Set(dup)].map((n) => '#' + escapeHtml(n)).join('、')}。文字紀錄用背號找人，請先到試算表修正。</div>`);
+
+      warnEl.innerHTML = warns.join('');
+      render();
+    })();
+  </script>
+
+</body>
+</html>

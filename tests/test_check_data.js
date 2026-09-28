@@ -5,7 +5,7 @@ const fs = require('fs');
 const os = require('os');
 const path = require('path');
 const { execFileSync } = require('child_process');
-const { checkSchedule, checkAnnouncements } = require('../data-check');
+const { checkSchedule, checkAnnouncements, checkPlayers } = require('../data-check');
 
 let passed = 0;
 const test = (name, fn) => {
@@ -128,6 +128,35 @@ test('欄位打錯、pinned 型別錯 → 只是警告', () => {
   assert.match(msgs(r.warnings), /pinned 應該是 true 或 false/);
 });
 
+console.log('\n球員名單 checkPlayers');
+
+const player = (number, extra = {}) => ({ number, name: '蘇垣華', nickname: '小天', photo: null, ...extra });
+
+test('正確的名單：沒有錯誤也沒有警告（有照片、沒照片都可以）', () => {
+  const r = checkPlayers([player('56'), player('1', { name: '張容基', photo: 'images/players/1.jpg' })]);
+  assert.deepStrictEqual(r.errors, []);
+  assert.deepStrictEqual(r.warnings, []);
+  assert.strictEqual(r.valid.length, 2);
+});
+
+test('背號重複 → 錯誤（文字紀錄用背號找人）', () => {
+  const r = checkPlayers([player('18'), player('18', { name: '李浩偉' })]);
+  assert.match(msgs(r.errors), /背號和第 1 位重複/);
+});
+
+test('背號不是文字數字、缺姓名 → 錯誤並略過', () => {
+  const r = checkPlayers([player(56), player('5A'), { number: '7' }, player('9')]);
+  assert.strictEqual(r.badCount, 3);
+  assert.strictEqual(r.valid.length, 1);
+});
+
+test('照片路徑怪、欄位打錯 → 只是警告', () => {
+  const r = checkPlayers([player('56', { photo: 'photos/56.jpg', nick: 'x' })]);
+  assert.deepStrictEqual(r.errors, []);
+  assert.match(msgs(r.warnings), /photo 應為 null/);
+  assert.match(msgs(r.warnings), /不認得的欄位「nick」/);
+});
+
 console.log('\n指令 tests/check_data.js');
 
 test('正確的檔案 → exit 0', () => {
@@ -160,7 +189,7 @@ test('公告檔壞掉也會讓整體失敗', () => {
   assert.strictEqual(r.code, 1);
 });
 
-test('repo 裡現在的兩個資料檔都通過', () => {
+test('repo 裡現在的三個資料檔都通過', () => {
   const out = execFileSync('node', [CLI], { encoding: 'utf8' });
   assert.match(out, /沒有錯誤/);
 });

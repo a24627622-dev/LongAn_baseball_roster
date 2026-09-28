@@ -374,6 +374,8 @@ img { max-width: 100%; }
 .sched-score.win { background: #dcfce7; color: #166534; }
 .sched-score.lose { background: #fee2e2; color: #991b1b; }
 .sched-score.tie { background: #e2e8f0; color: #334155; }
+.sched-result { display: inline-block; margin-top: 8px; font-weight: 700; font-size: .9rem; color: var(--primary-color); text-decoration: none; }
+.sched-result:hover { text-decoration: underline; }
 
 /* 取消：灰底、刪除線、紅標籤 */
 .sched-item.cancelled {
@@ -498,3 +500,50 @@ details.past-box > div { margin-top: 12px; }
   border-bottom: 2px solid var(--border);
 }
 .month-head:first-child { margin-top: 4px; }
+
+/* ---------- 比賽文字轉播（game-view.js；轉換頁預覽與公開頁共用） ---------- */
+.gv-h2 { font-size: 1.05rem; margin: 24px 0 10px; padding-left: 10px; border-left: 4px solid var(--primary-color); }
+.gv-linescore-wrap, .gv-table-wrap { overflow-x: auto; }
+.gv-linescore, .gv-stats { width: 100%; border-collapse: collapse; background: var(--card-bg); font-size: .9rem; }
+.gv-linescore th, .gv-linescore td, .gv-stats th, .gv-stats td { padding: 6px 6px; text-align: center; border-bottom: 1px solid var(--border); white-space: nowrap; }
+.gv-linescore thead th, .gv-stats thead th { background: var(--dark-color); color: #fff; font-weight: 600; }
+.gv-linescore .team { text-align: left; font-weight: 700; }
+.gv-linescore .sum { font-weight: 800; background: #fff7ed; }
+.gv-linescore thead .sum { background: var(--gold-color); }
+.gv-linescore tr.us .team { color: var(--primary-color); }
+.gv-linescore .na { color: var(--text-muted); }
+.gv-stats .l { text-align: left; }
+.gv-stats tr.sub td { color: var(--text-muted); }
+.gv-stats tr.total td { font-weight: 800; background: #f1f5f9; }
+.gv-note { font-size: .85rem; color: var(--text-muted); margin: 6px 0; }
+
+.gv-half { background: var(--card-bg); border: 1px solid var(--border); border-radius: 12px; margin: 12px 0; overflow: hidden; }
+.gv-half-head { display: flex; justify-content: space-between; align-items: center; padding: 8px 12px; background: var(--dark-color); color: #fff; font-weight: 700; font-size: .95rem; }
+.gv-half.us .gv-half-head { background: var(--primary-color); }
+.gv-half-head span { font-size: .85rem; opacity: .9; }
+.gv-action { padding: 6px 12px; background: #f1f5f9; color: var(--text-muted); font-size: .85rem; border-bottom: 1px solid var(--border); }
+.gv-play { display: flex; gap: 10px; padding: 10px 12px; border-bottom: 1px solid var(--border); }
+.gv-play:last-child { border-bottom: none; }
+.gv-play.scored { background: #fff7ed; }
+.gv-play.unparsed { background: #fef2f2; }
+.gv-avatar { width: 44px; height: 44px; border-radius: 50%; object-fit: cover; flex: none; background: #e2e8f0; }
+.gv-slot { display: flex; align-items: center; justify-content: center; font-weight: 800; color: var(--text-muted); font-size: .95rem; }
+.gv-body { flex: 1; min-width: 0; }
+.gv-desc { font-size: .92rem; line-height: 1.55; overflow-wrap: anywhere; }
+.gv-extra { color: var(--primary-color); font-weight: 600; margin-left: 4px; }
+.gv-meta { display: flex; align-items: center; gap: 10px; margin-top: 6px; font-size: .82rem; color: var(--text-muted); }
+.gv-badge { display: inline-block; padding: 2px 10px; border-radius: 999px; font-weight: 800; font-size: .85rem; color: #fff; }
+.gv-badge.hit { background: var(--primary-color); }
+.gv-badge.onbase { background: var(--accent-color); }
+.gv-badge.out { background: #64748b; }
+.gv-outs i { display: inline-block; width: 9px; height: 9px; border-radius: 50%; border: 1.5px solid #94a3b8; margin-right: 3px; }
+.gv-outs i.on { background: var(--primary-color); border-color: var(--primary-color); }
+.gv-3out { font-weight: 700; }
+.gv-bases { position: relative; display: inline-block; width: 30px; height: 20px; }
+.gv-bases i { position: absolute; width: 8px; height: 8px; border: 1.5px solid #94a3b8; transform: rotate(45deg); background: #fff; }
+.gv-bases i.on { background: var(--gold-color); border-color: var(--gold-color); }
+.gv-bases .b2 { left: 11px; top: 0; }
+.gv-bases .b3 { left: 2px; top: 9px; }
+.gv-bases .b1 { left: 20px; top: 9px; }
+.gv-score { margin-left: auto; font-weight: 800; color: var(--dark-color); }
+

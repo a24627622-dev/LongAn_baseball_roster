@@ -1,5 +1,20 @@
 [
   {
+    "type": "game",
+    "date": "2026-08-30",
+    "gatherTime": "13:30",
+    "startTime": "14:30",
+    "venue": "基隆大武崙棒球場",
+    "opponent": "雨人",
+    "score": {
+      "longan": 7,
+      "opponent": 6
+    },
+    "resultUrl": "game.html?id=2026-08-30_G4_%E9%9B%A8%E4%BA%BA",
+    "cancelled": false,
+    "note": ""
+  },
+  {
     "type": "practice",
     "date": "2026-09-27",
     "startTime": "08:00",

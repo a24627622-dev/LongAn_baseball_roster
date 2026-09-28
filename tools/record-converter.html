@@ -1,0 +1,330 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="robots" content="noindex">
+  <title>文字紀錄轉換 - 龍安棒球隊</title>
+  <link rel="icon" href="../logo-192.png">
+  <link rel="stylesheet" href="../site.css">
+  <link rel="stylesheet" href="editor.css">
+  <style>
+    .row3 { display: grid; grid-template-columns: 1.3fr .8fr 1.2fr; gap: 8px; }
+    @media (max-width: 480px) { .row3 { grid-template-columns: 1fr 1fr; } .row3 .full { grid-column: 1 / -1; } }
+    #record { width: 100%; min-height: 260px; font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: .85rem; line-height: 1.6; }
+    .lineup-box { font-size: .85rem; line-height: 1.7; }
+    .lineup-box .slot { display: flex; gap: 6px; flex-wrap: wrap; }
+    .lineup-box .slot b { min-width: 2.2em; }
+    .lineup-box .sub { color: var(--text-muted); }
+    .warn-list { margin: 0; padding-left: 1.2em; }
+    .warn-list li { margin: 4px 0; font-size: .88rem; }
+    .warn-list .where { font-weight: 700; }
+    .ok-box { background: #f0fdf4; border: 1px solid #86efac; color: #166534; border-radius: 10px; padding: 10px 14px; font-weight: 700; font-size: .9rem; margin-bottom: 12px; }
+    .login-box { display: none; gap: 8px; align-items: center; flex-wrap: wrap; margin-top: 10px; }
+    .login-box.show { display: flex; }
+    .login-box input { flex: 1; min-width: 140px; }
+    .confirm-line { display: flex; gap: 8px; align-items: flex-start; font-size: .9rem; margin: 10px 0; }
+  </style>
+</head>
+<body>
+
+  <header class="site-header">
+    <div class="wrap">
+      <a class="brand" href="index.html">
+        <img src="../logo-192.png" alt="龍安棒球隊隊徽" onerror="this.style.display='none'">
+        <span>文字紀錄轉換</span>
+      </a>
+      <nav class="site-nav">
+        <a href="index.html">球隊管理</a>
+        <a href="record-guide.html">速查表</a>
+      </nav>
+    </div>
+  </header>
+
+  <main class="wrap page-body">
+
+    <div class="section-head" style="margin-top:20px"><h2>1. 哪一場比賽</h2></div>
+    <div class="form-card">
+      <div class="row3">
+        <label>比賽日期<input type="date" id="g-date"></label>
+        <label>場次
+          <select id="g-num">
+            <option value="G1">G1</option><option value="G2">G2</option>
+            <option value="G3">G3</option><option value="G4">G4</option>
+          </select>
+        </label>
+        <label class="full">對手<input type="text" id="g-opp" placeholder="例：雨人"></label>
+      </div>
+      <div class="btn-row">
+        <button id="btn-load">載入陣容</button>
+      </div>
+      <div class="hint">從試算表讀這場的打序與換人（陣容調度工具上傳的那份）。需要隊務登入，已經在陣容調度工具登入過就不用再登入。</div>
+      <div class="login-box" id="login-box">
+        <input type="password" id="passcode" placeholder="隊務密碼" autocomplete="current-password">
+        <button id="btn-login">登入</button>
+      </div>
+      <div class="flash" id="load-flash"></div>
+      <div class="lineup-box" id="lineup-box"></div>
+    </div>
+
+    <div class="section-head"><h2>2. 貼上文字紀錄</h2></div>
+    <div class="form-card">
+      <textarea id="record" spellcheck="false" placeholder="一局上｜龍安攻&#10;#56：4-3 滾地刺殺 ➔ 1 Out&#10;…"></textarea>
+      <div class="hint">寫法見 <a href="record-guide.html">記錄員速查表</a>。貼上後會自動轉換，內容會暫存在這台裝置，不小心關掉也不會不見。</div>
+    </div>
+
+    <div class="section-head"><h2>3. 檢查</h2></div>
+    <div id="warn-box"></div>
+    <div id="preview"><div class="hint">載入陣容、貼上紀錄後，這裡會出現文字轉播預覽。</div></div>
+
+    <div class="section-head"><h2>4. 產生資料檔並貼到 GitHub</h2></div>
+    <div class="form-card">
+      <div class="confirm-line" id="confirm-line" style="display:none">
+        <input type="checkbox" id="confirm-warn">
+        <label for="confirm-warn">上面的 ⚠️ 我都看過了，確定沒問題（或已經在紀錄裡修正）</label>
+      </div>
+      <ol class="steps">
+        <li>按「產生資料檔」，再按「複製全部內容」</li>
+        <li>按「開啟 GitHub 新增檔案頁」，檔名已經填好（<code id="fname">—</code>）</li>
+        <li>在編輯框貼上，捲到最下面按 <strong>Commit changes</strong></li>
+        <li>如果這場之前已經發布過，GitHub 會說檔名已存在：改按「開啟 GitHub 編輯頁」，Ctrl+A 全選後貼上</li>
+        <li>最後到 <a href="schedule-editor.html">時程編輯器</a>，在這場比賽的「文字轉播」欄填上比賽 ID（<code id="rid">—</code>），時程頁就會出現連結</li>
+      </ol>
+      <div class="btn-row">
+        <button id="btn-build" disabled>產生資料檔</button>
+      </div>
+      <textarea id="output" readonly spellcheck="false"></textarea>
+      <div class="btn-row">
+        <button id="btn-copy">複製全部內容</button>
+        <a class="gh-link" id="gh-new" href="#" target="_blank" rel="noopener">開啟 GitHub 新增檔案頁 ↗</a>
+        <a class="gh-link" id="gh-edit" href="#" target="_blank" rel="noopener">開啟 GitHub 編輯頁 ↗</a>
+      </div>
+      <div class="flash" id="copy-flash"></div>
+    </div>
+
+  </main>
+
+  <footer class="site-footer">
+    <div class="wrap">
+      <span>文字紀錄轉換｜只會「讀」試算表的陣容，不會寫入任何資料</span>
+    </div>
+  </footer>
+
+  <script src="../data-check.js"></script>
+  <script src="../site.js"></script>
+  <script src="../record-engine.js"></script>
+  <script src="../game-view.js"></script>
+  <script>
+    const REPO = 'a24627622-dev/LongAn_baseball_roster';
+    const AUTH_TOKEN_KEY = 'longan_auth_token';   // 和陣容調度工具共用，登入一次兩邊都有效
+    const DRAFT_KEY = 'longan_record_draft';
+    const $ = (id) => document.getElementById(id);
+
+    let lineup = null;      // 給 RecordEngine 的格式
+    let sheetPlayers = [];  // 試算表姓名欄拆出來的暱稱
+    let sitePlayers = [];   // data/players.json（照片、暱稱）
+    let result = null;
+
+    const store = {
+      get(k) { try { return localStorage.getItem(k); } catch (e) { return null; } },
+      set(k, v) { try { localStorage.setItem(k, v); } catch (e) { /* 無痕模式存不了就算了 */ } },
+    };
+
+    function gameInfo() {
+      return { date: $('g-date').value, gameNum: $('g-num').value, opponent: $('g-opp').value.trim() };
+    }
+    /* 和 GAS 的分頁名稱規則一樣（Code.gs 的 gameIdStr） */
+    function gameId(g) {
+      return `${g.date}_${g.gameNum}_${g.opponent}`.replace(/[\/\\?*\[\]:]/g, '-');
+    }
+
+    /* 試算表的「球員姓名」可能寫成「蘇垣華/小天」 */
+    function splitName(raw) {
+      const [name, ...rest] = String(raw || '').replace(/^↳\s*/, '').split('/');
+      return { name: name.trim(), nickname: rest.join('/').trim() };
+    }
+
+    async function post(body) {
+      const res = await fetch(gasUrl(), {
+        method: 'POST',
+        headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+        body: JSON.stringify({ ...body, token: store.get(AUTH_TOKEN_KEY) || '' }),
+      });
+      const text = await res.text();
+      try { return JSON.parse(text); } catch (e) { throw new Error('伺服器回應格式錯誤'); }
+    }
+
+    function flash(id, msg, ok) {
+      $(id).style.color = ok ? '#166534' : '#b91c1c';
+      $(id).textContent = msg;
+    }
+
+    async function loadLineup() {
+      const g = gameInfo();
+      if (!g.date || !g.opponent) { flash('load-flash', '請先填比賽日期和對手。'); return; }
+      flash('load-flash', '讀取中…', true);
+      try {
+        const r = await post({ action: 'getGameLineup', gameInfo: g });
+        if (r && r.code === 'AUTH_REQUIRED') {
+          $('login-box').classList.add('show');
+          flash('load-flash', '需要隊務登入，輸入密碼後會自動重新讀取。');
+          return;
+        }
+        if (!r || !r.success) { flash('load-flash', (r && r.message) || '讀取失敗'); return; }
+        applyLineup(r.data);
+        flash('load-flash', `已載入 ${gameId(g)} 的陣容。`, true);
+        saveDraft();
+        refresh();
+      } catch (e) {
+        flash('load-flash', '讀取失敗：' + e.message);
+      }
+    }
+
+    function applyLineup(data) {
+      sheetPlayers = [];
+      const conv = (p) => {
+        const { name, nickname } = splitName(p.name);
+        if (nickname) sheetPlayers.push({ number: String(p.number), name, nickname });
+        return { number: String(p.number), name, pos: p.pos || '' };
+      };
+      const slots = (data.activeLineup || []).map((s) => ({
+        starter: s.starter ? conv(s.starter) : null,
+        subs: (s.substitutes || []).map(conv),
+      }));
+      lineup = { slots, pitchers: (data.pitchers || []).map(conv) };
+      store.set(DRAFT_KEY + ':lineup', JSON.stringify({ lineup, sheetPlayers, id: gameId(gameInfo()) }));
+      $('lineup-box').innerHTML = '<div class="hint" style="margin:8px 0 4px">打序（↳ 是替補）：</div>' + slots.map((s, i) => `
+        <div class="slot"><b>${i + 1}棒</b>
+          <span>#${escapeHtml(s.starter ? s.starter.number : '?')} ${escapeHtml(s.starter ? s.starter.name : '')} ${escapeHtml(s.starter ? s.starter.pos : '')}</span>
+          ${s.subs.map((p) => `<span class="sub">↳ #${escapeHtml(p.number)} ${escapeHtml(p.name)} ${escapeHtml(p.pos)}</span>`).join('')}
+        </div>`).join('') +
+        (lineup.pitchers.length ? `<div class="slot" style="margin-top:4px"><b>投手</b>${lineup.pitchers.map((p) => `<span>#${escapeHtml(p.number)} ${escapeHtml(p.name)}</span>`).join('、')}</div>` : '');
+    }
+
+    async function login() {
+      const passcode = $('passcode').value;
+      if (!passcode) return;
+      try {
+        const r = await post({ action: 'login', passcode });
+        $('passcode').value = '';
+        if (r && r.success && r.token) {
+          store.set(AUTH_TOKEN_KEY, r.token);
+          $('login-box').classList.remove('show');
+          loadLineup();
+        } else {
+          flash('load-flash', (r && r.message) || '登入失敗');
+        }
+      } catch (e) {
+        flash('load-flash', '登入失敗：' + e.message);
+      }
+    }
+
+    function refresh() {
+      const text = $('record').value;
+      $('btn-build').disabled = true;
+      if (!lineup || !text.trim()) {
+        $('warn-box').innerHTML = '';
+        $('preview').innerHTML = `<div class="hint">${!lineup ? '先載入陣容。' : '貼上紀錄後會自動轉換。'}</div>`;
+        return;
+      }
+      const players = [...sitePlayers, ...sheetPlayers];
+      result = RecordEngine.parse(text, { lineup, players, teamName: '龍安' });
+      const w = result.warnings;
+      $('warn-box').innerHTML = w.length
+        ? `<div class="load-warn">⚠️ 有 ${w.length} 個地方要確認：<ul class="warn-list">${w.map((x) => `<li><span class="where">${escapeHtml(x.where)}</span>：${escapeHtml(x.msg)}</li>`).join('')}</ul></div>`
+        : '<div class="ok-box">✅ 沒有需要確認的地方</div>';
+      $('confirm-line').style.display = w.length ? '' : 'none';
+      $('confirm-warn').checked = false;
+      $('btn-build').disabled = w.length > 0;
+      $('preview').innerHTML = GameView.renderGame(toGame(result), GameView.photoMap(sitePlayers, '../'));
+    }
+
+    /* 產生 data/games/<比賽ID>.json 的內容（公開頁讀的就是這個） */
+    function toGame(r) {
+      const g = gameInfo();
+      return {
+        id: gameId(g),
+        date: g.date,
+        gameNum: g.gameNum,
+        opponent: g.opponent,
+        teamName: '龍安',
+        generatedAt: new Date().toISOString(),
+        score: r.score,
+        halves: r.halves.map((h) => ({
+          inning: h.inning, top: h.top, offense: h.offense, runs: h.runs, unrecorded: h.unrecorded,
+          items: h.items,
+        })),
+        batting: r.batting.map((b) => ({ ...b, appeared: true })),
+        pitching: r.pitching,
+        pitchingStatus: r.pitchingStatus,
+        warningsAcknowledged: r.warnings.length,
+        source: $('record').value,
+      };
+    }
+
+    function build() {
+      if (!result) return;
+      const game = toGame(result);
+      $('output').value = JSON.stringify(game, null, 2) + '\n';
+      const fname = `${game.id}.json`;
+      $('fname').textContent = 'data/games/' + fname;
+      $('rid').textContent = game.id;
+      $('gh-new').href = `https://github.com/${REPO}/new/main/data/games?filename=${encodeURIComponent(fname)}`;
+      $('gh-edit').href = `https://github.com/${REPO}/edit/main/data/games/${encodeURIComponent(fname)}`;
+      flash('copy-flash', '資料檔已產生，接著按「複製全部內容」。', true);
+    }
+
+    function saveDraft() {
+      store.set(DRAFT_KEY, JSON.stringify({ game: gameInfo(), text: $('record').value }));
+    }
+
+    // ---- 事件 ----
+    $('btn-load').addEventListener('click', loadLineup);
+    $('btn-login').addEventListener('click', login);
+    $('passcode').addEventListener('keydown', (e) => { if (e.key === 'Enter') login(); });
+    let timer = null;
+    $('record').addEventListener('input', () => {
+      saveDraft();
+      clearTimeout(timer);
+      timer = setTimeout(refresh, 300);
+    });
+    ['g-date', 'g-num', 'g-opp'].forEach((id) => $(id).addEventListener('change', () => {
+      saveDraft();
+      if (lineup) { lineup = null; $('lineup-box').innerHTML = ''; flash('load-flash', '比賽資訊改了，請重新載入陣容。'); refresh(); }
+    }));
+    $('confirm-warn').addEventListener('change', (e) => { $('btn-build').disabled = !e.target.checked; });
+    $('btn-build').addEventListener('click', build);
+    $('btn-copy').addEventListener('click', async () => {
+      const ta = $('output');
+      if (!ta.value) { flash('copy-flash', '請先按「產生資料檔」。'); return; }
+      try { await navigator.clipboard.writeText(ta.value); }
+      catch (e) { ta.removeAttribute('readonly'); ta.select(); document.execCommand('copy'); ta.setAttribute('readonly', ''); }
+      flash('copy-flash', '已複製，接著開啟 GitHub 頁面貼上。', true);
+    });
+
+    // ---- 開頁：還原草稿、讀球員名單（照片、暱稱）----
+    (async function init() {
+      $('g-date').value = todayStr();
+      try {
+        const d = JSON.parse(store.get(DRAFT_KEY) || 'null');
+        if (d) {
+          if (d.game) { $('g-date').value = d.game.date || $('g-date').value; $('g-num').value = d.game.gameNum || 'G1'; $('g-opp').value = d.game.opponent || ''; }
+          $('record').value = d.text || '';
+        }
+        const l = JSON.parse(store.get(DRAFT_KEY + ':lineup') || 'null');
+        if (l && l.id === gameId(gameInfo())) {
+          applyLineup({ activeLineup: l.lineup.slots.map((s) => ({ starter: s.starter, substitutes: s.subs })), pitchers: l.lineup.pitchers });
+          sheetPlayers = l.sheetPlayers || []; // applyLineup 會重設暱稱（還原的姓名已經拆好了），這裡放回來
+          flash('load-flash', '已還原上次載入的陣容（要更新請再按一次「載入陣容」）。', true);
+        }
+      } catch (e) { /* 草稿壞了就從空白開始 */ }
+      try {
+        const { items } = await loadChecked('../data/players.json', 'players');
+        sitePlayers = items;
+      } catch (e) { console.error(e); }
+      refresh();
+    })();
+  </script>
+
+</body>
+</html>

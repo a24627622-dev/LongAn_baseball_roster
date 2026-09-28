@@ -78,10 +78,7 @@
   <script src="../data-check.js"></script>
   <script src="../site.js"></script>
   <script>
-    // 與 tools/lineup.html 同一個後端；本機開發（localhost／區網）改用 dev/server.js 的 /gas
-    const PROD_GAS_URL = 'https://script.google.com/macros/s/AKfycbxiAU0ZEuamWUpI_uX8DmSkmxuMcUxNd-BzwT9YgfahXU8pdfAxl5LKGkaKfglsirOx/exec';
-    const isLocalHost = (h) => /^(localhost|127\.0\.0\.1|192\.168\.\d+\.\d+|10\.\d+\.\d+\.\d+|172\.(1[6-9]|2\d|3[01])\.\d+\.\d+)$/.test(h || '');
-    const GAS_URL = isLocalHost(location.hostname) ? '/gas' : PROD_GAS_URL;
+    const GAS_URL = gasUrl(); // site.js
     const SILHOUETTE = '../images/players/silhouette.svg';
     const photoPath = (num) => `images/players/${num}.jpg`;
 

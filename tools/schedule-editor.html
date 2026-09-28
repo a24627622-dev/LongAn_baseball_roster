@@ -95,7 +95,7 @@
           venue: it.venue || '',
           opponent: it.opponent || '',
           score: hasScore ? { longan: Number(ln), opponent: Number(op) } : null,
-          resultUrl: null,
+          resultUrl: it.resultId && it.resultId.trim() ? `game.html?id=${encodeURIComponent(it.resultId.trim())}` : null,
           cancelled: !!it.cancelled,
           note: it.note || '',
         });
@@ -123,6 +123,8 @@
         note: raw.note || '',
         scoreLongan: raw.score && typeof raw.score.longan === 'number' ? String(raw.score.longan) : '',
         scoreOpp: raw.score && typeof raw.score.opponent === 'number' ? String(raw.score.opponent) : '',
+        resultId: typeof raw.resultUrl === 'string' && raw.resultUrl.startsWith('game.html?id=')
+          ? decodeURIComponent(raw.resultUrl.slice('game.html?id='.length)) : '',
       };
       // 集合時間剛好是開賽前一小時就維持「自動」
       s.autoGather = s.type !== 'game' ? true : (!s.gatherTime || s.gatherTime === minusOneHour(s.startTime));
@@ -176,6 +178,9 @@
             <input type="number" data-i="${i}" data-f="scoreLongan" value="${escapeHtml(it.scoreLongan)}" placeholder="龍安" min="0">
             <input type="number" data-i="${i}" data-f="scoreOpp" value="${escapeHtml(it.scoreOpp)}" placeholder="對手" min="0">
           </div>
+
+          <label>文字轉播（比賽 ID，發布文字轉播後再填；留空白就不顯示連結）</label>
+          <input type="text" data-i="${i}" data-f="resultId" value="${escapeHtml(it.resultId || '')}" placeholder="例：${escapeHtml(it.date)}_G1_${escapeHtml(it.opponent || '對手')}">
 
           <div class="btn-row">
             <button class="secondary tiny" data-switch="${i}">改成練球</button>

@@ -5,7 +5,7 @@ const fs = require('fs');
 const os = require('os');
 const path = require('path');
 const { execFileSync } = require('child_process');
-const { checkSchedule, checkAnnouncements, checkPlayers } = require('../data-check');
+const { checkSchedule, checkAnnouncements, checkPlayers, checkGame } = require('../data-check');
 
 let passed = 0;
 const test = (name, fn) => {
@@ -157,6 +157,33 @@ test('照片路徑怪、欄位打錯 → 只是警告', () => {
   assert.match(msgs(r.warnings), /不認得的欄位「nick」/);
 });
 
+console.log('\n比賽文字轉播 checkGame');
+
+const goodGame = () => ({ id: '2026-08-30_G4_雨人', date: '2026-08-30', score: { us: 7, opp: 0 }, halves: [{ inning: 1, top: true, offense: 'us', runs: 2, items: [] }], batting: [], pitching: [] });
+
+test('正確的比賽資料：沒有錯誤', () => {
+  const r = checkGame(goodGame());
+  assert.strictEqual(r.fatal, null);
+  assert.deepStrictEqual(r.errors, []);
+});
+
+test('不是物件 → fatal；缺 halves／batting、id 格式錯、半局格式錯 → 錯誤', () => {
+  assert.match(checkGame([]).fatal, /最外層應該是一個/);
+  const g = goodGame();
+  g.id = '雨人';
+  delete g.batting;
+  g.halves.push({ inning: '二', offense: 'us', items: [] });
+  const m = msgs(checkGame(g).errors);
+  assert.match(m, /id 應為「日期_場次_對手」/);
+  assert.match(m, /缺少 batting/);
+  assert.match(m, /第 2 個半局格式不對/);
+});
+
+test('時程的 resultUrl 不是 game.html?id= 格式 → 警告', () => {
+  assert.deepStrictEqual(checkSchedule([game('2026-10-25', { resultUrl: 'game.html?id=2026-10-25_G1_ZERO' })]).warnings, []);
+  assert.match(msgs(checkSchedule([game('2026-10-25', { resultUrl: 'https://example.com' })]).warnings), /resultUrl 應為 null/);
+});
+
 console.log('\n指令 tests/check_data.js');
 
 test('正確的檔案 → exit 0', () => {
@@ -189,7 +216,23 @@ test('公告檔壞掉也會讓整體失敗', () => {
   assert.strictEqual(r.code, 1);
 });
 
-test('repo 裡現在的三個資料檔都通過', () => {
+test('比賽檔的檔名和裡面的 id 不一樣 → exit 1', () => {
+  const dir = path.join(tmp, 'games');
+  fs.mkdirSync(dir, { recursive: true });
+  fs.writeFileSync(path.join(dir, '2026-08-30_G1_雨人.json'), JSON.stringify(goodGame()));
+  const s = path.join(tmp, 'schedule.json');
+  const a = path.join(tmp, 'announcements.json');
+  fs.writeFileSync(s, GOOD_S);
+  fs.writeFileSync(a, GOOD_A);
+  let out = '';
+  let code = 0;
+  try { out = execFileSync('node', [CLI, '--schedule', s, '--announcements', a, '--games', dir], { encoding: 'utf8' }); }
+  catch (e) { code = e.status; out = e.stdout; }
+  assert.strictEqual(code, 1);
+  assert.match(out, /檔名是 2026-08-30_G1_雨人\.json，但裡面的 id 是/);
+});
+
+test('repo 裡現在的資料檔都通過', () => {
   const out = execFileSync('node', [CLI], { encoding: 'utf8' });
   assert.match(out, /沒有錯誤/);
 });

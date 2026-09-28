@@ -53,6 +53,11 @@
       return `<span class="sched-score ${cls}">${s.longan} : ${s.opponent} ${word}</span>`;
     }
 
+    /* resultUrl 只接受 game.html?id=…（data-check.js 同樣規則），其他一律不顯示連結 */
+    function resultLink(item) {
+      return typeof item.resultUrl === 'string' && /^game\.html\?id=[^&#\s]+$/.test(item.resultUrl) ? item.resultUrl : '';
+    }
+
     function itemHTML(item, isPast) {
       const game = isGame(item);
       const classes = ['sched-item'];
@@ -78,6 +83,7 @@
           <div class="sched-detail">${detail}</div>
           <div class="sched-detail${venueCls}">地點　${escapeHtml(venueText(item))}</div>
           ${item.note ? `<div class="sched-note">${escapeHtml(item.note)}</div>` : ''}
+          ${game && resultLink(item) ? `<a class="sched-result" href="${escapeHtml(resultLink(item))}">文字轉播與成績 ➔</a>` : ''}
         </article>`;
     }
 

@@ -16,6 +16,7 @@ const read = (f) => fs.readFileSync(path.join(FIX, f), 'utf8');
 const LINEUP_0830 = JSON.parse(read('2026-08-30_G4_雨人.lineup.json'));
 const msgs = (r) => r.warnings.map((w) => w.msg).join(' / ');
 const pas = (r) => r.halves.flatMap((h) => h.items.filter((i) => i.type === 'pa'));
+const half = (r, label) => r.halves.find((h) => h.label === label);
 
 // 簡單陣容：1～9 棒背號 11～19，投手 1 號
 const SIMPLE = {
@@ -53,14 +54,30 @@ test('二壘安打、盜壘記在對的人身上', () => {
   assert.strictEqual(r0830.batting.find((b) => b.number === '17').SB, 1);
 });
 
-test('比分 7:0，每局得分 2、5、0、0、0', () => {
-  assert.deepStrictEqual(r0830.score, { us: 7, opp: 0 });
-  assert.deepStrictEqual(r0830.halves.map((h) => h.runs), [2, 5, 0, 0, 0]);
+test('比分 7:6（和戰報一致），各半局得分 龍安 2、5、0、0、0，雨人 0、0、6、0、0', () => {
+  assert.deepStrictEqual(r0830.score, { us: 7, opp: 6 });
+  assert.deepStrictEqual(r0830.halves.map((h) => `${h.label}${h.runs}`),
+    ['一局上2', '一局下0', '二局上5', '二局下0', '三局上0', '三局下6', '四局上0', '四局下0', '五局上0', '五局下0']);
 });
 
-test('補正版沒有任何 ⚠️（除了「沒記對手半局」）', () => {
-  assert.deepStrictEqual(r0830.warnings.map((w) => w.msg), ['紀錄裡沒有對手的半局，投手成績無法自動算，請人工填']);
-  assert.strictEqual(r0830.pitchingStatus, 'unrecorded');
+test('投手成績和戰報一致：張容基 2.0 局 1 安 0 失 1 四壞 1 三振；蘇垣華 3.0 局 7 安 6 失 1 四壞 7 三振', () => {
+  const got = r0830.pitching.map((p) => [p.number, p.IP, p.H, p.R, p.BB, p.SO]);
+  assert.deepStrictEqual(got, [['1', '2.0', 1, 0, 1, 1], ['56', '3.0', 7, 6, 1, 7]]);
+  assert.strictEqual(r0830.pitching.find((p) => p.number === '1').HBP, 1, '二局下的觸身球記在張容基');
+  assert.strictEqual(r0830.pitchingStatus, 'complete');
+});
+
+test('對手的打者記下棒次（文字轉播顯示「雨人 第N棒」）', () => {
+  const slots = half(r0830, '三局下').items.filter((x) => x.type === 'pa').map((x) => x.slot);
+  assert.deepStrictEqual(slots, [9, 1, 2, 3, 4, 5, 6, 7, 8, 9, 1]);
+});
+
+test('三局下開頭換投：更換投手：蘇垣華', () => {
+  assert.strictEqual(half(r0830, '三局下').items[0].text, '更換投手：蘇垣華');
+});
+
+test('補正版沒有任何 ⚠️', () => {
+  assert.deepStrictEqual(r0830.warnings, []);
 });
 
 test('文字轉播用 CPBL 簡碼：三失、二失、犧飛、二滾、游飛、二安', () => {
@@ -92,17 +109,17 @@ test('封殺推算：二局上 #91 那一球出局的是一壘跑者 #2，回本
 });
 
 test('代打、代跑、守備替補都插在對的位置，代跑接在打席後面', () => {
-  const h2 = r0830.halves[1].items;
+  const h2 = half(r0830, '二局上').items;
   const i93 = h2.findIndex((x) => x.type === 'pa' && x.number === '93');
   assert.strictEqual(h2[i93 + 1].kind, 'PR');
   assert.strictEqual(h2[i93 + 1].text, '更換代跑：蘇巽雄=>李浩偉');
-  const h3 = r0830.halves[2].items;
+  const h3 = half(r0830, '三局上').items;
   assert.ok(h3.some((x) => x.kind === 'PH' && x.text === '更換代打：張容基=>蘇辰雄'));
-  assert.ok(r0830.halves[3].items.some((x) => x.kind === 'defense' && x.text.startsWith('更換守備：梁佑丞=>葉展昆')));
+  assert.ok(half(r0830, '四局上').items.some((x) => x.kind === 'defense' && x.text.startsWith('更換守備：梁佑丞=>葉展昆')));
 });
 
 test('四局上「2棒」對到代跑上場的 #5 李浩偉', () => {
-  const p = r0830.halves[3].items.find((x) => x.type === 'pa' && x.slot === 2);
+  const p = half(r0830, '四局上').items.find((x) => x.type === 'pa' && x.slot === 2);
   assert.strictEqual(p.number, '5');
 });
 
@@ -130,7 +147,7 @@ test('抓到：五局上寫 #12，但應該輪到第 6 棒', () => {
 
 test('代跑寫暱稱「Haowei」也對得到 #5', () => {
   assert.ok(!/Haowei/.test(msgs(orig)), msgs(orig));
-  assert.ok(orig.halves[1].items.some((x) => x.kind === 'PR' && x.text.endsWith('李浩偉')));
+  assert.ok(half(orig, '二局上').items.some((x) => x.kind === 'PR' && x.text.endsWith('李浩偉')));
 });
 
 console.log('\n符號與顯示');
@@ -147,6 +164,17 @@ test('各種符號 → CPBL 顯示', () => {
     assert.ok(r, `${code} 認不出來`);
     assert.strictEqual(E.displayOf(r.kind, r.pos), want, `${code} → ${E.displayOf(r.kind, r.pos)}，應為 ${want}`);
   });
+});
+
+test('不知道守位只寫「出局」→ 顯示「出局」、算打數和出局；「三振出局」「封殺出局」不會被誤認', () => {
+  assert.strictEqual(E.findResult('出局').kind, 'OUT');
+  assert.strictEqual(E.findResult('OUT').kind, 'OUT');
+  assert.strictEqual(E.displayOf('OUT'), '出局');
+  assert.strictEqual(E.findResult('K 三振出局').kind, 'K');
+  assert.strictEqual(E.findResult('4-6 跑者二壘封殺出局').kind, 'GROUND');
+  const r = run('一局上｜龍安攻\n#11：出局 ➔ 1 Out\n#12：K ➔ 2 Outs\n#13：刺殺出局 ➔ 3 Outs');
+  assert.deepStrictEqual(r.warnings.filter((w) => w.where !== '投手成績'), []);
+  assert.strictEqual(r.batting.find((b) => b.number === '11').AB, 1);
 });
 
 test('狀態解析：出局數、壘包、滿壘', () => {

@@ -44,9 +44,9 @@
     { re: /\bBK\b|投手犯規/, kind: 'BK' },
   ];
 
-  const AB_KINDS = new Set(['1B', '2B', '3B', 'HR', 'K', 'K_REACH', 'GROUND', 'FLY', 'FOUL_FLY', 'DP', 'E', 'FC']);
+  const AB_KINDS = new Set(['1B', '2B', '3B', 'HR', 'K', 'K_REACH', 'GROUND', 'FLY', 'FOUL_FLY', 'DP', 'E', 'FC', 'OUT']);
   const HIT_KINDS = { '1B': 1, '2B': 2, '3B': 3, HR: 4 };
-  const BATTER_OUT_KINDS = new Set(['K', 'GROUND', 'FLY', 'FOUL_FLY', 'DP', 'SF', 'SAC']);
+  const BATTER_OUT_KINDS = new Set(['K', 'GROUND', 'FLY', 'FOUL_FLY', 'DP', 'SF', 'SAC', 'OUT']);
 
   function posOf(m) {
     // 從符號的比對結果取出守位號碼（數字或中文守位字）
@@ -77,6 +77,7 @@
       case 'E': return (POS_CHAR[pos] || '') + '失';
       case 'FLY': return (POS_CHAR[pos] || '') + '飛';
       case 'GROUND': return (POS_CHAR[pos] || '') + '滾';
+      case 'OUT': return '出局';
       default: return kind;
     }
   }
@@ -91,7 +92,12 @@
         best = { kind: p.kind, index: m.index, order, match: m };
       }
     });
-    if (!best) return null;
+    if (!best) {
+      // 不知道守位的出局：只寫「出局」或 OUT。只在找不到其他符號時才用，
+      // 避免「三振出局」「封殺出局」這種描述被誤認
+      const m = /\bOUT\b|出局|刺殺/.exec(text);
+      return m ? { kind: 'OUT', pos: null, token: m[0] } : null;
+    }
     return { kind: best.kind, pos: posOf(best.match), token: best.match[0] };
   }
 
@@ -282,6 +288,8 @@
           warn(where, `打序不對：這時應該輪到第 ${nextSlot + 1} 棒（${nameOf(current[nextSlot])}），紀錄寫的是第 ${slotIdx + 1} 棒（${nameOf(batterNum)}）`);
         }
         nextSlot = (slotIdx + 1) % 9;
+      } else if (pa[2]) {
+        slotIdx = Number(pa[2]) - 1; // 對手只記棒次（顯示「雨人 第N棒」用）
       }
 
       const loadedBefore = isUs && [1, 2, 3].every((b) => half.bases[b]); // 四壞、觸身只有滿壘時才有打點

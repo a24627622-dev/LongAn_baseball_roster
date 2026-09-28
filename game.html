@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>文字轉播 - 龍安棒球隊</title>
+  <meta name="description" content="龍安棒球隊比賽的文字轉播與成績。">
+  <link rel="icon" href="logo-192.png">
+  <link rel="stylesheet" href="site.css">
+  <style>
+    .game-hero { background: var(--dark-color); color: #fff; border-radius: 14px; padding: 18px 16px; margin: 20px 0 8px; text-align: center; border-bottom: 4px solid var(--primary-color); }
+    .game-hero .when { font-size: .9rem; opacity: .85; }
+    .game-hero .board { display: flex; align-items: center; justify-content: center; gap: 14px; margin: 10px 0 6px; }
+    .game-hero .team { font-size: 1.15rem; font-weight: 800; min-width: 4.5em; }
+    .game-hero .num { font-size: 2.4rem; font-weight: 900; line-height: 1; }
+    .game-hero .colon { font-size: 1.6rem; opacity: .6; }
+    .game-hero .result { display: inline-block; margin-top: 4px; padding: 2px 12px; border-radius: 999px; font-weight: 800; font-size: .9rem; }
+    .game-hero .result.win { background: #16a34a; }
+    .game-hero .result.lose { background: #64748b; }
+    .game-hero .result.tie { background: var(--gold-color); }
+    .back-link { display: inline-block; margin-top: 16px; font-size: .9rem; }
+  </style>
+</head>
+<body>
+
+  <header class="site-header">
+    <div class="wrap">
+      <a class="brand" href="index.html">
+        <img src="logo-192.png" alt="龍安棒球隊隊徽" onerror="this.style.display='none'">
+        <span>龍安棒球隊</span>
+      </a>
+      <nav class="site-nav">
+        <a href="index.html">首頁</a>
+        <a href="news.html">公告</a>
+        <a href="schedule.html" class="active">賽事時程</a>
+      </nav>
+    </div>
+  </header>
+
+  <main class="wrap page-body">
+    <div id="hero"></div>
+    <div id="game"><div class="empty-note">載入中…</div></div>
+    <a class="back-link" href="schedule.html">← 回賽事時程</a>
+  </main>
+
+  <footer class="site-footer">
+    <div class="wrap">
+      <span>龍安棒球隊</span>
+      <a href="tools/">球隊管理</a>
+    </div>
+  </footer>
+
+  <script src="data-check.js"></script>
+  <script src="site.js"></script>
+  <script src="game-view.js"></script>
+  <script>
+    (async function () {
+      const gameEl = document.getElementById('game');
+      const heroEl = document.getElementById('hero');
+      const id = new URLSearchParams(location.search).get('id') || '';
+
+      // 比賽 ID 只接受「日期_場次_對手」，避免被拿來讀 repo 裡的其他檔案
+      if (!/^\d{4}-\d{2}-\d{2}_G\d+_[^/\\.]+$/.test(id)) {
+        gameEl.innerHTML = '<div class="empty-note">找不到這場比賽的文字轉播。</div>';
+        return;
+      }
+
+      let game;
+      try {
+        game = await loadJSON(`data/games/${encodeURIComponent(id)}.json`);
+        const r = DataCheck.checkGame(game);
+        if (r.fatal || r.errors.length) {
+          [r.fatal, ...r.errors.map((e) => e.msg)].filter(Boolean).forEach((m) => console.error(`data/games/${id}.json：${m}`));
+          throw new Error('資料格式有誤');
+        }
+      } catch (err) {
+        console.error(err);
+        gameEl.innerHTML = /HTTP 404/.test(err.message)
+          ? '<div class="empty-note">找不到這場比賽的文字轉播。</div>'
+          : '<div class="empty-note">文字轉播暫時讀不到，請稍後再試。</div>';
+        return;
+      }
+
+      // 頭像：名單讀不到也照樣顯示（全部用剪影）
+      let players = [];
+      try { players = (await loadChecked('data/players.json', 'players')).items; } catch (e) { console.error(e); }
+
+      // 最終比分：以時程裡手動填的比分為準（人工確認過）；沒填時才用文字紀錄推算的，
+      // 而且對手的半局沒記完整時，對手分數是未知，不能顯示成 0
+      let final = null;
+      try {
+        const { items } = await loadChecked('data/schedule.json', 'schedule');
+        const s = items.find((x) => typeof x.resultUrl === 'string' && x.resultUrl === `game.html?id=${encodeURIComponent(id)}`);
+        if (s && s.score) final = { us: s.score.longan, opp: s.score.opponent };
+      } catch (e) { console.error(e); }
+      if (!final) final = { us: game.score.us, opp: GameView.oppKnown(game) ? game.score.opp : null };
+
+      const team = game.teamName || '龍安';
+      const opp = game.opponent || '對手';
+      const us = final.us;
+      const them = final.opp === null ? '?' : final.opp;
+      const res = final.opp === null ? null : us > them ? ['win', '勝'] : us < them ? ['lose', '敗'] : ['tie', '和'];
+      document.title = `${team} vs ${opp} 文字轉播 - 龍安棒球隊`;
+      heroEl.innerHTML = `
+        <div class="game-hero">
+          <div class="when">${fmtDateLong(game.date)}　${escapeHtml(game.gameNum || '')}</div>
+          <div class="board">
+            <span class="team">${escapeHtml(team)}</span>
+            <span class="num">${us}</span><span class="colon">:</span><span class="num">${them}</span>
+            <span class="team">${escapeHtml(opp)}</span>
+          </div>
+          ${res ? `<span class="result ${res[0]}">${team}${res[1]}</span>` : '<span class="result tie">對手半局未記錄</span>'}
+        </div>`;
+      gameEl.innerHTML = GameView.renderGame(game, GameView.photoMap(players, ''));
+    })();
+  </script>
+
+</body>
+</html>

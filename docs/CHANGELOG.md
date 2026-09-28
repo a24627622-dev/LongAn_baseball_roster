@@ -32,8 +32,8 @@ GAS 後端維持在 Apps Script 編輯器貼上覆蓋、部署新版本(必須�
 node tests/test_gas_modules.js       # 19 項
 node tests/test_lineup_logic.js      # 28 項
 node tests/test_scenarios.js         # 26 項
-node tests/test_record_engine.js     # 35 項（比賽文字紀錄轉換引擎）
-node tests/test_check_data.js        # 20 項（資料檔檢查規則）
+node tests/test_record_engine.js     # 39 項（比賽文字紀錄轉換引擎）
+node tests/test_check_data.js        # 24 項（資料檔檢查規則）
 node tests/check_data.js             # 檢查 data/*.json
 node tests/test_scenarios.js --repeat 5
 ```
@@ -62,6 +62,42 @@ node tests/test_scenarios.js --repeat 5
 **下一步**:階段 B(`/tools/` 切分)、階段 C(對外三頁)。
 
 **懸而未決**:`AUTH_ENFORCED` 何時開、`stats.html` 怎麼處置、球員卡樣式。
+
+---
+
+## V01.06.00 — 2026-09-29（比賽文字紀錄 第四階段：公開文字轉播頁）
+
+**狀態**：已 commit，待使用者看結果後 merge。GAS 不用動。
+
+### 新增
+
+- **`game.html?id=比賽ID`**：公開的文字轉播頁。讀 `data/games/比賽ID.json` 與球員名單（頭像），用 `game-view.js` 畫出比分表、各半局卡片、打者／投手成績
+  - 頂端大比分與勝敗：**以時程裡手動填的比分為準**（人工確認過）；時程沒填時才用推算的
+  - **對手半局沒記完整時，對手分數顯示「?」**（頂端、比分表 R／H、每個打席的比分），不會假裝是 0。
+    起因：8/30 沒記雨人的半局，實際 7:6，原本會顯示成「7:0 龍安勝」
+  - 比賽 ID 只接受「日期_場次_對手」格式；找不到或格式不對都顯示「找不到這場比賽的文字轉播」
+- **時程頁**：比賽的 `resultUrl` 是 `game.html?id=…` 時顯示「文字轉播與成績 ➔」連結
+- **時程編輯器**：比賽多一欄「文字轉播（比賽 ID）」。
+  **修正既有問題**：原本產生時固定把 `resultUrl` 寫成 `null`，手動填的連結會被清掉；現在會保留
+- **轉換頁**：產生資料檔後提示「到時程編輯器填比賽 ID」
+- **`data-check.js`**：新增 `checkGame`（比賽資料檔能不能畫得出來）；時程 `resultUrl` 格式不對時警告。
+  `tests/check_data.js` 一併檢查 `data/games/*.json`，**檔名要等於裡面的 id**
+- **第一場正式發布：2026-08-30 G4 對雨人**（`data/games/2026-08-30_G4_雨人.json`，時程加上這場，比分 7:6、連結）。
+  使用者提供含雨人攻擊半局的原始敘述紀錄，補進測試資料；三處推定（二局下第三個出局、三局下兩分）在紀錄裡標「（推定）」
+- **記錄規則新增 `出局`**：不知道守位時只寫「出局」（或 `OUT`），照樣算打數與出局；只在找不到其他符號時才用，不會把「三振出局」誤認
+
+### 修正
+
+- **`record-engine.js`**：對手的打者沒有記下棒次，文字轉播顯示成「雨人 第null棒」；現在記下「N棒」
+
+### 測試
+
+- **8/30 投手成績和戰報完全一致**：張容基 2.0 局 1 安 0 失 1 四壞 1 三振、蘇垣華 3.0 局 7 安 6 失 1 四壞 7 三振；比分 7:6、雨人各局 0、0、6、0、0、雨人 8 安；0 個 ⚠️
+- `tests/test_record_engine.js` 35 → 39 項（投手成績對照戰報、換投、`出局`、對手棒次）
+- `tests/test_check_data.js` 20 → 24 項
+- 本機伺服器＋Playwright：公開頁 5 個半局、26 個打席；錯誤 ID（不存在、路徑穿越、空白）都顯示找不到；
+  時程頁連結可點進去；時程編輯器讀進來再產生時 `resultUrl` 保留；
+  時程有比分時頂端 7:6 龍安勝、沒比分時 7:?；頁面無錯誤
 
 ---
 

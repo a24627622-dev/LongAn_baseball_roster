@@ -88,6 +88,7 @@
         <li>按「開啟 GitHub 新增檔案頁」，檔名已經填好（<code id="fname">—</code>）</li>
         <li>在編輯框貼上，捲到最下面按 <strong>Commit changes</strong></li>
         <li>如果這場之前已經發布過，GitHub 會說檔名已存在：改按「開啟 GitHub 編輯頁」，Ctrl+A 全選後貼上</li>
+        <li>最後到 <a href="schedule-editor.html">時程編輯器</a>，在這場比賽的「文字轉播」欄填上比賽 ID（<code id="rid">—</code>），時程頁就會出現連結</li>
       </ol>
       <div class="btn-row">
         <button id="btn-build" disabled>產生資料檔</button>
@@ -267,6 +268,7 @@
       $('output').value = JSON.stringify(game, null, 2) + '\n';
       const fname = `${game.id}.json`;
       $('fname').textContent = 'data/games/' + fname;
+      $('rid').textContent = game.id;
       $('gh-new').href = `https://github.com/${REPO}/new/main/data/games?filename=${encodeURIComponent(fname)}`;
       $('gh-edit').href = `https://github.com/${REPO}/edit/main/data/games/${encodeURIComponent(fname)}`;
       flash('copy-flash', '資料檔已產生，接著按「複製全部內容」。', true);

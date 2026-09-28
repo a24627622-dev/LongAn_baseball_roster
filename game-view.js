@@ -18,6 +18,11 @@
     return h ? (h.offense === 'us') === h.top : true;
   }
 
+  /* 對手的半局有沒有記完整。沒記完整時，對手的分數是「未知」，不能當成 0 顯示 */
+  function oppKnown(game) {
+    return game.pitchingStatus === 'complete';
+  }
+
   /* 比分表：每局得分、R、H */
   function linescoreHTML(game) {
     const innings = Math.max(5, ...game.halves.map((h) => h.inning));
@@ -37,6 +42,7 @@
     };
     const us = row('us');
     const opp = row('opp');
+    if (!oppKnown(game)) { opp.r = '?'; opp.hits = '?'; }
     const rows = [
       { name: game.opponent || '對手', ...opp, cls: 'opp' },
       { name: game.teamName || '龍安', ...us, cls: 'us' },
@@ -81,7 +87,8 @@
     const extra = [];
     if (it.scorers && it.scorers.length) extra.push(`${it.scorers.map((s) => esc(s.name)).join('、')}回本壘得分`);
     if (it.rbi) extra.push(`${it.rbi}分打點`);
-    const score = usBatFirst(game) ? `${it.score.us}:${it.score.opp}` : `${it.score.opp}:${it.score.us}`;
+    const oppScore = oppKnown(game) ? it.score.opp : '?';
+    const score = usBatFirst(game) ? `${it.score.us}:${oppScore}` : `${oppScore}:${it.score.us}`;
     return `
       <div class="gv-play${it.runs ? ' scored' : ''}">
         ${avatarHTML(it, isUs, photos)}
@@ -165,5 +172,5 @@
     return map;
   }
 
-  root.GameView = { renderGame, photoMap, badgeClass };
+  root.GameView = { renderGame, photoMap, badgeClass, oppKnown };
 })(this);

@@ -1,4 +1,4 @@
-/* 龍安棒球隊 資料檔檢查規則（data/schedule.json、data/announcements.json、data/players.json）
+/* 龍安棒球隊 資料檔檢查規則（data/schedule.json、data/announcements.json、data/players.json、data/games/*.json）
    對外頁面（瀏覽器）與 tests/check_data.js（Node）共用這一份，規則只寫一次。
 
    分級：
@@ -82,6 +82,9 @@
       }
       if ('cancelled' in item && typeof item.cancelled !== 'boolean') {
         r.warnings.push({ where: w, msg: `cancelled 應該是 true 或 false，實際是 ${JSON.stringify(item.cancelled)}` });
+      }
+      if ('resultUrl' in item && item.resultUrl !== null && !(typeof item.resultUrl === 'string' && /^game\.html\?id=[^&#\s]+$/.test(item.resultUrl))) {
+        r.warnings.push({ where: w, msg: `resultUrl 應為 null 或 "game.html?id=比賽ID"，實際是 ${JSON.stringify(item.resultUrl)}（時程頁不會顯示連結）` });
       }
     });
 
@@ -185,7 +188,30 @@
     return r;
   }
 
-  const api = { checkSchedule, checkAnnouncements, checkPlayers, isValidDate };
+  /* 一場比賽的文字轉播資料（tools/record-converter.html 產生）。
+     不是陣列而是一個物件；這裡只檢查「公開頁能不能畫得出來」，內容的正確性在轉換時已經用 ⚠️ 檢查過 */
+  function checkGame(data) {
+    const r = newResult();
+    if (!isObject(data)) {
+      r.fatal = `最外層應該是一個 { } 物件，實際是${describe(data)}`;
+      return r;
+    }
+    const e = (msg) => r.errors.push({ where: '比賽資料', msg });
+    if (typeof data.id !== 'string' || !/^\d{4}-\d{2}-\d{2}_G\d+_.+/.test(data.id)) e(`id 應為「日期_場次_對手」，例如 "2026-10-25_G1_ZERO"，實際是 ${JSON.stringify(data.id)}`);
+    if (!isValidDate(data.date)) e(`date 格式錯誤：${JSON.stringify(data.date)}`);
+    if (!isObject(data.score) || !Number.isInteger(data.score.us) || !Number.isInteger(data.score.opp)) e('score 應為 { "us": 數字, "opp": 數字 }');
+    if (!Array.isArray(data.halves)) e('缺少 halves（各半局的文字轉播）');
+    else data.halves.forEach((h, i) => {
+      if (!isObject(h) || !Number.isInteger(h.inning) || !['us', 'opp'].includes(h.offense) || !Array.isArray(h.items)) {
+        e(`第 ${i + 1} 個半局格式不對（需要 inning、offense、items）`);
+      }
+    });
+    if (!Array.isArray(data.batting)) e('缺少 batting（打者成績）');
+    if (!Array.isArray(data.pitching)) e('缺少 pitching（投手成績）');
+    return r;
+  }
+
+  const api = { checkSchedule, checkAnnouncements, checkPlayers, checkGame, isValidDate };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   else root.DataCheck = api;
 })(this);

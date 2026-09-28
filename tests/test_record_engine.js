@@ -73,6 +73,12 @@ test('文字轉播用 CPBL 簡碼：三失、二失、犧飛、二滾、游飛�
   assert.ok(list.includes('56:二安'));
 });
 
+test('顯示用的描述拿掉 [N分進帳] 和打點標記，原文另外保留', () => {
+  const p = pas(r0830).find((x) => x.number === '91' && x.kind === 'E');
+  assert.strictEqual(p.desc, 'E4 乘誤上壘');
+  assert.match(p.raw, /\[2分進帳，龍安 2:0\]/);
+});
+
 test('得分者推算正確：一局上 E4 回來的是 #17、#93', () => {
   const p = pas(r0830).find((x) => x.number === '91' && x.kind === 'E');
   assert.deepStrictEqual(p.scorers.map((s) => s.number), ['17', '93']);

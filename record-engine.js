@@ -498,7 +498,10 @@
         name: batterNum ? nameOf(batterNum) : '',
         kind,
         display: displayOf(kind, result.pos, fullText),
-        desc: body.split(/➔|→|->/).slice(0, state ? -1 : undefined).join(' ➔ ').replace(/\s+/g, ' ').trim(),
+        // 顯示用：拿掉記錄用的標記（[N分進帳，比分]、打點N），得分者、打點、比分另外顯示
+        desc: body.split(/➔|→|->/).slice(0, state ? -1 : undefined).join(' ➔ ')
+          .replace(/\[[^\]]*\]/g, ' ').replace(/打點\s*\d+/g, ' ').replace(/\s+/g, ' ').trim(),
+        raw,
         runs: totalRuns,
         rbi: isUs ? rbi : null,
         scorers: scorers.map((n) => ({ number: n, name: nameOf(n) })),

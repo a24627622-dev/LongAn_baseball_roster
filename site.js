@@ -78,6 +78,12 @@ function bodyToParagraphs(body) {
     .join('');
 }
 
+/* ---------- GAS 後端（/tools/ 的頁面用；tools/lineup.html 有自己的一份，網址要一起改）---------- */
+const PROD_GAS_URL = 'https://script.google.com/macros/s/AKfycbxiAU0ZEuamWUpI_uX8DmSkmxuMcUxNd-BzwT9YgfahXU8pdfAxl5LKGkaKfglsirOx/exec';
+const isLocalHost = (h) => /^(localhost|127\.0\.0\.1|192\.168\.\d+\.\d+|10\.\d+\.\d+\.\d+|172\.(1[6-9]|2\d|3[01])\.\d+\.\d+)$/.test(h || '');
+/* 本機開發（localhost／區網）連 dev/server.js 的 /gas，其他一律連正式 GAS */
+function gasUrl() { return isLocalHost(location.hostname) ? '/gas' : PROD_GAS_URL; }
+
 async function loadJSON(path) {
   const res = await fetch(path, { cache: 'no-cache' });
   if (!res.ok) throw new Error(`${path} 讀取失敗（HTTP ${res.status}）`);

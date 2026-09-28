@@ -32,7 +32,7 @@ GAS 後端維持在 Apps Script 編輯器貼上覆蓋、部署新版本(必須�
 node tests/test_gas_modules.js       # 19 項
 node tests/test_lineup_logic.js      # 28 項
 node tests/test_scenarios.js         # 26 項
-node tests/test_record_engine.js     # 34 項（比賽文字紀錄轉換引擎）
+node tests/test_record_engine.js     # 35 項（比賽文字紀錄轉換引擎）
 node tests/test_check_data.js        # 20 項（資料檔檢查規則）
 node tests/check_data.js             # 檢查 data/*.json
 node tests/test_scenarios.js --repeat 5
@@ -65,9 +65,41 @@ node tests/test_scenarios.js --repeat 5
 
 ---
 
+## V01.05.00 — 2026-09-29（比賽文字紀錄 第三階段：轉換頁）
+
+**狀態**：使用者 2026-09-29 確認，和 V01.04.01 一起開 PR。GAS 不用動（只呼叫既有的 `getGameLineup`，唯讀）。
+
+### 新增
+
+- **`tools/record-converter.html`**：文字紀錄轉換頁
+  1. 填比賽日期／場次／對手 →「載入陣容」：呼叫 GAS `getGameLineup` 讀試算表的打序與換人（唯讀，不寫流水簿）。
+     需要隊務登入，通行證和陣容調度工具共用（同一個 localStorage key）
+  2. 貼上文字紀錄，自動轉換；紀錄和陣容暫存在瀏覽器，重新整理會還原
+  3. 顯示 ⚠️ 清單；**有 ⚠️ 時要勾「我都看過了」才能產生資料檔**
+  4. 預覽文字轉播、打者成績、投手成績（和公開頁用同一個畫面元件）
+  5. 產生 `data/games/比賽ID.json`，比賽 ID 和試算表分頁名稱規則相同；GitHub「新增檔案」連結自動帶檔名
+- **`game-view.js`**：CPBL 式文字轉播畫面元件（比分表、每半局卡片、頭像、簡碼標籤、出局數、壘包、比分、打者／投手成績表），
+  轉換頁預覽和之後的公開頁共用；樣式在 `site.css` 的 `.gv-*`
+- 試算表姓名欄寫成「蘇垣華/小天」時，自動拆出暱稱給引擎用（代跑寫暱稱也對得到）
+- 工具大廳新增「🔁 文字紀錄轉換」卡片；`DEVELOPMENT.md` 新增「比賽文字紀錄 → 文字轉播」使用步驟
+
+### 修改
+
+- **`site.js`**：新增 `gasUrl()`（本機開發連 `/gas`，其他連正式 GAS）。`tools/players-builder.html` 改用它，
+  GAS 網址從三份減為兩份（另一份在 `tools/lineup.html`，註解標明要一起改）
+- **`record-engine.js`**：顯示用的描述拿掉 `[N分進帳]`、`打點N` 標記（得分者、打點、比分另外顯示），原文保留在 `raw`
+
+### 測試
+
+- `tests/test_record_engine.js` 34 → 35 項
+- 本機伺服器＋Playwright 模擬 GAS 走完整流程：沒通行證 → 跳登入 → 登入後自動重讀陣容 → 貼原始紀錄（3 個 ⚠️、產生按鈕停用）
+  → 貼補正版（只剩「沒記對手半局」）→ 勾確認 → 產生資料檔（ID `2026-08-30_G4_雨人`、比分 7:0）→ 重新整理後草稿與陣容還原；頁面無錯誤
+
+---
+
 ## V01.04.01 — 2026-09-29（比賽文字紀錄 第二階段：轉換引擎）
 
-**狀態**：待使用者確認後 commit。**尚未接上任何頁面**（轉換頁是第 4 項），所以上線後使用者看不到變化。GAS 不用動。
+**狀態**：已 commit（使用者 2026-09-29 確認）。和 V01.05.00 一起開 PR。GAS 不用動。
 
 ### 新增
 

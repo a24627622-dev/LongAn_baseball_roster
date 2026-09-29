@@ -193,6 +193,13 @@ function sortAnnouncements(list) {
   });
 }
 
+/* 公告的連結按鈕：只顯示 DataCheck.announcementLink 判定合法的站內連結，不合法就不顯示 */
+function announcementLinkHTML(link) {
+  const l = typeof DataCheck !== 'undefined' ? DataCheck.announcementLink(link) : null;
+  if (!l) return '';
+  return `<a class="news-link" href="${escapeHtml(l.href)}">${l.kind === 'game' ? '賽事成績' : '查看詳情'} ➔</a>`;
+}
+
 function announcementHTML(item) {
   const tag = item.pinned ? '<span class="pin-tag">置頂</span>' : '';
   return `
@@ -200,5 +207,6 @@ function announcementHTML(item) {
       <div class="news-meta">${tag}<time datetime="${escapeHtml(item.date)}">${fmtDateLong(item.date)}</time></div>
       <h3>${escapeHtml(item.title)}</h3>
       ${bodyToParagraphs(item.body)}
+      ${announcementLinkHTML(item.link)}
     </article>`;
 }

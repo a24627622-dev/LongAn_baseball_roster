@@ -376,6 +376,8 @@ img { max-width: 100%; }
 .sched-score.tie { background: #e2e8f0; color: #334155; }
 .sched-result { display: inline-block; margin-top: 8px; font-weight: 700; font-size: .9rem; color: var(--primary-color); text-decoration: none; }
 .sched-result:hover { text-decoration: underline; }
+.news-link { display: inline-block; margin-top: 4px; padding: 6px 14px; border-radius: 999px; background: var(--primary-color); color: #fff; font-weight: 700; font-size: .9rem; text-decoration: none; }
+.news-link:hover { opacity: .9; }
 
 /* 取消：灰底、刪除線、紅標籤 */
 .sched-item.cancelled {

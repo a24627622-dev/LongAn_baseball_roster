@@ -24,8 +24,8 @@ node tests/check_data.js                   # 檢查 data/*.json
   標準答案是 2026-08-30 G4 對雨人的賽事戰報：每位打者的 AB、R、H、RBI、BB、K，兩位投手的局數、被安打、失分、四壞、三振都要一致；
   另外測原始（未補正）紀錄要抓得出問題、打點與得分規則、各種 ⚠️ 偵測、對手半局算投手成績。
   測試資料在 `fixtures/`；字典文件第 6 節的範例必須和 `fixtures/2026-08-30_G4_雨人.txt` 一字不差
-- `test_check_data.js`（24 項）：資料檔檢查規則（根目錄 `data-check.js`）的測試，含 2026-09-21 兩次貼錯事故的重現、球員名單的背號檢查、
-  比賽資料檔（`data/games/*.json`）的格式與檔名檢查、時程 `resultUrl` 格式。
+- `test_check_data.js`（34 項）：資料檔檢查規則（根目錄 `data-check.js`）的測試，含 2026-09-21 兩次貼錯事故的重現、球員名單的背號檢查、
+  比賽資料檔（`data/games/*.json`）的格式與檔名檢查、時程 `resultUrl` 格式、公告 `link`（只接受比賽與三個站內頁，錯了只警告）。
 - `check_data.js`：不是測試，是檢查 `data/schedule.json`、`data/announcements.json` 的指令；
   GitHub 自動檢查（`.github/workflows/check-data.yml`）也是跑這兩支。
 - `test_scenarios.js`（26 項）：三大調度情境（A×6、B×5、C×7）、規則守門（G×3）、DH 規則引導（D×5），見下。

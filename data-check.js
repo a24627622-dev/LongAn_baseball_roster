@@ -15,7 +15,9 @@
     game: ['type', 'date', 'gatherTime', 'startTime', 'venue', 'opponent', 'score', 'resultUrl', 'cancelled', 'note'],
     practice: ['type', 'date', 'startTime', 'endTime', 'venue', 'cancelled', 'note'],
   };
-  const ANNOUNCEMENT_FIELDS = ['date', 'title', 'body', 'pinned'];
+  const ANNOUNCEMENT_FIELDS = ['date', 'title', 'body', 'pinned', 'link'];
+  /* 公告的 link 只能連到這幾個站內頁（不連外部、不連 tools/ 工具頁） */
+  const ANNOUNCEMENT_PAGES = ['schedule.html', 'news.html', 'index.html'];
   const PLAYER_FIELDS = ['number', 'name', 'nickname', 'photo'];
 
   const isObject = (x) => x !== null && typeof x === 'object' && !Array.isArray(x);
@@ -31,6 +33,14 @@
   function isSunday(s) {
     const [y, m, d] = s.split('-').map(Number);
     return new Date(Date.UTC(y, m - 1, d)).getUTCDay() === 0;
+  }
+  /* 公告的連結：合法時回傳 { href, kind: 'game'（賽事成績）| 'page'（其他站內頁）}，
+     沒填或不合法回傳 null（頁面就不顯示按鈕）。比賽連結的規則和時程的 resultUrl 一樣 */
+  function announcementLink(link) {
+    if (typeof link !== 'string') return null;
+    if (/^game\.html\?id=[^&#\s]+$/.test(link)) return { href: link, kind: 'game' };
+    if (ANNOUNCEMENT_PAGES.includes(link)) return { href: link, kind: 'page' };
+    return null;
   }
   const isTime = (s) => typeof s === 'string' && /^([01]\d|2[0-3]):[0-5]\d$/.test(s);
 
@@ -139,6 +149,9 @@
       if ('pinned' in item && typeof item.pinned !== 'boolean') {
         r.warnings.push({ where: w, msg: `pinned 應該是 true 或 false，實際是 ${JSON.stringify(item.pinned)}` });
       }
+      if ('link' in item && item.link !== null && !announcementLink(item.link)) {
+        r.warnings.push({ where: w, msg: `link 應為 null、"game.html?id=比賽ID" 或 ${ANNOUNCEMENT_PAGES.join('、')}，實際是 ${JSON.stringify(item.link)}（公告不會顯示連結按鈕）` });
+      }
     });
     return r;
   }
@@ -211,7 +224,7 @@
     return r;
   }
 
-  const api = { checkSchedule, checkAnnouncements, checkPlayers, checkGame, isValidDate };
+  const api = { checkSchedule, checkAnnouncements, checkPlayers, checkGame, isValidDate, announcementLink };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   else root.DataCheck = api;
 })(this);

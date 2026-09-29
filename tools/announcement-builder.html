@@ -42,6 +42,10 @@
         <label for="f-pinned" style="margin:0">置頂（排在所有公告最前面）</label>
       </div>
 
+      <label for="f-link">連結到哪一場比賽</label>
+      <select id="f-link"><option value="">不連結</option></select>
+      <div class="hint">選了之後，公告下方會出現「賽事成績 ➔」按鈕。清單裡只有在時程編輯器填過比賽 ID 的比賽。</div>
+
       <div class="btn-row">
         <button id="btn-add">加入這則公告</button>
         <button id="btn-clear" class="secondary">清空欄位</button>
@@ -96,11 +100,12 @@
         listEl.innerHTML = sorted.map((it) => {
           const i = items.indexOf(it);
           const firstLine = String(it.body || '').split('\n')[0] || '';
+          const link = DataCheck.announcementLink(it.link);
           return `
             <div class="list-row">
               <div class="list-main">
                 <div class="list-title">${it.pinned ? '📌 ' : ''}${escapeHtml(it.title)}</div>
-                <div class="list-meta">${escapeHtml(it.date)}　${escapeHtml(firstLine.slice(0, 30))}${firstLine.length > 30 ? '…' : ''}</div>
+                <div class="list-meta">${escapeHtml(it.date)}　${escapeHtml(firstLine.slice(0, 30))}${firstLine.length > 30 ? '…' : ''}${link ? `　🔗 ${link.kind === 'game' ? '賽事成績' : '查看詳情'}` : ''}</div>
               </div>
               <button class="tiny secondary" data-pin="${i}">${it.pinned ? '取消置頂' : '設為置頂'}</button>
               <button class="tiny" data-del="${i}">刪除</button>
@@ -128,12 +133,13 @@
       const title = document.getElementById('f-title').value.trim();
       const body = document.getElementById('f-body').value.replace(/\r\n/g, '\n').trim();
       const pinned = document.getElementById('f-pinned').checked;
+      const link = document.getElementById('f-link').value;
       const flash = document.getElementById('flash');
 
       if (!date) { flash.style.color = '#991b1b'; flash.textContent = '請選日期。'; return; }
       if (!title) { flash.style.color = '#991b1b'; flash.textContent = '請填標題。'; return; }
 
-      items.push({ date, title, body, pinned });
+      items.push(link ? { date, title, body, pinned, link } : { date, title, body, pinned });
       clearForm();
       flash.style.color = '#166534';
       flash.textContent = `已加入「${title}」，記得到第 3 步複製貼上才算發布。`;
@@ -145,6 +151,7 @@
       document.getElementById('f-title').value = '';
       document.getElementById('f-body').value = '';
       document.getElementById('f-pinned').checked = false;
+      document.getElementById('f-link').value = '';
       document.getElementById('f-date').value = todayStr();
     }
 
@@ -183,7 +190,26 @@
       }
       document.getElementById('load-warn').innerHTML = warn.html;
       render();
+      loadGameOptions();
     })();
+
+    /* 「連結到哪一場比賽」的選項：時程裡有 resultUrl 的比賽，新的在前。連結直接複製時程的 resultUrl */
+    async function loadGameOptions() {
+      const sel = document.getElementById('f-link');
+      try {
+        const { items: schedule } = await loadChecked('../data/schedule.json', 'schedule');
+        schedule
+          .filter((x) => isGame(x) && DataCheck.announcementLink(x.resultUrl))
+          .sort((a, b) => byDate(b, a))
+          .forEach((x) => {
+            const s = x.score && typeof x.score.longan === 'number' ? `（${x.score.longan}:${x.score.opponent}）` : '';
+            sel.insertAdjacentHTML('beforeend', `<option value="${escapeHtml(x.resultUrl)}">${escapeHtml(fmtDate(x.date))} ${escapeHtml(activityName(x))}${escapeHtml(s)}</option>`);
+          });
+      } catch (e) {
+        console.error(e);
+        sel.insertAdjacentHTML('afterend', '<div class="hint">讀不到時程，暫時不能選比賽連結。</div>');
+      }
+    }
   </script>
 
 </body>

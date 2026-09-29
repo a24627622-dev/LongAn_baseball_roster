@@ -5,7 +5,7 @@ const fs = require('fs');
 const os = require('os');
 const path = require('path');
 const { execFileSync } = require('child_process');
-const { checkSchedule, checkAnnouncements, checkPlayers, checkGame } = require('../data-check');
+const { checkSchedule, checkAnnouncements, checkPlayers, checkGame, announcementLink } = require('../data-check');
 
 let passed = 0;
 const test = (name, fn) => {
@@ -126,6 +126,81 @@ test('欄位打錯、pinned 型別錯 → 只是警告', () => {
   assert.deepStrictEqual(r.errors, []);
   assert.match(msgs(r.warnings), /不認得的欄位「tittle」/);
   assert.match(msgs(r.warnings), /pinned 應該是 true 或 false/);
+});
+
+console.log('\n公告連結 link（2026-09-29：公告要能連到賽事成績）');
+
+test('連到比賽 game.html?id=… → 合法，種類是「比賽」', () => {
+  assert.deepStrictEqual(announcementLink('game.html?id=2026-08-30_G4_雨人'), { href: 'game.html?id=2026-08-30_G4_雨人', kind: 'game' });
+  assert.deepStrictEqual(announcementLink('game.html?id=2026-08-30_G4_%E9%9B%A8%E4%BA%BA'), { href: 'game.html?id=2026-08-30_G4_%E9%9B%A8%E4%BA%BA', kind: 'game' });
+  assert.deepStrictEqual(checkAnnouncements([ann('2026-09-29', { link: 'game.html?id=2026-08-30_G4_雨人' })]).warnings, []);
+});
+
+test('連到站內其他頁（schedule／news／index）→ 合法，種類是「其他頁」', () => {
+  ['schedule.html', 'news.html', 'index.html'].forEach((href) => {
+    assert.deepStrictEqual(announcementLink(href), { href, kind: 'page' });
+    assert.deepStrictEqual(checkAnnouncements([ann('2026-09-29', { link: href })]).warnings, []);
+  });
+});
+
+test('沒有 link、link 是 null → 沒有警告，也沒有按鈕', () => {
+  assert.strictEqual(announcementLink(undefined), null);
+  assert.strictEqual(announcementLink(null), null);
+  assert.deepStrictEqual(checkAnnouncements([ann('2026-09-29'), ann('2026-09-28', { link: null })]).warnings, []);
+});
+
+test('外部網址 → 警告，不顯示按鈕', () => {
+  ['https://example.com', 'http://example.com/game.html?id=x', '//example.com', 'javascript:alert(1)'].forEach((bad) => {
+    assert.strictEqual(announcementLink(bad), null, bad);
+    assert.match(msgs(checkAnnouncements([ann('2026-09-29', { link: bad })]).warnings), /link 應為/, bad);
+  });
+});
+
+test('比賽 ID 空白、多帶參數或 # → 警告', () => {
+  ['game.html?id=', 'game.html?id=a&x=1', 'game.html?id=a#top', 'game.html', 'game.html?id=a b'].forEach((bad) => {
+    assert.strictEqual(announcementLink(bad), null, bad);
+    assert.match(msgs(checkAnnouncements([ann('2026-09-29', { link: bad })]).warnings), /link 應為/, bad);
+  });
+});
+
+test('link 不是文字 → 警告', () => {
+  [123, true, {}, ['schedule.html']].forEach((bad) => {
+    assert.strictEqual(announcementLink(bad), null);
+    assert.match(msgs(checkAnnouncements([ann('2026-09-29', { link: bad })]).warnings), /link 應為/);
+  });
+});
+
+test('不在清單上的站內頁（工具頁、不存在的頁）→ 警告，公告不能連進工具頁', () => {
+  ['tools/lineup.html', 'tools/', '../index.html', 'about.html', 'data/schedule.json', 'SCHEDULE.HTML'].forEach((bad) => {
+    assert.strictEqual(announcementLink(bad), null, bad);
+    assert.match(msgs(checkAnnouncements([ann('2026-09-29', { link: bad })]).warnings), /link 應為/, bad);
+  });
+});
+
+test('前後多了空白 → 警告，不自動修正（和 resultUrl 一致）', () => {
+  [' schedule.html', 'schedule.html ', ' game.html?id=2026-08-30_G4_雨人'].forEach((bad) => {
+    assert.strictEqual(announcementLink(bad), null, JSON.stringify(bad));
+    assert.match(msgs(checkAnnouncements([ann('2026-09-29', { link: bad })]).warnings), /link 應為/);
+  });
+});
+
+test('link 錯誤只算警告：那則公告仍在有效公告裡，不會被丟掉', () => {
+  const r = checkAnnouncements([ann('2026-09-29', { link: 'https://example.com' }), ann('2026-09-28')]);
+  assert.deepStrictEqual(r.errors, []);
+  assert.strictEqual(r.badCount, 0);
+  assert.strictEqual(r.valid.length, 2);
+});
+
+test('repo 裡的公告：8/30 戰報那則連到 8/30 的文字轉播，而且整份公告沒有警告', () => {
+  const data = JSON.parse(fs.readFileSync(path.join(__dirname, '..', 'data', 'announcements.json'), 'utf8'));
+  const r = checkAnnouncements(data);
+  assert.deepStrictEqual(r.warnings, []);
+  const report = data.find((x) => /8\/30/.test(x.title));
+  assert.ok(report, '找不到 8/30 戰報公告');
+  // 產生器是從時程複製連結，所以要和時程 8/30 那場的 resultUrl 一模一樣
+  const sched = JSON.parse(fs.readFileSync(path.join(__dirname, '..', 'data', 'schedule.json'), 'utf8'));
+  const g830 = sched.find((x) => x.date === '2026-08-30' && x.type === 'game');
+  assert.deepStrictEqual(announcementLink(report.link), { href: g830.resultUrl, kind: 'game' });
 });
 
 console.log('\n球員名單 checkPlayers');

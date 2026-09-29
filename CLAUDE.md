@@ -50,6 +50,12 @@ node tests/check_data.js               # 不是測試：檢查 data/*.json 與 d
 - `tests/test_record_engine.js` 的標準答案是 `tests/fixtures/` 的 8/30 G4 雨人紀錄；字典文件第 6 節範例必須和 fixture 一字不差。
 - 各支測試的內容見 `tests/README.md`；調度情境的規則依據見 `docs/測試報告_調度三情境.md`。
 
+### 畫面確認
+
+**每次修改畫面後，用 Playwright 在 1280px 和 390px 各截一張圖確認，再回報**（截圖附給使用者）。
+
+做法：`python3 -m http.server` 起本機伺服器，用全域安裝的 `playwright` 打開頁面。雲端環境連不到 `cdn.tailwindcss.com`、`unpkg.com` 時，用 `npm pack vue@3 @tailwindcss/browser@4` 下載，再以 `page.route()` 攔截替換（Tailwind 會變成 v4，細部樣式可能和正式版略有差異，回報時要註明）；GAS 讀不到時名單會是空的，也要註明。
+
 ### 不能做的事
 
 - 不能為了讓測試變綠而直接改斷言；測試框架不能比真實 UI 寬鬆（見 `docs/測試報告_調度三情境.md` 第九節）。

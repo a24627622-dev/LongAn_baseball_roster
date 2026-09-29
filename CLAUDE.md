@@ -54,7 +54,7 @@ node tests/check_data.js               # 不是測試：檢查 data/*.json 與 d
 
 **每次修改畫面後，用 Playwright 在 1280px 和 390px 各截一張圖確認，再回報**（截圖附給使用者）。
 
-做法：`python3 -m http.server` 起本機伺服器，用全域安裝的 `playwright` 打開頁面。雲端環境連不到 `cdn.tailwindcss.com`、`unpkg.com` 時，用 `npm pack vue@3 @tailwindcss/browser@4` 下載，再以 `page.route()` 攔截替換（Tailwind 會變成 v4，細部樣式可能和正式版略有差異，回報時要註明）；GAS 讀不到時名單會是空的，也要註明。
+做法：`node dev/server.js` 起本機伺服器（http://localhost:8080，附假試算表 `/gas` 與測試名單 `dev/roster.json`，陣容調度工具才有球員可截圖），用全域安裝的 `playwright` 打開頁面。雲端環境連不到 `cdn.tailwindcss.com`、`unpkg.com` 時，用 `npm pack vue@3 @tailwindcss/browser@4` 下載，再以 `page.route()` 攔截替換（Tailwind 會變成 v4，細部樣式可能和正式版略有差異，回報時要註明）。不要用 `python3 -m http.server`：沒有 `/gas`，名單會是空的。
 
 ### 不能做的事
 

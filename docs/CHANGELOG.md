@@ -1,7 +1,6 @@
 > 📁 2026-09-26 從 claude.ai Project 知識庫搬進 repo，**從此以 repo 版本為準**，每次改動都要更新。
 > 階段 C（對外官網三頁、兩個產生器，commit `7b55c6b`）、`AUTH_ENFORCED` 開啟（09-23）、
 > 時程縮到八週（commit `d99fccf`）沒有獨立版本段落，細節見 `專案現況.md`。
-> 下方「工作流程」「網站整體方針」段落中「`AUTH_ENFORCED` 尚未執行」「`stats.html` 待處置」等描述都已過時。
 
 # 龍安棒球隊網站 版本變更紀錄
 
@@ -11,63 +10,14 @@
 - **次版號**:新增一個完整功能
 - **極小版號**:bug 修復、小調整
 
-## 工作流程(2026-09-20 更新)
-
-Claude 透過桌面 App 連結本機資料夾,**直接讀寫檔案、跑測試、在本機 commit**。舊的「Claude 準備完整檔案內容 → 使用者在 GitHub 網頁編輯器貼上 → 手動 Commit changes」流程已廢止(那個流程是 CRLF 換行混亂與 V01.01.02「貼錯檔案」事故的根源)。
-
-**分工**:
-- Claude:改檔案 → 跑測試 → `git commit`
-- 使用者:`git push`(本機 shell 的對外網路被裝置政策擋住,連 npm registry 都 403,Claude 無法推送)→ GAS 端貼上部署
-
-**分支策略**:`dev` 開發 → 測試全綠 → merge `main`。`main` = GitHub Pages = 正式上線。
-
-**每次開工前先 `git fetch origin`**。本機複本長期沒有 fetch 過,而過去的改動是在 GitHub 網頁編輯器做的,本機看不到。fetch 是唯一能知道「GitHub 上有沒有我不知道的改動」的方法。
-
-GAS 後端維持在 Apps Script 編輯器貼上覆蓋、部署新版本(必須「建立新版本」,只存檔不會讓線上網址生效)。
-
-本機開發資料夾:`C:\Documents_HTML development\LongAn_baseball_roster`(VS Code;`gas/` 放所有 .gs 檔,`tests/` 放本機測試)。本機測試方式見資料夾內的 `DEVELOPMENT.md`(`node dev/server.js` → http://localhost:8080,資料寫入假試算表,不影響正式環境)。
-
-**測試**(改完 `lineup.html` 或 `gas/*.gs` 後三支都要重跑):
-```
-node tests/test_gas_modules.js       # 19 項
-node tests/test_lineup_logic.js      # 28 項
-node tests/test_scenarios.js         # 26 項
-node tests/test_record_engine.js     # 39 項（比賽文字紀錄轉換引擎）
-node tests/test_check_data.js        # 24 項（資料檔檢查規則）
-node tests/check_data.js             # 檢查 data/*.json
-node tests/test_scenarios.js --repeat 5
-```
-
----
-
-## 網站整體方針(2026-09-20 拷問定案)
-
-**對外／對內切分**,同一個 repo 不同資料夾:
-
-- **對外**(`/`):公告、賽事時程 & 練球、球員名單(球員卡)、賽事成績。資料放 repo 的靜態 JSON(`data/*.json`),不直接打 GAS。響應式版面,手機單欄、桌機最大約 960px。**目標 2026-10-15 上線**。
-- **對內**(`/tools/`):陣容調度、成績登記、照片上傳。維持 480px 手機容器。進入頁面需通過 `Auth.gs` 的 GAS 登入。
-
-**為什麼對外不打 GAS**:GAS Web App 冷啟動 1~3 秒、沒有 CDN、併發與配額壓在個人帳號上。實測 `getGameLineup` 一次請求 **2172 毫秒**。靜態 JSON 走 GitHub Pages 的 CDN,零延遲零配額,GAS 掛掉也不影響對外網站。
-
-**資料流方向**:試算表(唯一真實來源)→ GAS 匯出 JSON → commit 進 repo → 對外頁面讀靜態檔。
-
-**已確認的事實**:試算表目前只有「球員名單」「調度紀錄」兩個常設分頁 + 各賽事分頁,**沒有時程或公告分頁**。所以公告與賽事時程第一版是純手維護 JSON,10/15 那批完全不需要動 GAS。
-
-**維護方式**:公告與時程的 JSON 由使用者在對話中口述、Claude 修改並 commit。不做後台編輯頁。
-
-**品牌色**(已定義於 `style.css`,對外沿用):深紅 `#b91c1c`、勁黑 `#111827`、橘紅 `#ea580c`、冠軍金 `#d97706`。
-
-**10/15 驗收標準**:手機打開網址,首頁／公告／時程三頁都是真資料、不需橫向捲動、載入 1 秒內。
-
-**下一步**:階段 B(`/tools/` 切分)、階段 C(對外三頁)。
-
-**懸而未決**:`AUTH_ENFORCED` 何時開、`stats.html` 怎麼處置、球員卡樣式。
+> 開發流程見 `DEVELOPMENT.md`（第 11 節：PR 測試與 Merge）；網站方針與已定案決定見 `專案現況.md` 第 8 節。
+> 2026-09-29 刪除本檔舊的「工作流程」「網站整體方針」兩段（內容已過時，或已收進上述兩份文件）；要看舊內容可查 git 歷史。
 
 ---
 
 ## V01.07.00 — 2026-09-29（公告連結到賽事成績）
 
-**狀態**：已 commit，待使用者 merge。GAS 不用動。第一個照 TDD 做的改動（先寫失敗的測試，再寫程式）。
+**狀態**：已 merge `main` 上線（PR #6，2026-09-29）。GAS 不用動。第一個照 TDD 做的改動（先寫失敗的測試，再寫程式）。
 
 ### 新增
 
@@ -94,7 +44,7 @@ node tests/test_scenarios.js --repeat 5
 
 ## V01.06.00 — 2026-09-29（比賽文字紀錄 第四階段：公開文字轉播頁）
 
-**狀態**：已 commit，待使用者看結果後 merge。GAS 不用動。
+**狀態**：已 merge `main` 上線（PR #5，2026-09-28）。GAS 不用動。
 
 ### 新增
 
@@ -130,7 +80,7 @@ node tests/test_scenarios.js --repeat 5
 
 ## V01.05.00 — 2026-09-29（比賽文字紀錄 第三階段：轉換頁）
 
-**狀態**：使用者 2026-09-29 確認，和 V01.04.01 一起開 PR。GAS 不用動（只呼叫既有的 `getGameLineup`，唯讀）。
+**狀態**：已 merge `main` 上線（PR #5，2026-09-28）。GAS 不用動（只呼叫既有的 `getGameLineup`，唯讀）。
 
 ### 新增
 
@@ -162,7 +112,7 @@ node tests/test_scenarios.js --repeat 5
 
 ## V01.04.01 — 2026-09-29（比賽文字紀錄 第二階段：轉換引擎）
 
-**狀態**：已 commit（使用者 2026-09-29 確認）。和 V01.05.00 一起開 PR。GAS 不用動。
+**狀態**：已 merge `main` 上線（PR #5，2026-09-28）。GAS 不用動。
 
 ### 新增
 

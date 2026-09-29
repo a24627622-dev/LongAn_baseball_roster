@@ -50,17 +50,11 @@
    DEVELOPMENT.md   這份手冊
    ```
 
-### 1-3 先把工作切到「開發分支」（建議）
+### 1-3 分支：不用自己建（2026-09-29 更新）
 
-這一步的目的，是讓正式網站用的 main 分支保持乾淨。在 VS Code 終端機輸入：
-
-```
-git switch -c dev
-```
-
-- 你目前還沒存檔進版本紀錄（commit）的修改，會一起帶到 `dev` 分支。
-- 之後在 `dev` 上怎麼 commit 都不會影響正式網站。
-- 如果出現「already exists」，代表 dev 分支已經有了，改用 `git switch dev`。
+- Claude 做好的改動，會推到 `claude/…` 開頭的分支並開 PR，你在 GitHub 網頁按 Merge 才會上線（第 11 節）。
+- 以前用的 `dev` 分支已經不用了，2026-09-29 已刪除。**不要再 `git switch -c dev`**。
+- 你自己想在電腦上試改東西時，開一個自己的分支（例如 `git switch -c 試改`），不要直接在 `main` 上 commit；`main` 一 push 就是正式上線。
 
 ### 1-4（可選）讓 Claude Code 能開瀏覽器：Playwright MCP（2026-09-29 起）
 
@@ -201,7 +195,7 @@ git commit -m "V01.02.00 本機測試版"   # 存成一個版本
 ```
 
 - **先不要執行 `git push`**。push 之後，GitHub 上才會有這些修改。
-- 就算 push 的是 `dev` 分支，也不會更新正式網站，因為正式網站只看 main 分支。但在準備上線之前，建議連 push 都先不要做。
+- 就算 push 的是 `main` 以外的分支，也不會更新正式網站，因為正式網站只看 main 分支。但在準備上線之前，建議連 push 都先不要做。
 - `dev/data/`（假試算表資料）已經寫在 `.gitignore` 裡，不會被 commit。
 
 ---
@@ -331,7 +325,7 @@ git pull origin main
 
 ## 三種維護方式
 
-**A. 口述給 Claude** —— 講一句「發一則公告，標題 X、內容 Y」，Claude 改檔並 commit，你 `git push`。
+**A. 口述給 Claude** —— 講一句「發一則公告，標題 X、內容 Y」，Claude 改檔、推到 `claude/…` 分支並開 PR，你在 GitHub 網頁 Merge（第 11 節）。
 
 **B. 自己在 GitHub 網頁改（手機也可以，不用電腦）**
 

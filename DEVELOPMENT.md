@@ -62,6 +62,15 @@ git switch -c dev
 - 之後在 `dev` 上怎麼 commit 都不會影響正式網站。
 - 如果出現「already exists」，代表 dev 分支已經有了，改用 `git switch dev`。
 
+### 1-4（可選）讓 Claude Code 能開瀏覽器：Playwright MCP（2026-09-29 起）
+
+專案根目錄的 `.mcp.json` 設定了 Playwright MCP，讓在你電腦上跑的 Claude Code 可以自己打開瀏覽器、點頁面、截圖。
+
+- **只能在 Windows 用**（用 `cmd /c` 包住 `npx`）；雲端的 Claude Code 沒有 `cmd`，這個 MCP 會啟動失敗，不影響其他功能
+- 需要 Node.js（1-1）。第一次啟動會自動下載套件，要等一下
+- 開啟 Claude Code 時會問「要不要允許這個專案的 MCP 伺服器」，選允許
+- 如果提示缺瀏覽器，在終端機執行 `npx playwright install chromium`
+
 ---
 
 ## 2. 每次開發：啟動本機伺服器

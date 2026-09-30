@@ -1,3 +1,4 @@
 # 本機開發伺服器產生的假試算表資料
 dev/data/
 node_modules/
+__pycache__/

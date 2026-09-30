@@ -32,8 +32,8 @@ const r0830 = E.parse(read('2026-08-30_G4_雨人.txt'), { lineup: LINEUP_0830 })
 test('每位打者的 AB、R、H、RBI、BB、K 都和戰報一致', () => {
   // [背號, AB, R, H, RBI, BB, K]，來自賽事戰報截圖
   const expected = [
-    ['56', 3, 1, 1, 2, 0, 0], ['17', 0, 1, 0, 0, 2, 0], ['5', 1, 1, 0, 0, 0, 0],
-    ['93', 3, 2, 1, 0, 0, 1], ['2', 0, 0, 0, 0, 1, 0], ['55', 1, 0, 0, 0, 0, 1],
+    ['56', 3, 1, 1, 2, 0, 0], ['17', 0, 1, 0, 0, 2, 0], ['21', 1, 1, 0, 0, 0, 0],
+    ['6', 3, 2, 1, 0, 0, 1], ['2', 0, 0, 0, 0, 1, 0], ['55', 1, 0, 0, 0, 0, 1],
     ['19', 1, 0, 0, 1, 1, 1], ['91', 2, 0, 0, 0, 0, 0], ['36', 1, 0, 0, 0, 0, 1],
     ['12', 3, 0, 0, 0, 0, 2], ['39', 2, 1, 0, 0, 1, 2], ['1', 0, 1, 0, 0, 1, 0],
     ['49', 1, 0, 0, 0, 0, 0],
@@ -82,7 +82,7 @@ test('補正版沒有任何 ⚠️', () => {
 
 test('文字轉播用 CPBL 簡碼：三失、二失、犧飛、二滾、游飛、二安', () => {
   const list = pas(r0830).map((p) => `${p.number}:${p.display}`);
-  assert.ok(list.includes('93:三失'), list.join(' '));
+  assert.ok(list.includes('6:三失'), list.join(' '));
   assert.ok(list.includes('91:二失'));
   assert.ok(list.includes('19:犧飛'));
   assert.ok(list.includes('91:二滾'));
@@ -96,31 +96,31 @@ test('顯示用的描述拿掉 [N分進帳] 和打點標記，原文另外保留
   assert.match(p.raw, /\[2分進帳，龍安 2:0\]/);
 });
 
-test('得分者推算正確：一局上 E4 回來的是 #17、#93', () => {
+test('得分者推算正確：一局上 E4 回來的是 #17、#6', () => {
   const p = pas(r0830).find((x) => x.number === '91' && x.kind === 'E');
-  assert.deepStrictEqual(p.scorers.map((s) => s.number), ['17', '93']);
+  assert.deepStrictEqual(p.scorers.map((s) => s.number), ['17', '6']);
   assert.strictEqual(p.rbi, 0, '失誤造成的得分不算打點');
 });
 
-test('封殺推算：二局上 #91 那一球出局的是一壘跑者 #2，回本壘的是 #93', () => {
+test('封殺推算：二局上 #91 那一球出局的是一壘跑者 #2，回本壘的是 #6', () => {
   const p = pas(r0830).find((x) => x.number === '91' && x.kind === 'GROUND');
   assert.deepStrictEqual(p.runnersOut.map((s) => s.number), ['2']);
-  assert.deepStrictEqual(p.scorers.map((s) => s.number), ['93']);
+  assert.deepStrictEqual(p.scorers.map((s) => s.number), ['6']);
 });
 
 test('代打、代跑、守備替補都插在對的位置，代跑接在打席後面', () => {
   const h2 = half(r0830, '二局上').items;
-  const i93 = h2.findIndex((x) => x.type === 'pa' && x.number === '93');
-  assert.strictEqual(h2[i93 + 1].kind, 'PR');
-  assert.strictEqual(h2[i93 + 1].text, '更換代跑：蘇巽雄=>李浩偉');
+  const iGD = h2.findIndex((x) => x.type === 'pa' && x.number === '6');
+  assert.strictEqual(h2[iGD + 1].kind, 'PR');
+  assert.strictEqual(h2[iGD + 1].text, '更換代跑：蘇巽雄=>李浩偉');
   const h3 = half(r0830, '三局上').items;
   assert.ok(h3.some((x) => x.kind === 'PH' && x.text === '更換代打：張容基=>蘇辰雄'));
   assert.ok(half(r0830, '四局上').items.some((x) => x.kind === 'defense' && x.text.startsWith('更換守備：梁佑丞=>葉展昆')));
 });
 
-test('四局上「2棒」對到代跑上場的 #5 李浩偉', () => {
+test('四局上「2棒」對到代跑上場的 #21 李浩偉', () => {
   const p = half(r0830, '四局上').items.find((x) => x.type === 'pa' && x.slot === 2);
-  assert.strictEqual(p.number, '5');
+  assert.strictEqual(p.number, '21');
 });
 
 test('字典文件第 6 節的範例和測試資料一字不差（文件改了，測試要跟著改）', () => {
@@ -134,7 +134,7 @@ console.log('\n原始紀錄（未補正）要抓得出問題');
 
 const orig = E.parse(read('2026-08-30_G4_雨人_原始.txt'), {
   lineup: LINEUP_0830,
-  players: [{ number: '5', name: '李浩偉', nickname: 'Haowei' }],
+  players: [{ number: '21', name: '李浩偉', nickname: 'Haowei' }],
 });
 
 test('抓到：#55 上場沒記換人', () => {
@@ -145,7 +145,7 @@ test('抓到：五局上寫 #12，但應該輪到第 6 棒', () => {
   assert.match(msgs(orig), /應該輪到第 6 棒（黃宥挺），紀錄寫的是第 7 棒（陳佳瑋）/);
 });
 
-test('代跑寫暱稱「Haowei」也對得到 #5', () => {
+test('代跑寫暱稱「Haowei」也對得到 #21', () => {
   assert.ok(!/Haowei/.test(msgs(orig)), msgs(orig));
   assert.ok(half(orig, '二局上').items.some((x) => x.kind === 'PR' && x.text.endsWith('李浩偉')));
 });

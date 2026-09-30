@@ -38,11 +38,11 @@ node tests/test_lineup_logic.js        # 28 項：點名→先發→調度→上
 node tests/test_scenarios.js           # 26 項：三大調度情境、規則守門、DH 引導
 node tests/test_scenarios.js --repeat 5
 node tests/test_record_engine.js       # 39 項：比賽文字紀錄轉換引擎
-node tests/test_check_data.js          # 34 項：資料檔檢查規則、公告連結
+node tests/test_check_data.js          # 44 項：資料檔檢查規則、公告連結、比賽資料對名單
 node tests/check_data.js               # 不是測試：檢查 data/*.json 與 data/games/*.json
 ```
 
-基準（2026-09-29，V01.07.00）：19＋28＋26＋39＋34，`check_data` 沒有錯誤。測試數量有增減時，這裡、`tests/README.md`、`docs/測試報告_調度三情境.md` 一起更新。
+基準（2026-10-01，V01.08.00）：19＋28＋26＋39＋44，`check_data` 沒有錯誤。測試數量有增減時，這裡、`tests/README.md`、`docs/測試報告_調度三情境.md` 一起更新。
 
 ### 測試放哪裡
 

@@ -224,7 +224,42 @@
     return r;
   }
 
-  const api = { checkSchedule, checkAnnouncements, checkPlayers, checkGame, isValidDate, announcementLink };
+  /* 比賽資料裡的我方球員（打者、壘上跑者、得分者、投手）要對得上 data/players.json。
+     頭像是用背號找的：背號不在名單上會找不到照片，背號是別人的則會放錯人。
+     名單是空的就不檢查。同一個「背號＋姓名」只回報一次。 */
+  function checkGameRoster(game, players) {
+    const r = newResult();
+    if (!isObject(game) || !Array.isArray(players) || players.length === 0) return r;
+    const byNum = {};
+    players.forEach((p) => { if (isObject(p) && typeof p.number === 'string') byNum[p.number] = p; });
+    const seen = new Set();
+    const see = (person, where) => {
+      if (!isObject(person) || person.number === null || person.number === undefined || person.number === '') return;
+      const num = String(person.number);
+      const name = String(person.name || '');
+      const key = num + '|' + name;
+      if (seen.has(key)) return;
+      seen.add(key);
+      const p = byNum[num];
+      if (!p) r.errors.push({ where, msg: `#${num} ${name}：球員名單上沒有 #${num}，頭像會找不到（背號是不是打錯了？）` });
+      else if (name && p.name !== name) r.errors.push({ where, msg: `#${num} ${name}：球員名單的 #${num} 是 ${p.name}，頭像會放成別人` });
+    };
+    (Array.isArray(game.batting) ? game.batting : []).forEach((b) => see(b, '打者成績'));
+    (Array.isArray(game.pitching) ? game.pitching : []).forEach((p) => see(p, '投手成績'));
+    (Array.isArray(game.halves) ? game.halves : []).forEach((h) => {
+      if (!isObject(h) || h.offense !== 'us' || !Array.isArray(h.items)) return;
+      const where = `${h.inning}局${h.top ? '上' : '下'}`;
+      h.items.forEach((it) => {
+        if (!isObject(it)) return;
+        see(it, where);
+        (Array.isArray(it.bases) ? it.bases : []).forEach((b) => see(b, where));
+        (Array.isArray(it.scorers) ? it.scorers : []).forEach((s) => see(s, where));
+      });
+    });
+    return r;
+  }
+
+  const api = { checkSchedule, checkAnnouncements, checkPlayers, checkGame, checkGameRoster, isValidDate, announcementLink };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   else root.DataCheck = api;
 })(this);

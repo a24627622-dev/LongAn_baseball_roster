@@ -2,8 +2,8 @@
   "_note": "依 2026-08-30 G4 對雨人的賽事戰報整理（陣容調度工具上傳到試算表的打序與換人）",
   "slots": [
     { "starter": { "number": "56", "name": "蘇垣華", "pos": "3B" }, "subs": [] },
-    { "starter": { "number": "17", "name": "蘇巽雄", "pos": "1B" }, "subs": [{ "number": "5", "name": "李浩偉", "pos": "PR" }] },
-    { "starter": { "number": "93", "name": "黃宥憬", "pos": "C" }, "subs": [] },
+    { "starter": { "number": "17", "name": "蘇巽雄", "pos": "1B" }, "subs": [{ "number": "21", "name": "李浩偉", "pos": "PR" }] },
+    { "starter": { "number": "6", "name": "黃宥憬", "pos": "C" }, "subs": [] },
     { "starter": { "number": "2", "name": "梁佑丞", "pos": "LF" }, "subs": [{ "number": "55", "name": "葉展昆", "pos": "LF" }] },
     { "starter": { "number": "19", "name": "林廷軒", "pos": "SS" }, "subs": [] },
     { "starter": { "number": "91", "name": "黃宥挺", "pos": "RF" }, "subs": [{ "number": "36", "name": "李尊堯", "pos": "RF" }] },

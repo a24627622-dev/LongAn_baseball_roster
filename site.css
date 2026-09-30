@@ -517,12 +517,16 @@ details.past-box > div { margin-top: 12px; }
 .gv-stats .l { text-align: left; }
 .gv-stats tr.sub td { color: var(--text-muted); }
 .gv-stats tr.total td { font-weight: 800; background: #f1f5f9; }
-.gv-note { font-size: .85rem; color: var(--text-muted); margin: 6px 0; }
 
 .gv-half { background: var(--card-bg); border: 1px solid var(--border); border-radius: 12px; margin: 12px 0; overflow: hidden; }
-.gv-half-head { display: flex; justify-content: space-between; align-items: center; padding: 8px 12px; background: var(--dark-color); color: #fff; font-weight: 700; font-size: .95rem; }
+.gv-half-head { display: flex; justify-content: space-between; align-items: center; padding: 8px 12px; background: var(--dark-color); color: #fff; font-weight: 700; font-size: .95rem; cursor: pointer; list-style: none; }
+.gv-half-head::-webkit-details-marker { display: none; }
+.gv-half-head::before { content: '▸'; margin-right: 8px; }
+.gv-half[open] > .gv-half-head::before { content: '▾'; }
+.gv-h2-row { display: flex; align-items: center; }
+.gv-toggle-all { margin-left: auto; padding: 4px 12px; border: 1px solid var(--border); border-radius: 999px; background: var(--card-bg); color: var(--dark-color); font-size: .82rem; font-weight: 700; cursor: pointer; }
 .gv-half.us .gv-half-head { background: var(--primary-color); }
-.gv-half-head span { font-size: .85rem; opacity: .9; }
+.gv-half-head span { margin-left: auto; font-size: 1.2rem; font-weight: 900; }
 .gv-action { padding: 6px 12px; background: #f1f5f9; color: var(--text-muted); font-size: .85rem; border-bottom: 1px solid var(--border); }
 .gv-play { display: flex; gap: 10px; padding: 10px 12px; border-bottom: 1px solid var(--border); }
 .gv-play:last-child { border-bottom: none; }
@@ -547,5 +551,5 @@ details.past-box > div { margin-top: 12px; }
 .gv-bases .b2 { left: 11px; top: 0; }
 .gv-bases .b3 { left: 2px; top: 9px; }
 .gv-bases .b1 { left: 20px; top: 9px; }
-.gv-score { margin-left: auto; font-weight: 800; color: var(--dark-color); }
+.gv-score { margin-left: auto; font-size: 1.15rem; font-weight: 900; color: var(--dark-color); }
 

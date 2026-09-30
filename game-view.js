@@ -106,11 +106,12 @@
   function halvesHTML(game, photos) {
     return game.halves.map((h) => {
       const team = h.offense === 'us' ? (game.teamName || '龍安') : (game.opponent || '對手');
+      // 每個半局預設收起來，點標題展開（<details> 是瀏覽器內建的收折，不需要 JS）
       return `
-        <section class="gv-half ${h.offense}">
-          <header class="gv-half-head">${HALF_CN[h.inning] || h.inning}局${h.top ? '上' : '下'}　${esc(team)}攻<span>${h.unrecorded ? '未記錄' : h.runs + ' 分'}</span></header>
+        <details class="gv-half ${h.offense}">
+          <summary class="gv-half-head">${HALF_CN[h.inning] || h.inning}局${h.top ? '上' : '下'}　${esc(team)}攻<span>${h.unrecorded ? '未記錄' : h.runs + ' 分'}</span></summary>
           ${h.items.map((it) => itemHTML(it, h, game, photos)).join('')}
-        </section>`;
+        </details>`;
     }).join('');
   }
 
@@ -136,9 +137,6 @@
   }
 
   function pitchingHTML(game) {
-    if (game.pitchingStatus === 'unrecorded' || !game.pitching.length) {
-      return '<p class="gv-note">這場沒有記錄對手的半局，投手成績未提供。</p>';
-    }
     const cols = [['IP', 'IP'], ['H', 'H'], ['R', 'R'], ['BB', 'BB'], ['HBP', 'HBP'], ['SO', 'SO'], ['HR', 'HR']];
     return `
       <div class="gv-table-wrap">
@@ -146,23 +144,40 @@
           <thead><tr><th class="l">投手</th>${cols.map(([, t]) => `<th>${t}</th>`).join('')}</tr></thead>
           <tbody>${game.pitching.map((p) => `<tr><td class="l">${esc(p.name)}</td>${cols.map(([k]) => `<td>${p[k]}</td>`).join('')}</tr>`).join('')}</tbody>
         </table>
-      </div>
-      ${game.pitchingStatus === 'partial' ? '<p class="gv-note">有部分半局未記錄，投手成績不完整。</p>' : ''}
-      <p class="gv-note">責失分、勝投、救援由人工判定，不在自動統計內。</p>`;
+      </div>`;
   }
 
-  /* 整場：比分表 → 文字轉播 → 成績表。photos：{ 背號: 圖片網址, __silhouette: 剪影網址 } */
+  /* 整場：比分表 → 打者成績 → 投手成績 → 文字轉播（半局預設收起）。photos：{ 背號: 圖片網址, __silhouette: 剪影網址 } */
   function renderGame(game, photos) {
+    const team = esc(game.teamName || '龍安');
     return `
       <div class="gv">
         ${linescoreHTML(game)}
-        <h2 class="gv-h2">文字轉播</h2>
-        ${halvesHTML(game, photos)}
-        <h2 class="gv-h2">${esc(game.teamName || '龍安')} 打者成績</h2>
+        <h2 class="gv-h2">${team} 打者成績</h2>
         ${battingHTML(game)}
-        <h2 class="gv-h2">${esc(game.teamName || '龍安')} 投手成績</h2>
-        ${pitchingHTML(game)}
+        ${game.pitching && game.pitching.length ? `<h2 class="gv-h2">${team} 投手成績</h2>${pitchingHTML(game)}` : ''}
+        <h2 class="gv-h2 gv-h2-row">文字轉播<button type="button" class="gv-toggle-all">全部展開</button></h2>
+        ${halvesHTML(game, photos)}
       </div>`;
+  }
+
+  /* 「全部展開／全部收起」：用事件委派，畫面重畫（轉換頁預覽）後照樣有效 */
+  if (root.document) {
+    root.document.addEventListener('click', (e) => {
+      const btn = e.target.closest && e.target.closest('.gv-toggle-all');
+      if (!btn) return;
+      const halves = btn.closest('.gv').querySelectorAll('.gv-half');
+      const open = !Array.from(halves).every((d) => d.open);
+      halves.forEach((d) => { d.open = open; });
+      btn.textContent = open ? '全部收起' : '全部展開';
+    });
+    // 一局一局手動點開到全部都開時，按鈕文字也要跟著變
+    root.document.addEventListener('toggle', (e) => {
+      if (!e.target.classList || !e.target.classList.contains('gv-half')) return;
+      const gv = e.target.closest('.gv');
+      const btn = gv && gv.querySelector('.gv-toggle-all');
+      if (btn) btn.textContent = Array.from(gv.querySelectorAll('.gv-half')).every((d) => d.open) ? '全部收起' : '全部展開';
+    }, true);
   }
 
   /* data/players.json → renderGame 用的照片對照表；prefix 是頁面到 repo 根目錄的相對路徑（例：'../'） */

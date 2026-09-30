@@ -11,7 +11,7 @@
 // 只有「警告」不會失敗。
 const fs = require('fs');
 const path = require('path');
-const { checkSchedule, checkAnnouncements, checkPlayers, checkGame } = require('../data-check');
+const { checkSchedule, checkAnnouncements, checkPlayers, checkGame, checkGameRoster } = require('../data-check');
 
 const ROOT = path.resolve(__dirname, '..');
 const arg = (name) => {
@@ -49,6 +49,7 @@ function parseWithLine(text) {
 }
 
 let errorCount = 0;
+let rosterForGames = []; // data/players.json 檢查過的球員，比賽資料對照用（名單排在比賽資料前面）
 let warnCount = 0;
 
 for (const { label, file, check, expectId } of FILES) {
@@ -71,6 +72,12 @@ for (const { label, file, check, expectId } of FILES) {
   }
 
   const r = check(parsed.data);
+  if (label === 'data/players.json' && !r.fatal) rosterForGames = r.valid;
+  // 比賽資料的我方背號要對得上球員名單（頭像用背號找人）
+  if (expectId && !r.fatal) {
+    const rr = checkGameRoster(parsed.data, rosterForGames);
+    r.errors.push(...rr.errors.map((e) => ({ where: `球員名單對照・${e.where}`, msg: e.msg })));
+  }
   if (expectId && !r.fatal && parsed.data.id !== expectId) {
     r.errors.push({ where: '檔名', msg: `檔名是 ${expectId}.json，但裡面的 id 是 ${JSON.stringify(parsed.data.id)}（公開頁用檔名找檔案，兩者要一樣）` });
   }

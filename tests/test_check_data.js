@@ -5,7 +5,7 @@ const fs = require('fs');
 const os = require('os');
 const path = require('path');
 const { execFileSync } = require('child_process');
-const { checkSchedule, checkAnnouncements, checkPlayers, checkGame, announcementLink } = require('../data-check');
+const { checkSchedule, checkAnnouncements, checkPlayers, checkGame, checkGameRoster, announcementLink } = require('../data-check');
 
 let passed = 0;
 const test = (name, fn) => {
@@ -305,6 +305,98 @@ test('比賽檔的檔名和裡面的 id 不一樣 → exit 1', () => {
   catch (e) { code = e.status; out = e.stdout; }
   assert.strictEqual(code, 1);
   assert.match(out, /檔名是 2026-08-30_G1_雨人\.json，但裡面的 id 是/);
+});
+
+// ── 比賽資料的我方球員要對得上球員名單（2026-10-01：8/30 的 #93、#5 是誤植，照片以背號對人） ──
+console.log('\n比賽資料 × 球員名單');
+const ROSTER = [
+  { number: '6', name: '黃宥憬', nickname: 'GD', photo: null },
+  { number: '21', name: '李浩偉', nickname: '', photo: null },
+  { number: '5', name: '陳奕瑋', nickname: '坦克', photo: null },
+];
+const rosterGame = (people) => ({
+  id: '2026-08-30_G4_雨人', date: '2026-08-30', score: { us: 1, opp: 0 },
+  halves: [
+    { inning: 1, top: true, offense: 'us', items: [{ type: 'pa', slot: 3, ...people[0], bases: [null, people[1] || null, null], scorers: [] }] },
+    { inning: 1, top: false, offense: 'opp', items: [{ type: 'pa', slot: 1, number: null, name: '', bases: null, scorers: [] }] },
+  ],
+  batting: people.map((p, i) => ({ slot: i + 1, ...p })),
+  pitching: [],
+});
+
+test('我方球員背號、姓名都和名單一致 → 沒有錯誤', () => {
+  const r = checkGameRoster(rosterGame([{ number: '6', name: '黃宥憬' }, { number: '21', name: '李浩偉' }]), ROSTER);
+  assert.deepStrictEqual(r.errors, []);
+});
+
+test('背號不在名單上（#93）→ 錯誤，指出背號與姓名', () => {
+  const r = checkGameRoster(rosterGame([{ number: '93', name: '黃宥憬' }]), ROSTER);
+  assert.ok(r.errors.length > 0);
+  assert.match(msgs(r.errors), /#93 黃宥憬/);
+  assert.match(msgs(r.errors), /名單上沒有/);
+});
+
+test('背號在名單上但是別人（#5 李浩偉，名單 #5 是陳奕瑋）→ 錯誤，頭像會放錯人', () => {
+  const r = checkGameRoster(rosterGame([{ number: '6', name: '黃宥憬' }, { number: '5', name: '李浩偉' }]), ROSTER);
+  assert.match(msgs(r.errors), /#5 李浩偉/);
+  assert.match(msgs(r.errors), /陳奕瑋/);
+});
+
+test('同一個錯只回報一次（出現在多個打席、壘包也只算一筆）', () => {
+  const g = rosterGame([{ number: '93', name: '黃宥憬' }]);
+  g.halves[0].items.push({ type: 'pa', slot: 3, number: '93', name: '黃宥憬', bases: null, scorers: [{ number: '93', name: '黃宥憬' }] });
+  const r = checkGameRoster(g, ROSTER);
+  assert.strictEqual(r.errors.length, 1, msgs(r.errors));
+});
+
+test('對手半局的打者不檢查（沒有背號）', () => {
+  const r = checkGameRoster(rosterGame([{ number: '6', name: '黃宥憬' }]), ROSTER);
+  assert.deepStrictEqual(r.errors, []);
+});
+
+test('投手成績的背號也檢查', () => {
+  const g = rosterGame([{ number: '6', name: '黃宥憬' }]);
+  g.pitching = [{ number: '93', name: '黃宥憬', outs: 3 }];
+  assert.match(msgs(checkGameRoster(g, ROSTER).errors), /#93/);
+});
+
+test('名單是空的 → 不檢查（還沒建名單時不擋）', () => {
+  const r = checkGameRoster(rosterGame([{ number: '93', name: '黃宥憬' }]), []);
+  assert.deepStrictEqual(r.errors, []);
+});
+
+test('repo 的名單檔已建立（和試算表「球員名單」一樣 31 人）', () => {
+  const players = JSON.parse(fs.readFileSync(path.join(__dirname, '../data/players.json'), 'utf8'));
+  assert.strictEqual(players.length, 31);
+  const gd = players.find((p) => p.name === '黃宥憬');
+  const hw = players.find((p) => p.name === '李浩偉');
+  assert.strictEqual(gd && gd.number, '6');
+  assert.strictEqual(hw && hw.number, '21');
+});
+
+test('repo 的 8/30 比賽資料：我方球員都對得上名單（#93→#6、#5→#21 已修正）', () => {
+  const players = JSON.parse(fs.readFileSync(path.join(__dirname, '../data/players.json'), 'utf8'));
+  const g = JSON.parse(fs.readFileSync(path.join(__dirname, '../data/games/2026-08-30_G4_雨人.json'), 'utf8'));
+  const r = checkGameRoster(g, players);
+  assert.deepStrictEqual(r.errors, [], msgs(r.errors));
+});
+
+test('CLI：比賽資料對不上名單 → exit 1', () => {
+  const dir = path.join(tmp, 'games-roster');
+  fs.mkdirSync(dir, { recursive: true });
+  fs.writeFileSync(path.join(dir, '2026-08-30_G4_雨人.json'), JSON.stringify(rosterGame([{ number: '93', name: '黃宥憬' }])));
+  const s = path.join(tmp, 'schedule.json');
+  const a = path.join(tmp, 'announcements.json');
+  const p = path.join(tmp, 'players.json');
+  fs.writeFileSync(s, GOOD_S);
+  fs.writeFileSync(a, GOOD_A);
+  fs.writeFileSync(p, JSON.stringify(ROSTER));
+  let out = '';
+  let code = 0;
+  try { out = execFileSync('node', [CLI, '--schedule', s, '--announcements', a, '--players', p, '--games', dir], { encoding: 'utf8' }); }
+  catch (e) { code = e.status; out = e.stdout; }
+  assert.strictEqual(code, 1, out);
+  assert.match(out, /#93 黃宥憬/);
 });
 
 test('repo 裡現在的資料檔都通過', () => {

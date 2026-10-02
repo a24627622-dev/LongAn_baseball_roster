@@ -1,0 +1,738 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+  <title>實況賽事紀錄 - 龍安棒球隊</title>
+  <link rel="icon" href="../logo-192.png">
+  <link rel="stylesheet" href="../site.css">
+  <style>
+    /* 實況賽事紀錄：手機單手操作為主，最大 520px */
+    body { background: var(--bg-color); }
+    .gr { max-width: 520px; margin: 0 auto; padding: 0 12px 120px; }
+    .gr h2 { font-size: 1.05rem; margin: 18px 0 8px; }
+    .gr-card { background: var(--card-bg); border: 1px solid var(--border); border-radius: 12px; padding: 12px; margin: 10px 0; }
+    .gr label { display: block; font-size: .85rem; color: var(--text-muted); margin: 8px 0 4px; }
+    .gr input, .gr select { width: 100%; padding: 10px; font-size: 1rem; border: 1px solid #cbd5e1; border-radius: 8px; background: #fff; }
+    .gr button { font-family: inherit; cursor: pointer; }
+    .gr button:disabled { opacity: .35; cursor: not-allowed; }
+    .btn { display: inline-flex; align-items: center; justify-content: center; min-height: 44px; padding: 0 14px; border-radius: 10px; border: 1px solid #cbd5e1; background: #fff; color: var(--dark-color); font-size: .95rem; font-weight: 700; }
+    .btn.dark { background: var(--dark-color); border-color: var(--dark-color); color: #fff; }
+    .btn.red { background: var(--primary-color); border-color: var(--primary-color); color: #fff; }
+    .btn.green { background: #15803d; border-color: #15803d; color: #fff; }
+    .btn.wide { width: 100%; }
+    .btn.sel { background: var(--dark-color); border-color: var(--dark-color); color: #fff; }
+    .row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+    .grid3 { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+    .hint { font-size: .85rem; color: var(--text-muted); }
+    .err { color: #b91c1c; font-size: .9rem; font-weight: 600; }
+    .ok { color: #166534; font-size: .9rem; font-weight: 600; }
+    .warnbox { background: #fff7ed; border: 1px solid #fed7aa; border-radius: 10px; padding: 10px; font-size: .9rem; color: #9a3412; margin: 8px 0; }
+    .errbox { background: #fef2f2; border: 1px solid #fecaca; border-radius: 10px; padding: 10px; font-size: .9rem; color: #991b1b; margin: 8px 0; }
+    .login-box { display: none; gap: 8px; margin-top: 8px; }
+    .login-box.show { display: flex; }
+
+    /* 計分板 */
+    .board { position: sticky; top: 0; z-index: 5; background: var(--dark-color); color: #fff; margin: 0 -12px; padding: 10px 14px; display: flex; align-items: center; gap: 10px; }
+    .board .inn { font-weight: 800; font-size: .95rem; min-width: 4.5em; }
+    .board .sc { flex: 1; display: flex; align-items: baseline; gap: 6px; justify-content: center; }
+    .board .sc b { font-size: 1.6rem; }
+    .board .sc span { font-size: .8rem; opacity: .8; }
+    .board .outs i { display: inline-block; width: 12px; height: 12px; border-radius: 50%; border: 2px solid var(--gold-color); margin-left: 3px; }
+    .board .outs i.on { background: var(--gold-color); }
+    .board .btn { min-height: 36px; padding: 0 10px; background: transparent; color: #fff; border-color: var(--gold-color); }
+
+    /* 壘包 */
+    .diamond { position: relative; width: 230px; height: 150px; margin: 6px auto 0; }
+    .diamond .bag { position: absolute; width: 18px; height: 18px; transform: rotate(45deg); border: 2px solid #94a3b8; background: #fff; }
+    .diamond .bag.on { background: var(--gold-color); border-color: var(--gold-color); }
+    .diamond .chip { position: absolute; width: 92px; min-height: 30px; border-radius: 15px; border: none; background: #15803d; color: #fff; font-size: .8rem; font-weight: 700; padding: 2px 4px; }
+    .diamond .chip.opp { background: #64748b; }
+
+    .batter { display: flex; align-items: center; gap: 10px; }
+    .batter .slot { width: 40px; height: 40px; border-radius: 50%; background: var(--dark-color); color: #fff; display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: 1.1rem; flex: none; }
+    .batter .who { flex: 1; min-width: 0; }
+    .batter .who b { font-size: 1.05rem; }
+    .big2 { display: flex; gap: 10px; }
+    .big2 .btn { flex: 1; height: 96px; font-size: 1.5rem; border: none; color: #fff; }
+    .big2 .on { background: #15803d; }
+    .big2 .out { background: var(--primary-color); }
+    .typebtn { min-height: 52px; font-size: 1rem; }
+    .typebtn.main-on { background: #15803d; border-color: #15803d; color: #fff; }
+    .typebtn.main-out { background: var(--primary-color); border-color: var(--primary-color); color: #fff; }
+    .crumb { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
+    .runner-row { border: 1px solid var(--border); border-radius: 10px; padding: 8px; margin: 8px 0; background: #fff; }
+    .runner-row.changed { border: 2px solid var(--primary-color); }
+    .runner-row .t { display: flex; justify-content: space-between; font-size: .9rem; margin-bottom: 6px; }
+    .opts { display: flex; gap: 6px; }
+    .opts .btn { flex: 1; min-height: 40px; padding: 0 4px; font-size: .85rem; }
+    .opts .btn.sel.o-out { background: var(--primary-color); border-color: var(--primary-color); }
+    .opts .btn.sel.o-run { background: #15803d; border-color: #15803d; }
+    .reasons { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 6px; align-items: center; }
+    .reasons .btn { min-height: 34px; border-radius: 17px; font-size: .8rem; padding: 0 10px; }
+    .tags { font-weight: 800; color: var(--primary-color); }
+
+    .halfend { border: 2px solid var(--dark-color); }
+    .halfend .runs { font-size: 1.6rem; font-weight: 900; margin: 4px 0; }
+
+    /* 時間軸 */
+    .tl details { background: #fff; border: 1px solid var(--border); border-radius: 10px; margin: 6px 0; }
+    .tl summary { padding: 8px 10px; font-weight: 700; cursor: pointer; display: flex; justify-content: space-between; }
+    .tl .it { padding: 6px 10px; border-top: 1px solid #f1f5f9; font-size: .88rem; }
+    .tl .it .d { display: inline-block; min-width: 3.2em; font-weight: 800; }
+    .tl .it.sub { color: #9a3412; background: #fff7ed; }
+
+    /* 底部固定列 */
+    .footbar { position: fixed; left: 0; right: 0; bottom: 0; background: #fff; border-top: 1px solid var(--border); padding: 8px 12px calc(8px + env(safe-area-inset-bottom)); z-index: 6; }
+    .footbar .in { max-width: 520px; margin: 0 auto; display: flex; gap: 8px; }
+    .footbar .btn { flex: 1; }
+
+    /* 調度 */
+    .lu-row { display: flex; align-items: center; gap: 8px; padding: 8px; border: 1px solid var(--border); border-radius: 10px; margin: 6px 0; background: #fff; }
+    .lu-row.sel { border: 2px solid var(--dark-color); background: #f1f5f9; }
+    .lu-row .n { width: 28px; height: 28px; border-radius: 50%; background: var(--dark-color); color: #fff; display: flex; align-items: center; justify-content: center; font-weight: 800; flex: none; }
+    .lu-row .nm { flex: 1; min-width: 0; }
+    .lu-row .ps { font-weight: 800; }
+    .lu-row .ps.none { color: var(--primary-color); }
+    .posgrid { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 6px; margin: 6px 0; }
+    .posgrid .btn { min-height: 40px; padding: 0; font-size: .85rem; }
+    .grid3 .btn[data-act=sub-pick] { padding: 0 2px; font-size: .88rem; white-space: nowrap; overflow: hidden; }
+    details.others { margin-top: 8px; border: 1px dashed #cbd5e1; border-radius: 10px; padding: 6px 4px; }
+    details.others summary { cursor: pointer; font-size: .9rem; font-weight: 700; color: var(--text-muted); }
+    textarea.out { width: 100%; min-height: 140px; font-family: ui-monospace, monospace; font-size: .75rem; }
+  </style>
+</head>
+<body>
+  <div class="gr" id="app"><div class="hint" style="padding:20px">載入中…</div></div>
+
+  <script src="../data-check.js"></script>
+  <script src="../site.js"></script>
+  <script src="../game-core.js"></script>
+  <script src="../game-view.js"></script>
+  <script>
+    /* 實況賽事紀錄（規格：docs/賽事紀錄工具_構想.md 第 11 節）
+       計算全部在 game-core.js；這個頁面只負責按鈕、顯示、存檔。
+       存檔：一場 ＝ setup ＋ events，每一筆操作都存進這台裝置（localStorage）。 */
+    const GC = GameCore;
+    const REPO = 'a24627622-dev/LongAn_baseball_roster';
+    const AUTH_TOKEN_KEY = 'longan_auth_token';   // 和陣容調度工具共用
+    const SAVE_KEY = 'longan_game_record';
+    const $ = (id) => document.getElementById(id);
+    const esc = (s) => escapeHtml(s == null ? '' : String(s));
+
+    const store = {
+      get(k) { try { return localStorage.getItem(k); } catch (e) { return null; } },
+      set(k, v) { try { localStorage.setItem(k, v); return true; } catch (e) { return false; } },
+      del(k) { try { localStorage.removeItem(k); } catch (e) { /* 無痕模式 */ } },
+    };
+
+    const ON_TYPES = [['1B', '一安'], ['2B', '二安'], ['3B', '三安'], ['HR', '全壘打'], ['BB', '四壞'], ['HBP', '觸身'],
+      ['E', '失誤上壘'], ['FC', '野選'], ['IBB', '故意四壞'], ['K_REACH', '不死三振'], ['CI', '妨礙打擊']];
+    const OUT_TYPES = [['K', '三振'], ['GROUND', '滾地'], ['FLY', '飛球'], ['LINE', '平飛'], ['BUNT', '觸擊'], ['OUT', '其他出局']];
+    const NO_POS = ['BB', 'HBP', 'IBB', 'K_REACH', 'CI', 'K'];
+    const OPT_POS = ['1B', '2B', '3B', 'HR', 'OUT'];
+    const POS_BTNS = [[1, '投手'], [2, '捕手'], [3, '一壘'], [4, '二壘'], [5, '三壘'], [6, '游擊'], [7, '左外'], [8, '中外'], [9, '右外']];
+    const BASE = ['本壘', '一壘', '二壘', '三壘', '本壘'];
+    const ADV_REASONS = ['趁傳球', '失誤', '暴投', '捕逸', '盜壘', '趁接殺'];
+    const OUT_REASONS = ['封殺', '觸殺', '回壘不及'];
+    const RUN_ADV = ['盜壘', '暴投', '捕逸', '投手犯規', '失誤'];
+    const RUN_OUT = ['盜壘失敗', '牽制出局', '觸殺'];
+    const FIELD_LABEL = GC.POS_LABEL;
+
+    let game = null;    // { setup, events }
+    let st = null;      // 目前狀態（replay 結果）
+    let players = [];   // data/players.json（板凳名單）
+    let ui = { screen: 'setup' };
+    let pre = { schedule: [], lineupData: null, msg: '' };
+
+    /* ---------- 存檔 ---------- */
+    function save() {
+      if (!game) return;
+      const ok = store.set(SAVE_KEY, JSON.stringify(game));
+      ui.saveWarn = ok ? '' : '⚠️ 這台裝置存不了檔（無痕模式？），請改用一般模式或定時「下載備份檔」';
+    }
+    function recompute() { st = GC.replay(game.setup, game.events); }
+    function push(ev) {
+      const before = st;
+      const next = GC.apply(st, ev);      // 不合法會丟錯，呼叫前已經用 validate 擋過
+      game.events.push(ev);
+      st = next;
+      save();
+      if (before.inning !== st.inning || before.top !== st.top) {
+        const h = st.halves.filter((x) => x.inning === before.inning && x.top === before.top)[0];
+        ui.halfEnd = { label: h ? h.label : '', runs: h ? h.runs : 0, offense: before.offense };
+      }
+    }
+    function undo() {
+      if (!game.events.length) return;
+      game.events.pop();
+      recompute();
+      save();
+      ui.halfEnd = null;
+      resetPA();
+      render();
+    }
+
+    /* ---------- 打席輸入的暫存 ---------- */
+    function resetPA() { ui.step = 'cat'; ui.cat = null; ui.result = null; ui.pos = null; ui.moves = {}; ui.opts = {}; ui.runMode = false; }
+    function currentEvent() {
+      if (ui.runMode) {
+        const runners = Object.keys(ui.moves).map((k) => ({ from: Number(k), ...ui.moves[k] })).filter((r) => r.to !== r.from);
+        return { t: 'run', runners };
+      }
+      return GC.buildPA(st, ui.result, ui.pos, { moves: ui.moves, ...ui.opts });
+    }
+
+    /* ---------- 畫面 ---------- */
+    function render() {
+      const app = $('app');
+      if (ui.screen === 'setup') app.innerHTML = setupHTML();
+      else if (ui.screen === 'lineup') app.innerHTML = boardHTML() + lineupHTML();
+      else if (ui.screen === 'done') app.innerHTML = doneHTML();
+      else app.innerHTML = boardHTML() + mainHTML() + timelineHTML() + footHTML();
+    }
+
+    function boardHTML() {
+      const usFirst = game.setup.usBatFirst !== false;
+      const names = [game.setup.teamName || '龍安', game.setup.opponent];
+      const scores = [st.score.us, st.score.opp];
+      if (!usFirst) { names.reverse(); scores.reverse(); }
+      const outs = [0, 1, 2].map((i) => `<i class="${i < st.outs ? 'on' : ''}"></i>`).join('');
+      return `
+        <div class="board">
+          <div class="inn">${st.ended ? '比賽結束' : `${st.inning} 局${st.top ? '上' : '下'}`}<div class="outs">${outs}</div></div>
+          <div class="sc"><span>${esc(names[0])}</span><b>${scores[0]}</b><span>:</span><b>${scores[1]}</b><span>${esc(names[1])}</span></div>
+          ${ui.screen === 'main' && !st.ended ? '<button class="btn" data-act="open-lineup">調度</button>' : ''}
+        </div>`;
+    }
+
+    /* ----- 1. 選比賽、讀先發 ----- */
+    function setupHTML() {
+      const saved = store.get(SAVE_KEY);
+      let resume = '';
+      if (saved) {
+        try {
+          const g = JSON.parse(saved);
+          resume = `<div class="gr-card warnbox">這台裝置有記到一半的比賽：<b>${esc(g.setup.id)}</b>（${g.events.length} 筆）
+            <div class="row" style="margin-top:8px"><button class="btn green" data-act="resume">繼續記錄</button>
+            <button class="btn" data-act="discard">捨棄，重新開始</button></div></div>`;
+        } catch (e) { /* 壞掉的存檔就不顯示 */ }
+      }
+      const opts = pre.schedule.map((x) => `<option value="${esc(x.date)}|${esc(x.opponent || '')}">${esc(fmtDate(x.date))} vs ${esc(x.opponent || '未定')}</option>`).join('');
+      const lu = pre.lineupData;
+      let luHTML = '';
+      if (lu) {
+        luHTML = `<div class="gr-card"><b>先發名單</b>${lu.lineup.map((p, i) => `<div class="hint">${i + 1} 棒　#${esc(p.number)} ${esc(p.name)}　${esc(FIELD_LABEL[p.pos] || p.pos || '')}</div>`).join('')}
+          ${lu.dh ? `<div class="hint">投手（DH 制，不在打序）：#${esc(lu.pitcher.number)} ${esc(lu.pitcher.name)}</div>` : ''}
+          <div style="margin-top:8px"><b>板凳</b>（${lu.benchFromAttendance ? '陣容調度的點名：有到、沒排先發' : '⚠️ 這台裝置找不到這場的點名，先列出全部球員'}）</div>
+          <div class="hint">${lu.bench.map((p) => `#${esc(p.number)} ${esc(p.name)}`).join('、') || '（沒有）'}</div>
+          ${lu.benchFromAttendance ? '' : '<div class="hint">要用點名的板凳：請在<b>同一支手機、同一個瀏覽器</b>用陣容調度工具點名並上傳先發後，再回來讀取。</div>'}
+          <label>龍安是</label>
+          <div class="row"><button class="btn ${pre.usBatFirst !== false ? 'sel' : ''}" data-act="first" data-v="1">先攻（客隊）</button>
+          <button class="btn ${pre.usBatFirst === false ? 'sel' : ''}" data-act="first" data-v="0">後攻（主隊）</button></div>
+          <div style="margin-top:12px"><button class="btn red wide" data-act="start">比賽開始 ➔ 確認守位</button></div></div>`;
+      }
+      return `
+        <div class="row" style="justify-content:space-between"><h2>實況賽事紀錄</h2><a href="index.html" class="hint">← 球隊管理</a></div>
+        ${resume}
+        <div class="gr-card">
+          <b>1. 選擇比賽，讀取先發名單</b>
+          <div class="hint">讀的是陣容調度工具上傳的先發（同一個比賽 ID）。需要隊務登入，已在陣容調度登入過就不用再登。</div>
+          <label>比賽（賽事時程）</label>
+          <select id="g-pick"><option value="">— 選擇 —</option>${opts}</select>
+          <div class="row">
+            <div style="flex:1"><label>日期</label><input type="date" id="g-date" value="${esc(pre.date || '')}"></div>
+            <div style="width:90px"><label>場次</label><input id="g-num" value="${esc(pre.gameNum || 'G1')}"></div>
+          </div>
+          <label>對手</label><input id="g-opp" value="${esc(pre.opponent || '')}" placeholder="例：ZERO">
+          <div style="margin-top:10px"><button class="btn dark wide" data-act="load">讀取先發名單</button></div>
+          <div class="login-box ${pre.needLogin ? 'show' : ''}"><input type="password" id="passcode" placeholder="隊務密碼"><button class="btn" data-act="login">登入</button></div>
+          <div class="${pre.msgOk ? 'ok' : 'err'}" style="margin-top:6px">${esc(pre.msg || '')}</div>
+        </div>
+        ${luHTML}
+        <div class="gr-card"><b>從備份檔還原</b><div class="hint">換手機或資料不見時，選「下載備份檔」存下來的檔案。</div>
+          <input type="file" id="restore-file" accept=".json,application/json"></div>`;
+    }
+
+    /* ----- 2. 調度（換人、排守位） ----- */
+    function lineupHTML() {
+      const s = st;
+      const fp = GC.fieldingProblems(s);
+      const sel = ui.selSlot;
+      const rows = s.lineup.map((p, i) => `
+        <div class="lu-row ${sel === i + 1 ? 'sel' : ''}" data-act="pick-slot" data-slot="${i + 1}">
+          <span class="n">${i + 1}</span>
+          <span class="nm"><b>#${esc(p.number)} ${esc(p.name)}</b></span>
+          <span class="ps ${p.pos ? '' : 'none'}">${p.pos ? esc(FIELD_LABEL[p.pos]) : '守位未定'}</span>
+        </div>`).join('');
+      const pit = s.dh && s.pitcher ? `<div class="lu-row"><span class="n">投</span><span class="nm"><b>#${esc(s.pitcher.number)} ${esc(s.pitcher.name)}</b><div class="hint">投手（DH 制，不在打序）</div></span><span class="ps">投手</span></div>` : '';
+      let panel = '';
+      if (sel) {
+        const p = s.lineup[sel - 1];
+        const isBatter = s.offense === 'us' && s.usNext === sel - 1;
+        const posBtns = [...GC.FIELD, ...(s.dh ? ['DH'] : [])].map((c) => `<button class="btn ${p.pos === c ? 'sel' : ''}" data-act="set-pos" data-pos="${c}">${esc(FIELD_LABEL[c])}</button>`).join('');
+        panel = `<div class="gr-card"><b>第 ${sel} 棒 #${esc(p.number)} ${esc(p.name)}</b>
+          <label>改守位（會和原本守那個位置的人互換）</label><div class="posgrid">${posBtns}</div>
+          <label>換人（從板凳選）</label>
+          <div class="row">
+            ${isBatter ? '<button class="btn ' + (ui.subKind === 'PH' ? 'sel' : '') + '" data-act="sub-kind" data-k="PH">代打</button>' : ''}
+            <button class="btn ${ui.subKind === 'DEF' ? 'sel' : ''}" data-act="sub-kind" data-k="DEF">守備換人</button>
+            ${!s.dh && p.pos === 'P' ? '<button class="btn ' + (ui.subKind === 'P' ? 'sel' : '') + '" data-act="sub-kind" data-k="P">換投</button>' : ''}
+          </div>
+          ${ui.subKind ? benchHTML() : ''}
+          ${s.dh ? `<div style="margin-top:10px"><button class="btn" data-act="dh-off">DH 取消：投手接第 ${sel} 棒</button>
+            <div class="hint">DH 進守備時，選「被換下的野手」那一棒；投手代打 DH 時，選 DH 那一棒。</div></div>` : ''}
+        </div>`;
+      }
+      const dhP = s.dh ? `<div class="gr-card"><b>投手</b><div class="row" style="margin-top:6px"><button class="btn ${ui.subKind === 'P' && !sel ? 'sel' : ''}" data-act="pitcher-sub">換投</button></div>${ui.subKind === 'P' && !sel ? benchHTML() : ''}</div>` : '';
+      const defense = s.offense === 'opp';
+      return `
+        <h2>調度</h2>
+        <div class="hint">點一棒：可以改守位、換人。${s.offense === 'us' ? '進攻中換上的人可以先不排守位，換到守備前再排。' : '守備中九個守位都要排好才能繼續。'}</div>
+        ${rows}${pit}
+        ${panel}${dhP}
+        ${fp.length ? `<div class="${defense ? 'errbox' : 'warnbox'}">${fp.map(esc).join('<br>')}</div>` : '<div class="ok" style="margin:8px 0">守位檢查通過：九個守位齊全、沒有重複</div>'}
+        <div class="err">${esc(ui.lineupErr || '')}</div>
+        <button class="btn green wide" data-act="close-lineup" ${defense && fp.length ? 'disabled' : ''}>${defense ? '確認守位，繼續比賽' : '完成，回到打席輸入'}</button>
+        <div style="height:20px"></div>`;
+    }
+    /* 板凳 ＝ 點名有到、沒排進先發的人（開賽時從陣容調度工具的點名帶過來）。
+       點名漏掉的人可以按「顯示全部球員」從官網球員名單選 */
+    function benchHTML() {
+      const onField = new Set([...st.lineup.map((p) => p.number), ...(st.dh && st.pitcher ? [st.pitcher.number] : [])]);
+      const ok = (p) => !onField.has(p.number) && !st.removed.includes(p.number);
+      const list = (game.setup.bench || []).filter(ok);
+      const btn = (p) => `<button class="btn" data-act="sub-pick" data-num="${esc(p.number)}">#${esc(p.number)} ${esc(p.name)}</button>`;
+      const benchNums = new Set(list.map((p) => p.number));
+      const others = allPlayers().filter((p) => ok(p) && !benchNums.has(p.number));
+      return `<div class="hint" style="margin-top:6px">板凳（點名有到的）</div>
+        ${list.length ? `<div class="grid3" style="margin-top:4px">${list.map(btn).join('')}</div>` : '<div class="hint">板凳沒有可以上場的球員。</div>'}
+        ${others.length ? `<details class="others" ${ui.benchAll ? 'open' : ''}><summary>顯示全部球員（點名沒到的 ${others.length} 人）</summary>
+          <div class="grid3" style="margin-top:6px">${others.map(btn).join('')}</div></details>` : ''}`;
+    }
+    const allPlayers = () => players.map((p) => ({ number: String(p.number), name: p.name }));
+    function benchList() {
+      const seen = new Set((game.setup.bench || []).map((p) => p.number));
+      return [...(game.setup.bench || []), ...allPlayers().filter((p) => !seen.has(p.number))];
+    }
+
+    /* 陣容調度工具在同一台裝置點名的結果（localStorage 同一個網站共用）。
+       只有點名的那一場和現在選的比賽一樣才用；回傳 null 表示找不到 */
+    function attendanceFor(g) {
+      try {
+        const draft = JSON.parse(store.get('longan_lineup_draft') || 'null');
+        const list = JSON.parse(store.get('longan_player_list') || 'null');
+        if (!draft || !list || !Array.isArray(draft.attendedIds)) return null;
+        const d = draft.gameInfo || {};
+        if (d.date !== g.date || String(d.gameNum || '').trim() !== g.gameNum || String(d.opponent || '').trim() !== g.opponent) return null;
+        return list.filter((p) => draft.attendedIds.includes(p.id))
+          .map((p) => ({ number: String(p['背號'] || ''), name: String(p['球員姓名'] || '').split('/')[0].trim() }))
+          .filter((p) => p.number);
+      } catch (e) { return null; }
+    }
+
+    /* ----- 3. 打席輸入 ----- */
+    function mainHTML() {
+      if (st.ended) return '<div class="gr-card">比賽已結束。<button class="btn red wide" data-act="to-done" style="margin-top:8px">產出賽事成績資料</button></div>';
+      if (ui.halfEnd) {
+        const fp = GC.fieldingProblems(st);
+        const needLineup = st.offense === 'opp' && fp.length;
+        return `<div class="gr-card halfend"><div class="hint">${esc(ui.halfEnd.label)}結束</div>
+          <div class="runs">本局得 ${ui.halfEnd.runs} 分</div><div class="hint">請對照場上計分板，一致再繼續。</div>
+          ${needLineup ? `<div class="warnbox">換我方守備：守位還沒排好（${fp.map(esc).join('；')}）</div>` : ''}
+          <div style="margin-top:10px"><button class="btn green wide" data-act="half-ok">${needLineup ? '一致，去排守位' : '一致，下一個半局'}</button></div>
+          <div style="margin-top:8px"><button class="btn wide" data-act="undo">不一致，復原上一筆</button></div></div>`;
+      }
+      return diamondHTML() + batterHTML() + (ui.runMode ? runnersHTML() : stepHTML());
+    }
+
+    function diamondHTML() {
+      const pos = [{ x: 186, y: 76, cx: 132, cy: 98 }, { x: 106, y: 12, cx: 69, cy: 34 }, { x: 26, y: 76, cx: 6, cy: 98 }];
+      const bags = pos.map((p, i) => {
+        const r = st.bases[i];
+        const label = r ? (r.side === 'us' ? `#${r.number} ${r.name}` : `第${r.slot}棒`) : '';
+        const chip = r ? `<button class="chip ${r.side === 'us' ? '' : 'opp'}" style="left:${p.cx}px;top:${p.cy}px" ${r.side === 'us' ? `data-act="pr" data-base="${i + 1}"` : 'disabled'}>${esc(label)}</button>` : '';
+        return `<div class="bag ${r ? 'on' : ''}" style="left:${p.x}px;top:${p.y}px"></div>${chip}`;
+      }).join('');
+      return `<div class="diamond"><div class="bag" style="left:106px;top:120px;background:#e2e8f0"></div>${bags}</div>
+        ${ui.prBase ? prHTML() : ''}`;
+    }
+    function prHTML() {
+      const r = st.bases[ui.prBase - 1];
+      return `<div class="gr-card"><b>${BASE[ui.prBase]}跑者 ${esc(r.name)}：代跑</b>
+        <div class="hint">換上的人直接站上${BASE[ui.prBase]}，接第 ${r.slot} 棒。</div>${benchHTML()}<div class="err">${esc(ui.lineupErr || '')}</div>
+        <button class="btn wide" style="margin-top:8px" data-act="pr-cancel">取消</button></div>`;
+    }
+
+    function batterHTML() {
+      const isUs = st.offense === 'us';
+      const pitcher = GC.currentPitcher(st);
+      if (isUs) {
+        const p = st.lineup[st.usNext];
+        return `<div class="gr-card batter"><div class="slot">${st.usNext + 1}</div>
+          <div class="who"><div class="hint">現在打擊・第 ${st.usNext + 1} 棒</div><b>#${esc(p.number)} ${esc(p.name)}</b>
+            <span class="hint">${p.pos ? esc(FIELD_LABEL[p.pos]) : '守位未定'}</span></div>
+          <button class="btn" data-act="ph" ${ui.step !== 'cat' ? 'disabled' : ''}>代打</button>
+          <button class="btn" data-act="run-mode" ${ui.step !== 'cat' || !st.bases.some(Boolean) ? 'disabled' : ''}>跑壘事件</button></div>`;
+      }
+      return `<div class="gr-card batter"><div class="slot">${st.oppNext + 1}</div>
+        <div class="who"><div class="hint">${esc(game.setup.opponent)} 打擊</div><b>第 ${st.oppNext + 1} 棒</b>
+          <div class="hint">投手：${pitcher ? `#${esc(pitcher.number)} ${esc(pitcher.name)}` : '未定'}</div></div>
+        <button class="btn" data-act="run-mode" ${ui.step !== 'cat' || !st.bases.some(Boolean) ? 'disabled' : ''}>跑壘事件</button></div>`;
+    }
+
+    function stepHTML() {
+      const crumb = (title) => `<div class="crumb"><button class="btn" data-act="back">‹ 上一步</button><span class="hint">${esc(title)}</span></div>`;
+      if (ui.step === 'cat') {
+        return `<div class="hint" style="margin:6px 0">① 打者最後在壘上，還是出局？</div>
+          <div class="big2"><button class="btn on" data-act="cat" data-v="on">上壘</button><button class="btn out" data-act="cat" data-v="out">出局</button></div>`;
+      }
+      if (ui.step === 'type') {
+        const list = ui.cat === 'on' ? ON_TYPES : OUT_TYPES;
+        const kOk = !st.bases[0] || st.outs === 2;
+        return crumb(ui.cat === 'on' ? '上壘' : '出局') + `<div class="hint" style="margin-bottom:6px">② ${ui.cat === 'on' ? '怎麼上壘？' : '怎麼出局？'}</div>
+          <div class="grid3">${list.map(([k, t], i) => `<button class="btn typebtn ${i < (ui.cat === 'on' ? 4 : 1) ? (ui.cat === 'on' ? 'main-on' : 'main-out') : ''}" data-act="type" data-v="${k}" ${k === 'K_REACH' && !kOk ? 'disabled' : ''}>${t}</button>`).join('')}</div>
+          ${ui.cat === 'on' ? `<div class="hint" style="margin-top:6px">不死三振：${kOk ? '一壘沒人或兩出局，可以成立；紀錄上仍算三振。' : '一壘有人且未滿兩出局，不成立。'}</div>` : ''}`;
+      }
+      if (ui.step === 'pos') {
+        const optional = OPT_POS.includes(ui.result);
+        const title = ui.result === 'E' ? '③ 哪個守位失誤？' : optional ? '③ 擊球方向（可略過）' : '③ 哪個守位處理這球？';
+        return crumb(typeLabel(ui.result)) + `<div class="hint" style="margin-bottom:6px">${title}</div>
+          <div class="grid3">${POS_BTNS.map(([n, t]) => `<button class="btn typebtn" data-act="pos" data-v="${n}">${t}</button>`).join('')}</div>
+          ${optional ? '<button class="btn wide" style="margin-top:8px" data-act="pos" data-v="">略過方向</button>' : ''}`;
+      }
+      return crumb(typeLabel(ui.result) + (ui.pos ? '・' + POS_BTNS[ui.pos - 1][1] : '')) + runnersHTML();
+    }
+    const typeLabel = (k) => ([...ON_TYPES, ...OUT_TYPES].find((x) => x[0] === k) || [k, k])[1];
+
+    /* ④ 跑者確認（打席），或跑壘事件 */
+    function runnersHTML() {
+      const isRun = ui.runMode;
+      const ev = currentEvent();
+      const errors = isRun && !ev.runners.length ? ['點有動的跑者，選去向和原因'] : GC.validate(st, ev);
+      const defs = isRun ? null : GC.defaults(st, ui.result);
+      let preview = null;
+      if (!errors.length) {
+        try {
+          const n = GC.apply(st, ev);
+          const h = n.halves.filter((x) => x.inning === st.inning && x.top === st.top)[0];
+          preview = h ? h.items[h.items.length - 1] : null;
+        } catch (e) { preview = null; }
+      }
+      const rowsSrc = isRun
+        ? st.bases.map((r, i) => (r ? { from: i + 1, def: i + 1 } : null)).filter(Boolean)
+        : defs.map((d) => ({ from: d.from, def: d.to }));
+      const rows = rowsSrc.map((d) => {
+        const m = ui.moves[d.from] || {};
+        const to = m.to !== undefined ? m.to : d.def;
+        const runner = d.from === 0 ? null : st.bases[d.from - 1];
+        const who = d.from === 0 ? '打者' : `${BASE[d.from]}跑者 ${runner.side === 'us' ? runner.name : '第' + runner.slot + '棒'}`;
+        const vals = d.from === 0 ? [1, 2, 3, 4, -1] : [...Array.from({ length: 5 - d.from }, (_, k) => d.from + k), -1];
+        const optBtns = vals.map((v) => {
+          const label = v === -1 ? '出局' : v === 4 ? '得分' : v === d.from ? '留' : BASE[v];
+          const cls = to === v ? `sel ${v === -1 ? 'o-out' : v === 4 ? 'o-run' : ''}` : '';
+          return `<button class="btn ${cls}" data-act="mv" data-from="${d.from}" data-to="${v}">${label}</button>`;
+        }).join('');
+        const changed = to !== d.def;
+        const reasons = !changed ? [] : isRun ? (to === -1 ? RUN_OUT : RUN_ADV) : (to === -1 ? OUT_REASONS : ADV_REASONS);
+        const rs = reasons.length ? `<div class="reasons"><span class="err">原因</span>${reasons.map((x) => `<button class="btn ${m.reason === x ? 'sel' : ''}" data-act="rs" data-from="${d.from}" data-v="${x}">${x}</button>`).join('')}</div>` : '';
+        const defLabel = isRun ? `原在${BASE[d.from]}` : `預設：${d.def === -1 ? '出局' : d.def === 4 ? '得分' : d.def === d.from ? '留' + BASE[d.from] : '上' + BASE[d.def]}`;
+        return `<div class="runner-row ${changed ? 'changed' : ''}"><div class="t"><b>${esc(who)}</b><span class="hint">${defLabel}</span></div><div class="opts">${optBtns}</div>${rs}</div>`;
+      }).join('');
+      // 額外的勾選：觸殺第三出局的先後、犧飛、犧觸、打點
+      let extra = '';
+      if (!isRun) {
+        const needTag = errors.some((e) => /先踩本壘/.test(e)) || typeof ui.opts.runsBeforeTag === 'boolean';
+        if (needTag) extra += `<div class="gr-card"><b>觸殺（或回壘不及）造成第三出局</b><div class="row" style="margin-top:6px">
+          <button class="btn ${ui.opts.runsBeforeTag === true ? 'sel' : ''}" data-act="tag" data-v="1">跑者先踩本壘（得分算）</button>
+          <button class="btn ${ui.opts.runsBeforeTag === false ? 'sel' : ''}" data-act="tag" data-v="0">觸殺在先（得分不算）</button></div></div>`;
+        if (['FLY', 'LINE'].includes(ui.result) && !(ui.pos >= 7)) extra += `<label class="row" style="color:var(--text-dark)"><input type="checkbox" style="width:auto" data-act="sf" ${ui.opts.sf ? 'checked' : ''}> 內野手跑到外野接殺、跑者得分：算犧飛</label>`;
+        if (ui.result === 'BUNT') extra += `<label class="row"><input type="checkbox" style="width:auto" data-act="nosac" ${ui.opts.sac === false ? 'checked' : ''}> 打者是搶安打，不算犧觸</label>`;
+        if (preview && st.offense === 'us') {
+          const tags = { SF: '犧飛', SAC: '犧觸', DP: '雙殺', TP: '三殺' }[preview.kind] || '';
+          extra += `<div class="gr-card row"><span>打點</span><button class="btn" data-act="rbi" data-d="-1">－</button><b style="font-size:1.3rem">${preview.rbi}</b><button class="btn" data-act="rbi" data-d="1">＋</button>
+            ${typeof ui.opts.rbi === 'number' ? '<span class="hint">（手動）</span><button class="btn" data-act="rbi-auto">改回自動</button>' : ''}<span class="tags">${tags}</span></div>`;
+        } else if (preview) {
+          const tags = { DP: '雙殺', TP: '三殺' }[preview.kind] || '';
+          if (tags) extra += `<div class="tags">${tags}</div>`;
+        }
+      }
+      const head = isRun ? '<div class="crumb"><button class="btn" data-act="back">‹ 取消</button><span class="hint">跑壘事件：點有動的跑者</span></div>'
+        : `<div class="hint" style="margin:6px 0">④ 跑者確認：預設沒問題就直接送出，有例外再點</div>`;
+      return `${head}${preview ? `<div style="font-weight:800;margin:4px 0">${esc(preview.display || '')}　${esc(preview.desc || preview.text || '')}</div>` : ''}
+        ${rows}${extra}
+        ${errors.length ? `<div class="errbox">${errors.map(esc).join('<br>')}</div>` : ''}
+        <button class="btn dark wide" style="margin-top:8px;height:52px" data-act="submit" ${errors.length ? 'disabled' : ''}>${isRun ? '確認跑壘事件' : '確認，下一位打者'}</button>`;
+    }
+
+    /* ----- 時間軸（下方，依半局收折；進行中的半局展開） ----- */
+    function timelineHTML() {
+      const halves = st.halves.slice().reverse();
+      if (!halves.length) return '<h2>比賽時間軸</h2><div class="hint">還沒有紀錄。</div>';
+      const cur = (h) => h.inning === st.inning && h.top === st.top;
+      return `<h2>比賽時間軸</h2><div class="tl">${halves.map((h) => {
+        const team = h.offense === 'us' ? (game.setup.teamName || '龍安') : game.setup.opponent;
+        const items = h.items.slice().reverse().map((it) => {
+          if (it.type !== 'pa') return `<div class="it sub">${esc(it.text)}</div>`;
+          const who = it.number ? `#${esc(it.number)} ${esc(it.name)}` : `第${it.slot}棒`;
+          const extra = [it.runs ? `得 ${it.runs} 分` : '', it.rbi ? `打點 ${it.rbi}` : ''].filter(Boolean).join('，');
+          return `<div class="it"><span class="d">${esc(it.display)}</span>${who}：${esc(it.desc)}${extra ? `<b>（${extra}）</b>` : ''}</div>`;
+        }).join('');
+        return `<details ${cur(h) ? 'open' : ''}><summary><span>${esc(h.label)}　${esc(team)}攻</span><span>${h.runs} 分</span></summary>${items}</details>`;
+      }).join('')}</div>`;
+    }
+
+    function footHTML() {
+      return `<div class="footbar"><div class="in">
+        <button class="btn" data-act="undo" ${game.events.length ? '' : 'disabled'}>↶ 復原上一筆</button>
+        <button class="btn" data-act="backup">下載備份檔</button>
+        <button class="btn red" data-act="finish">比賽完成</button></div>
+        ${ui.saveWarn ? `<div class="err" style="text-align:center">${esc(ui.saveWarn)}</div>` : ''}</div>`;
+    }
+
+    /* ----- 4. 比賽完成：產出賽事成績資料 ----- */
+    function doneHTML() {
+      const out = GC.toGame(game.setup, game.events);
+      const r = DataCheck.checkGame(out);
+      const json = JSON.stringify(out, null, 1) + '\n';
+      const file = `${game.setup.id}.json`;
+      return `<h2>比賽完成：產出賽事成績</h2>
+        ${r.errors.length ? `<div class="errbox">${r.errors.map((e) => esc(e.msg)).join('<br>')}</div>` : '<div class="ok">✅ 資料格式檢查通過</div>'}
+        <div class="gr-card"><b>發布到官網（和文字紀錄轉換頁相同）</b>
+          <ol class="hint" style="padding-left:18px"><li>按「複製全部內容」</li><li>按「開啟 GitHub 新增檔案頁」（檔名已填好）→ 貼上 → Commit changes</li><li>到時程編輯器把這場的「文字轉播」欄填上比賽 ID：<b>${esc(game.setup.id)}</b></li></ol>
+          <textarea class="out" id="out-json" readonly>${esc(json)}</textarea>
+          <div class="row" style="margin-top:8px"><button class="btn dark" data-act="copy">複製全部內容</button>
+          <a class="btn" target="_blank" rel="noopener" href="https://github.com/${REPO}/new/main/data/games?filename=${encodeURIComponent(file)}">開啟 GitHub 新增檔案頁 ↗</a></div>
+          <div id="copy-msg" class="ok"></div>
+          <div class="hint" style="margin-top:6px">雲端備份上傳（PR③）完成前，請也按「下載備份檔」留一份原始紀錄。</div>
+          <div class="row" style="margin-top:8px"><button class="btn" data-act="backup">下載備份檔</button><button class="btn" data-act="back-main">回到紀錄畫面</button></div></div>
+        <h2>預覽（公開的賽事成績頁會長這樣）</h2>
+        ${GameView.renderGame(out, GameView.photoMap(players, '../'))}`;
+    }
+
+    /* ---------- 動作 ---------- */
+    function gameInfo() {
+      return { date: $('g-date').value, gameNum: $('g-num').value.trim(), opponent: $('g-opp').value.trim() };
+    }
+    const gameId = (g) => `${g.date}_${g.gameNum}_${g.opponent}`.replace(/[\/\\?*\[\]:]/g, '-');
+
+    async function post(body) {
+      const res = await fetch(gasUrl(), {
+        method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+        body: JSON.stringify({ ...body, token: store.get(AUTH_TOKEN_KEY) || '' }),
+      });
+      const text = await res.text();
+      try { return JSON.parse(text); } catch (e) { throw new Error('伺服器回應格式錯誤'); }
+    }
+
+    async function loadLineup() {
+      const g = gameInfo();
+      Object.assign(pre, g);
+      if (!g.date || !g.opponent || !g.gameNum) { pre.msg = '請填日期、場次、對手。'; pre.msgOk = false; render(); return; }
+      pre.msg = '讀取中…'; pre.msgOk = true; render();
+      try {
+        const r = await post({ action: 'getGameLineup', gameInfo: g });
+        if (r && r.code === 'AUTH_REQUIRED') { pre.needLogin = true; pre.msg = '需要隊務登入。'; pre.msgOk = false; render(); return; }
+        if (!r || !r.success) { pre.msg = (r && r.message) || '讀取失敗'; pre.msgOk = false; pre.lineupData = null; render(); return; }
+        const conv = (p) => ({ number: String(p.number), name: String(p.name || '').replace(/^↳\s*/, '').split('/')[0].trim(), pos: p.pos || null });
+        const starters = (r.data.activeLineup || []).map((s) => conv(s.starter));
+        if (starters.length !== 9) { pre.msg = `先發只有 ${starters.length} 人，請先在陣容調度工具上傳完整的先發。`; pre.msgOk = false; pre.lineupData = null; render(); return; }
+        const dh = starters.some((p) => p.pos === 'DH');
+        const pitcher = dh ? conv((r.data.pitchers || [])[0] || {}) : null;
+        if (dh && !pitcher.number) { pre.msg = 'DH 制但讀不到先發投手，請確認陣容調度工具已上傳。'; pre.msgOk = false; render(); return; }
+        const used = new Set([...starters.map((p) => p.number), ...(pitcher ? [pitcher.number] : [])]);
+        const att = attendanceFor(g);
+        const bench = (att || allPlayers()).filter((p) => !used.has(p.number));
+        pre.lineupData = { lineup: starters, dh, pitcher, bench, benchFromAttendance: !!att };
+        pre.msg = `已讀取 ${gameId(g)} 的先發。`; pre.msgOk = true; pre.needLogin = false;
+      } catch (e) { pre.msg = '讀取失敗：' + e.message; pre.msgOk = false; }
+      render();
+    }
+
+    async function login() {
+      const passcode = $('passcode').value;
+      if (!passcode) return;
+      try {
+        const r = await post({ action: 'login', passcode });
+        if (r && r.success && r.token) { store.set(AUTH_TOKEN_KEY, r.token); pre.needLogin = false; loadLineup(); }
+        else { pre.msg = (r && r.message) || '登入失敗'; pre.msgOk = false; render(); }
+      } catch (e) { pre.msg = '登入失敗：' + e.message; render(); }
+    }
+
+    function startGame() {
+      const g = { date: pre.date, gameNum: pre.gameNum, opponent: pre.opponent };
+      const lu = pre.lineupData;
+      game = {
+        setup: {
+          id: gameId(g), date: g.date, gameNum: g.gameNum, opponent: g.opponent, teamName: '龍安',
+          usBatFirst: pre.usBatFirst !== false, dh: lu.dh, lineup: lu.lineup, pitcher: lu.pitcher || undefined,
+          bench: lu.bench,
+          startedAt: new Date().toISOString(),
+        },
+        events: [],
+      };
+      recompute(); save(); resetPA();
+      ui.screen = 'lineup'; ui.selSlot = null; ui.subKind = null;
+      render();
+    }
+
+    function download(name, text) {
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(new Blob([text], { type: 'application/json' }));
+      a.download = name;
+      document.body.appendChild(a); a.click(); a.remove();
+    }
+
+    function tryPush(ev, errTarget) {
+      const errs = GC.validate(st, ev);
+      if (errs.length) { ui[errTarget] = errs.join('；'); render(); return false; }
+      ui[errTarget] = '';
+      push(ev);
+      return true;
+    }
+
+    document.addEventListener('click', (e) => {
+      const el = e.target.closest('[data-act]');
+      if (!el || el.disabled) return;
+      const act = el.dataset.act;
+      const d = el.dataset;
+      switch (act) {
+        case 'load': loadLineup(); return;
+        case 'login': login(); return;
+        case 'first': pre.usBatFirst = d.v === '1'; break;
+        case 'start': startGame(); return;
+        case 'resume': game = JSON.parse(store.get(SAVE_KEY)); recompute(); resetPA(); ui.screen = 'main'; break;
+        case 'discard': if (confirm('確定捨棄這台裝置上記到一半的比賽？（建議先下載備份檔）')) store.del(SAVE_KEY); break;
+        case 'open-lineup': ui.screen = 'lineup'; ui.selSlot = null; ui.subKind = null; ui.lineupErr = ''; resetPA(); break;
+        case 'close-lineup': ui.screen = 'main'; ui.selSlot = null; ui.subKind = null; break;
+        case 'pick-slot': ui.selSlot = ui.selSlot === Number(d.slot) ? null : Number(d.slot); ui.subKind = null; ui.lineupErr = ''; break;
+        case 'set-pos': {
+          const slot = ui.selSlot;
+          const pos = d.pos;
+          // 和原本守這個位置的人互換；自己還沒有守位時只改自己（對方會顯示「守位重複」，再幫他排）
+          const mine = st.lineup[slot - 1].pos;
+          const other = st.lineup.findIndex((p, i) => p.pos === pos && i !== slot - 1);
+          const changes = [{ slot, pos }];
+          if (other >= 0 && mine) changes.push({ slot: other + 1, pos: mine });
+          tryPush({ t: 'pos', changes }, 'lineupErr');
+          break;
+        }
+        case 'sub-kind': ui.subKind = ui.subKind === d.k ? null : d.k; break;
+        case 'pitcher-sub': ui.selSlot = null; ui.subKind = ui.subKind === 'P' ? null : 'P'; break;
+        case 'sub-pick': {
+          const p = benchList().find((x) => x.number === d.num);
+          if (ui.prBase) {
+            if (tryPush({ t: 'sub', kind: 'PR', base: ui.prBase, in: p }, 'lineupErr')) ui.prBase = null;
+            break;
+          }
+          const kind = ui.subKind;
+          const ev = kind === 'DEF' ? { t: 'sub', kind: 'DEF', slot: ui.selSlot, in: p } : { t: 'sub', kind, in: p };
+          if (tryPush(ev, 'lineupErr')) {
+            ui.subKind = null;
+            if (kind === 'PH') { ui.screen = 'main'; ui.selSlot = null; }  // 代打換完直接回打席輸入
+          }
+          break;
+        }
+        case 'dh-off':
+          if (confirm(`DH 取消：投手接第 ${ui.selSlot} 棒，原本第 ${ui.selSlot} 棒的球員退場。確定？`)) tryPush({ t: 'dhOff', slot: ui.selSlot }, 'lineupErr');
+          break;
+        case 'ph': ui.screen = 'lineup'; ui.selSlot = st.usNext + 1; ui.subKind = 'PH'; break;
+        case 'pr': ui.prBase = ui.prBase === Number(d.base) ? null : Number(d.base); break;
+        case 'pr-cancel': ui.prBase = null; break;
+        case 'run-mode': resetPA(); ui.runMode = true; ui.step = 'runners'; break;
+        case 'cat': ui.cat = d.v; ui.step = 'type'; break;
+        case 'type':
+          ui.result = d.v; ui.moves = {}; ui.opts = {};
+          ui.step = NO_POS.includes(d.v) ? 'runners' : 'pos';
+          break;
+        case 'pos': ui.pos = d.v ? Number(d.v) : null; ui.step = 'runners'; break;
+        case 'back':
+          if (ui.runMode) { resetPA(); break; }
+          if (ui.step === 'type') ui.step = 'cat';
+          else if (ui.step === 'pos') ui.step = 'type';
+          else if (ui.step === 'runners') ui.step = NO_POS.includes(ui.result) ? 'type' : 'pos';
+          ui.moves = {}; ui.opts = {};
+          break;
+        case 'mv': {
+          const from = Number(d.from);
+          const to = Number(d.to);
+          const prev = ui.moves[from] || {};
+          ui.moves[from] = { to, ...(prev.to === to && prev.reason ? { reason: prev.reason } : {}) };
+          break;
+        }
+        case 'rs': ui.moves[d.from] = { ...(ui.moves[d.from] || {}), reason: d.v }; break;
+        case 'tag': ui.opts.runsBeforeTag = d.v === '1'; break;
+        case 'rbi': {
+          const ev = currentEvent();
+          let cur = 0;
+          try { const n = GC.apply(st, ev); const h = n.halves.filter((x) => x.inning === st.inning && x.top === st.top)[0]; cur = h.items[h.items.length - 1].rbi || 0; } catch (err) { /* 有錯就不動 */ }
+          ui.opts.rbi = Math.max(0, cur + Number(d.d));
+          break;
+        }
+        case 'rbi-auto': delete ui.opts.rbi; break;
+        case 'submit': {
+          const ev = currentEvent();
+          if (GC.validate(st, ev).length) break;
+          push(ev);
+          resetPA();
+          break;
+        }
+        case 'half-ok': {
+          ui.halfEnd = null;
+          if (st.offense === 'opp' && GC.fieldingProblems(st).length) { ui.screen = 'lineup'; ui.selSlot = null; ui.subKind = null; }
+          break;
+        }
+        case 'undo': if (confirm('復原上一筆？')) { undo(); return; } break;
+        case 'backup': download(`${game.setup.id}_紀錄備份.json`, JSON.stringify(game, null, 1)); break;
+        case 'finish':
+          if (!confirm('比賽完成？之後就不能再記（可以用「復原上一筆」取消）。')) break;
+          push({ t: 'end' }); ui.screen = 'done'; break;
+        case 'to-done': ui.screen = 'done'; break;
+        case 'back-main': ui.screen = 'main'; break;
+        case 'copy': {
+          const ta = $('out-json');
+          (navigator.clipboard ? navigator.clipboard.writeText(ta.value) : Promise.reject()).catch(() => { ta.select(); document.execCommand('copy'); })
+            .finally(() => { $('copy-msg').textContent = '已複製，接著開 GitHub 新增檔案頁貼上。'; });
+          return;
+        }
+        default: return;
+      }
+      render();
+    });
+
+    document.addEventListener('toggle', (e) => {
+      if (e.target.classList && e.target.classList.contains('others')) ui.benchAll = e.target.open;
+    }, true);
+
+    document.addEventListener('change', (e) => {
+      const t = e.target;
+      if (t.id === 'g-pick' && t.value) {
+        const [date, opp] = t.value.split('|');
+        pre.date = date; pre.opponent = opp; pre.gameNum = $('g-num').value || 'G1';
+        render();
+      } else if (t.dataset.act === 'sf') { if (t.checked) ui.opts.sf = true; else delete ui.opts.sf; render(); }
+      else if (t.dataset.act === 'nosac') { if (t.checked) ui.opts.sac = false; else delete ui.opts.sac; render(); }
+      else if (t.id === 'restore-file' && t.files[0]) {
+        const fr = new FileReader();
+        fr.onload = () => {
+          try {
+            const g = JSON.parse(fr.result);
+            GC.replay(g.setup, g.events);   // 檢查備份檔能不能重算
+            game = g; recompute(); save(); resetPA(); ui.screen = 'main'; render();
+          } catch (err) { alert('備份檔讀不出來：' + err.message); }
+        };
+        fr.readAsText(t.files[0]);
+      }
+    });
+
+    (async function init() {
+      try { players = (await loadChecked('../data/players.json', 'players')).items; } catch (e) { console.error(e); }
+      try {
+        const { items } = await loadChecked('../data/schedule.json', 'schedule');
+        pre.schedule = items.filter((x) => isGame(x) && !x.cancelled).sort(byDate);
+      } catch (e) { console.error(e); }
+      render();
+    })();
+  </script>
+</body>
+</html>

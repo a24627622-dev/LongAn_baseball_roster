@@ -1,0 +1,600 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<title>賽事紀錄・打席輸入</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0;background:#EDE8DC;font-family:'Noto Sans TC',sans-serif;color:#1B2430}
+button{font-family:inherit;cursor:pointer}
+button:disabled{cursor:not-allowed;opacity:.35}
+a{color:#9E3B1B}a:hover{color:#7A2D14}
+</style>
+</helmet>
+<div style="width: 390px; height: 844px; display: flex; flex-direction: column; background: #F6F3EC; overflow: hidden; font-family: 'Noto Sans TC', sans-serif; color: #1B2430">
+
+<div style="background: #1B2430; color: #F6F3EC; padding: 14px 16px 12px; display: flex; flex-direction: column; gap: 6px">
+<div style="display: flex; justify-content: space-between; align-items: center">
+<div style="font-size: 14px; font-weight: 500">{{inningLabel}}</div>
+<div style="display: flex; gap: 6px; align-items: center">
+<span style="font-size: 12px; color: #B9C1CC">出局</span>
+<sc-for list="{{outDots}}" as="d" hint-placeholder-count="3"><span style="{{d.style}}"></span></sc-for>
+</div>
+</div>
+<div style="display: flex; align-items: baseline; gap: 10px">
+<span style="font-size: 14px; color: #B9C1CC">龍安</span>
+<span style="font-size: 30px; font-weight: 700">{{us}}</span>
+<span style="font-size: 20px; color: #6F7A88">:</span>
+<span style="font-size: 30px; font-weight: 700">{{them}}</span>
+<span style="font-size: 14px; color: #B9C1CC">對手</span>
+</div>
+</div>
+
+<div style="position: relative; width: 220px; height: 178px; align-self: center; flex-shrink: 0">
+<div style="position: absolute; left: 60px; top: 45px; width: 100px; height: 100px; transform: rotate(45deg); box-sizing: border-box; border: 2px solid #D8CFBC"></div>
+<div style="position: absolute; left: 101px; top: 157px; width: 18px; height: 18px; background: #FFFFFF; border: 2px solid #B3A88F; box-sizing: border-box; clip-path: polygon(0 0, 100% 0, 100% 55%, 50% 100%, 0 55%)"></div>
+<sc-for list="{{baseViews}}" as="b" hint-placeholder-count="3">
+<div style="{{b.baseStyle}}"></div>
+<sc-if value="{{b.occupied}}" hint-placeholder-val="{{false}}">
+<div style="{{b.chipStyle}}">{{b.name}}</div>
+</sc-if>
+</sc-for>
+</div>
+
+<div style="margin: 0 16px; padding: 8px 10px 8px 12px; background: #FFFFFF; border: 1px solid #DDD5C4; border-radius: 12px; display: flex; align-items: center; gap: 10px; flex-shrink: 0">
+<div style="width: 40px; height: 40px; border-radius: 20px; background: #1B2430; color: #FFFFFF; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 18px; flex-shrink: 0">{{batSlot}}</div>
+<div style="flex-grow: 1; min-width: 0">
+<div style="font-size: 12px; color: #5E6672">現在打擊・第 {{batSlot}} 棒</div>
+<div style="font-size: 17px; font-weight: 700">#{{batterNum}} {{batterName}} <span style="{{batterPosStyle}}">{{batterPos}}</span></div>
+</div>
+<button onClick="{{toggleSub}}" disabled="{{lockBatter}}" style="height: 44px; padding: 0 10px; border-radius: 10px; border: 1px solid #CFC6B3; background: #FFFFFF; font-size: 14px; color: #1B2430">代打</button>
+<button onClick="{{startEvent}}" disabled="{{noEvent}}" style="height: 44px; padding: 0 10px; border-radius: 10px; border: 1px solid #CFC6B3; background: #FFFFFF; font-size: 14px; color: #1B2430">跑壘事件</button>
+</div>
+
+<sc-if value="{{subOpen}}" hint-placeholder-val="{{false}}">
+<div style="margin: 8px 16px 0; padding: 10px 12px; background: #FFF8E8; border: 1px solid #E8D9B0; border-radius: 12px; display: flex; flex-direction: column; gap: 8px">
+<div style="font-size: 13px; color: #5E6672">選擇代打（原打者退場，守位留到換局前補齊）</div>
+<div style="display: flex; gap: 8px; flex-wrap: wrap">
+<sc-for list="{{benchItems}}" as="p" hint-placeholder-count="2">
+<button onClick="{{p.pick}}" style="height: 44px; padding: 0 14px; border-radius: 10px; border: 1px solid #CFC6B3; background: #FFFFFF; font-size: 15px">#{{p.num}} {{p.name}}</button>
+</sc-for>
+<sc-if value="{{benchEmpty}}" hint-placeholder-val="{{false}}"><span style="font-size: 14px; color: #5E6672">板凳已無球員</span></sc-if>
+</div>
+</div>
+</sc-if>
+
+<div style="flex-grow: 1; overflow-y: auto; padding: 12px 16px 16px; display: flex; flex-direction: column; gap: 12px">
+
+<sc-if value="{{showCrumb}}" hint-placeholder-val="{{false}}">
+<div style="display: flex; align-items: center; gap: 8px">
+<button onClick="{{back}}" style="height: 36px; padding: 0 12px; border-radius: 18px; border: 1px solid #CFC6B3; background: #FFFFFF; font-size: 14px; color: #1B2430">‹ 上一步</button>
+<div style="font-size: 14px; color: #5E6672">{{crumb}}</div>
+</div>
+</sc-if>
+
+<sc-if value="{{isCat}}" hint-placeholder-val="{{true}}">
+<div style="font-size: 13px; font-weight: 700; color: #5E6672">① 打者本人最後在壘上，還是出局？</div>
+<div style="display: flex; gap: 10px">
+<button onClick="{{pickOn}}" style="flex-grow: 1; flex-basis: 0; height: 120px; border-radius: 16px; border: none; background: #2F6B4F; color: #FFFFFF; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px">
+<span style="font-size: 26px; font-weight: 700">上壘</span>
+<span style="font-size: 12px; color: #D5E6DC">安打・四壞・失誤・野選</span>
+</button>
+<button onClick="{{pickOut}}" style="flex-grow: 1; flex-basis: 0; height: 120px; border-radius: 16px; border: none; background: #9E3B1B; color: #FFFFFF; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px">
+<span style="font-size: 26px; font-weight: 700">出局</span>
+<span style="font-size: 12px; color: #F2D6CB">三振・滾地・飛球・平飛</span>
+</button>
+</div>
+</sc-if>
+
+<sc-if value="{{isType}}" hint-placeholder-val="{{false}}">
+<div style="font-size: 13px; font-weight: 700; color: #5E6672">{{typeTitle}}</div>
+<div style="display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px">
+<sc-for list="{{typeItems}}" as="t" hint-placeholder-count="6">
+<button onClick="{{t.pick}}" disabled="{{t.disabled}}" style="{{t.style}}">{{t.label}}</button>
+</sc-for>
+</div>
+<sc-if value="{{typeNote}}" hint-placeholder-val="{{false}}">
+<div style="font-size: 12px; color: #5E6672">{{typeNote}}</div>
+</sc-if>
+</sc-if>
+
+<sc-if value="{{isPos}}" hint-placeholder-val="{{false}}">
+<div style="font-size: 13px; font-weight: 700; color: #5E6672">{{posTitle}}</div>
+<div style="position: relative; width: 320px; height: 238px; align-self: center; background: #E4EDDF; border-radius: 160px 160px 16px 16px">
+<div style="position: absolute; left: 115px; top: 110px; width: 90px; height: 90px; transform: rotate(45deg); background: #E9DDC4"></div>
+<sc-for list="{{posItems}}" as="p" hint-placeholder-count="9">
+<button onClick="{{p.pick}}" aria-label="{{p.full}}" style="{{p.style}}">{{p.full}}</button>
+</sc-for>
+</div>
+<sc-if value="{{posOptional}}" hint-placeholder-val="{{false}}">
+<button onClick="{{skipPos}}" style="height: 44px; border-radius: 10px; border: 1px dashed #B3A88F; background: transparent; font-size: 14px; color: #5E6672">略過擊球方向</button>
+</sc-if>
+</sc-if>
+
+<sc-if value="{{isRunners}}" hint-placeholder-val="{{false}}">
+<div style="font-size: 13px; font-weight: 700; color: #5E6672">{{runnerTitle}}</div>
+<sc-if value="{{showResult}}" hint-placeholder-val="{{false}}">
+<div style="font-size: 20px; font-weight: 700">{{resultText}}</div>
+</sc-if>
+<sc-for list="{{planRows}}" as="r" hint-placeholder-count="2">
+<div style="{{r.boxStyle}}">
+<div style="display: flex; justify-content: space-between; align-items: baseline">
+<span style="font-size: 15px; font-weight: 700">{{r.title}}</span>
+<span style="font-size: 12px; color: #5E6672">{{r.defLabel}}</span>
+</div>
+<div style="display: flex; gap: 6px">
+<sc-for list="{{r.opts}}" as="o" hint-placeholder-count="4">
+<button onClick="{{o.pick}}" style="{{o.style}}">{{o.label}}</button>
+</sc-for>
+</div>
+<sc-if value="{{r.showReasons}}" hint-placeholder-val="{{false}}">
+<div style="display: flex; gap: 6px; align-items: center; flex-wrap: wrap">
+<span style="font-size: 12px; color: #9E3B1B; font-weight: 700">原因</span>
+<sc-for list="{{r.reasons}}" as="x" hint-placeholder-count="3">
+<button onClick="{{x.pick}}" style="{{x.style}}">{{x.label}}</button>
+</sc-for>
+</div>
+</sc-if>
+</div>
+</sc-for>
+<sc-if value="{{conflict}}" hint-placeholder-val="{{false}}">
+<div style="padding: 10px 12px; border-radius: 10px; background: #FBE3DA; color: #7A2D14; font-size: 14px">{{conflict}}</div>
+</sc-if>
+<button onClick="{{confirm}}" disabled="{{cannotConfirm}}" style="height: 52px; border-radius: 12px; border: none; background: #1B2430; color: #FFFFFF; font-size: 17px; font-weight: 700">{{confirmLabel}}</button>
+</sc-if>
+
+<sc-if value="{{isHalfEnd}}" hint-placeholder-val="{{false}}">
+<div style="padding: 16px; border-radius: 14px; background: #FFFFFF; border: 2px solid #1B2430; display: flex; flex-direction: column; gap: 10px">
+<div style="font-size: 13px; color: #5E6672">{{halfTitle}}</div>
+<div style="font-size: 24px; font-weight: 700">本局得 {{halfRuns}} 分</div>
+<div style="font-size: 14px; color: #5E6672">請對照場上計分板，一致再進下一局。</div>
+<sc-if value="{{hasMissing}}" hint-placeholder-val="{{false}}">
+<div style="padding: 10px 12px; border-radius: 10px; background: #FFF8E8; border: 1px solid #E8D9B0; display: flex; flex-direction: column; gap: 8px">
+<div style="font-size: 14px; font-weight: 700; color: #7A4A00">守備前要先補齊守位</div>
+<sc-for list="{{missing}}" as="m" hint-placeholder-count="1">
+<div style="font-size: 14px">{{m.label}} 尚未指定守位</div>
+<div style="display: flex; gap: 6px; flex-wrap: wrap">
+<sc-for list="{{m.opts}}" as="o" hint-placeholder-count="1">
+<button onClick="{{o.pick}}" style="height: 44px; padding: 0 14px; border-radius: 10px; border: 1px solid #CFC6B3; background: #FFFFFF; font-size: 15px">{{o.label}}</button>
+</sc-for>
+</div>
+</sc-for>
+</div>
+</sc-if>
+<button onClick="{{nextInning}}" disabled="{{hasMissing}}" style="height: 52px; border-radius: 12px; border: none; background: #2F6B4F; color: #FFFFFF; font-size: 16px; font-weight: 700">一致，進入下一局</button>
+<button onClick="{{undo}}" style="height: 44px; border-radius: 12px; border: 1px solid #CFC6B3; background: #FFFFFF; font-size: 15px; color: #1B2430">不一致，退回上一筆</button>
+<div style="font-size: 12px; color: #5E6672">範例略過守備半局，下一局直接回到我方進攻。</div>
+</div>
+</sc-if>
+
+<div style="display: flex; flex-direction: column; gap: 6px; margin-top: 4px">
+<div style="font-size: 13px; font-weight: 700; color: #5E6672">逐打席紀錄</div>
+<sc-if value="{{noLog}}" hint-placeholder-val="{{true}}">
+<div style="font-size: 13px; color: #8A8F96">還沒有紀錄</div>
+</sc-if>
+<sc-for list="{{logs}}" as="e" hint-placeholder-count="2">
+<div style="padding: 8px 10px; border-radius: 10px; background: #FFFFFF; border: 1px solid #E4DDCC; display: flex; flex-direction: column; gap: 2px">
+<div style="font-size: 12px; color: #5E6672">{{e.head}}</div>
+<div style="font-size: 15px; font-weight: 700">{{e.text}} <span style="font-size: 12px; font-weight: 500; color: #9E3B1B">{{e.tags}}</span></div>
+<sc-if value="{{e.sub}}" hint-placeholder-val="{{false}}">
+<div style="font-size: 13px; color: #3E4652">{{e.sub}}</div>
+</sc-if>
+</div>
+</sc-for>
+</div>
+</div>
+
+<div style="flex-shrink: 0; padding: 10px 16px 14px; border-top: 1px solid #DDD5C4; background: #FFFFFF; display: flex; align-items: center; gap: 10px">
+<button onClick="{{undo}}" disabled="{{noHistory}}" style="height: 44px; padding: 0 16px; border-radius: 10px; border: 1px solid #1B2430; background: #FFFFFF; font-size: 15px; color: #1B2430; display: flex; align-items: center; gap: 6px">
+<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 14L4 9l5-5"></path><path d="M4 9h11a5 5 0 0 1 0 10h-3"></path></svg>
+復原上一筆
+</button>
+<span style="font-size: 12px; color: #5E6672">每筆送出前都會先顯示跑者去向</span>
+</div>
+
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":390,"height":844}}'>
+class Component extends DCLogic {
+  initState() {
+    return {
+      inning: 1, outs: 0, us: 0, them: 0, halfStart: 0,
+      bases: [null, null, null], bat: 0,
+      lineup: [
+        { num: '7', name: '陳柏宇', pos: '中' },
+        { num: '4', name: '林冠廷', pos: '二' },
+        { num: '10', name: '王承恩', pos: '游' },
+        { num: '24', name: '張家豪', pos: '一' },
+        { num: '31', name: '李宗翰', pos: '三' },
+        { num: '12', name: '黃俊傑', pos: '捕' },
+        { num: '8', name: '吳哲維', pos: '右' },
+        { num: '5', name: '劉育成', pos: '左' },
+        { num: '18', name: '蔡明軒', pos: '投' }
+      ],
+      bench: [{ num: '22', name: '許志明' }, { num: '15', name: '鄭凱文' }],
+      step: 'cat', cat: null, type: null, pos: null, plan: [], mode: 'pa',
+      history: [], log: [], subOpen: false
+    };
+  }
+
+  C() {
+    return {
+      BN: ['本壘', '一壘', '二壘', '三壘'],
+      POS: [
+        { p: '中', full: '中外', x: 160, y: 28 }, { p: '左', full: '左外', x: 54, y: 62 },
+        { p: '右', full: '右外', x: 266, y: 62 }, { p: '游', full: '游擊', x: 112, y: 112 },
+        { p: '二', full: '二壘', x: 208, y: 112 }, { p: '三', full: '三壘', x: 58, y: 172 },
+        { p: '一', full: '一壘', x: 262, y: 172 }, { p: '投', full: '投手', x: 160, y: 160 },
+        { p: '捕', full: '捕手', x: 160, y: 212 }
+      ],
+      OUT_T: [
+        { t: '三振', pos: 'no' }, { t: '滾地', pos: 'req' }, { t: '飛球', pos: 'req' },
+        { t: '平飛', pos: 'req' }, { t: '觸擊', pos: 'req' }, { t: '其他出局', pos: 'req' }
+      ],
+      ON_T: [
+        { t: '一安', n: 1, pos: 'opt' }, { t: '二安', n: 2, pos: 'opt' }, { t: '三安', n: 3, pos: 'opt' },
+        { t: '全壘打', n: 4, pos: 'opt' }, { t: '四壞', pos: 'no' }, { t: '觸身', pos: 'no' },
+        { t: '失誤上壘', pos: 'req' }, { t: '野選', pos: 'req' }, { t: '不死三振', pos: 'no' }
+      ]
+    };
+  }
+
+  typeInfo(cat, t) {
+    const c = this.C();
+    return (cat === 'out' ? c.OUT_T : c.ON_T).find(x => x.t === t) || {};
+  }
+
+  snap(step) {
+    const s = this.state;
+    return JSON.parse(JSON.stringify({
+      inning: s.inning, outs: s.outs, us: s.us, them: s.them, halfStart: s.halfStart,
+      bases: s.bases, bat: s.bat, lineup: s.lineup, bench: s.bench, log: s.log, step: step
+    }));
+  }
+
+  pushHist(step) {
+    return this.state.history.concat([this.snap(step)]).slice(-40);
+  }
+
+  buildPlan(cat, type, mode) {
+    const s = this.state;
+    const rows = [];
+    const runners = [];
+    for (let b = 1; b <= 3; b++) {
+      const r = s.bases[b - 1];
+      if (r) runners.push({ key: 'r' + b, slot: r.slot, name: r.name, from: b });
+    }
+    if (mode === 'event') {
+      runners.forEach(r => { r.to = r.from; r.def = r.from; r.reason = null; rows.push(r); });
+      return rows;
+    }
+    const info = this.typeInfo(cat, type);
+    const bTo = cat === 'out' ? -1 : (info.n || 1);
+    rows.push({ key: 'b', slot: s.bat, name: s.lineup[s.bat].name, from: 0, to: bTo, def: bTo, reason: null });
+    runners.forEach(r => {
+      let to = r.from;
+      if (cat === 'on') {
+        if (info.n) {
+          to = Math.min(r.from + info.n, 4);
+        } else {
+          let forced = true;
+          for (let b = 1; b < r.from; b++) { if (!s.bases[b - 1]) forced = false; }
+          if (forced) to = r.from + 1;
+        }
+      }
+      r.to = to; r.def = to; r.reason = null;
+      rows.push(r);
+    });
+    return rows;
+  }
+
+  reasonList(row, mode) {
+    if (row.key === 'b') return [];
+    if (mode === 'event') {
+      if (row.to === row.from) return [];
+      return row.to === -1 ? ['盜壘失敗', '牽制出局', '跑壘出局'] : ['盜壘', '暴投', '捕逸', '失誤'];
+    }
+    if (row.to === row.def) return [];
+    return row.to === -1 ? ['封殺', '觸殺', '回壘不及'] : ['趁傳球', '失誤', '暴投'];
+  }
+
+  toLabel(to, from) {
+    const BN = this.C().BN;
+    if (to === -1) return '出局';
+    if (to === 4) return '得分';
+    if (to === from && from > 0) return '留' + BN[from];
+    return '上' + BN[to];
+  }
+
+  playText() {
+    const s = this.state;
+    const t = s.type, p = s.pos || '';
+    if (s.cat === 'out') {
+      if (t === '三振') return '三振';
+      const sh = { '滾地': '滾', '飛球': '飛', '平飛': '平飛', '觸擊': '觸擊', '其他出局': '出局' }[t];
+      return p ? p + sh : t;
+    }
+    if (['一安', '二安', '三安', '全壘打'].indexOf(t) >= 0) return p + t;
+    if (t === '失誤上壘') return p + '失誤上壘';
+    if (t === '野選') return p + '野選上壘';
+    if (t === '不死三振') return '不死三振上壘';
+    return t;
+  }
+
+  goRunners(pos, typeOverride) {
+    const s = this.state;
+    const t = typeOverride || s.type;
+    this.setState({ type: t, pos: pos, step: 'runners', mode: 'pa', plan: this.buildPlan(s.cat, t, 'pa') });
+  }
+
+  conflictOf(plan) {
+    const seen = {};
+    for (const r of plan) {
+      if (r.to >= 1 && r.to <= 3) {
+        if (seen[r.to]) return '兩位跑者在同一個壘包（' + this.C().BN[r.to] + '），請調整';
+        seen[r.to] = true;
+      }
+    }
+    return '';
+  }
+
+  confirm() {
+    const s = this.state;
+    const plan = s.plan;
+    if (this.conflictOf(plan)) return;
+    const BN = this.C().BN;
+    const history = this.pushHist('cat');
+    const bases = [null, null, null];
+    let outsInPlay = 0, runs = 0;
+    const scorers = [], moved = [], outNames = [];
+    let batterOut = false, forceOut = false, tagOut = false;
+    plan.forEach(r => {
+      if (r.to === -1) {
+        outsInPlay++;
+        if (r.key === 'b') batterOut = true;
+        else outNames.push(BN[r.from] + '跑者' + r.name + ' ' + (r.reason || '出局'));
+        if (r.reason === '封殺') forceOut = true;
+        if (r.reason === '觸殺') tagOut = true;
+      } else if (r.to === 4) {
+        runs++;
+        scorers.push(r.name + (r.key !== 'b' && r.reason ? '（' + r.reason + '）' : ''));
+      } else {
+        bases[r.to - 1] = { slot: r.slot, name: r.name };
+        if (r.key !== 'b' && r.to !== r.from) moved.push(r.name + ' 上' + BN[r.to] + (r.reason ? '（' + r.reason + '）' : ''));
+      }
+    });
+    let outs = Math.min(s.outs + outsInPlay, 3);
+    const halfOver = outs === 3;
+    let voidRuns = false;
+    if (halfOver && runs > 0 && s.outs < 3 && (batterOut || forceOut)) voidRuns = true;
+    const counted = voidRuns ? 0 : runs;
+    const batter = s.lineup[s.bat];
+    const tags = [];
+    let text, rbi = 0;
+    if (s.mode === 'pa') {
+      text = this.playText();
+      if (outsInPlay >= 3) tags.push('三殺'); else if (outsInPlay === 2) tags.push('雙殺');
+      if (s.type === '飛球' && counted > 0 && batterOut) tags.push('犧飛');
+      if (s.type === '觸擊' && batterOut && outsInPlay === 1 && (moved.length + counted) > 0) tags.push('犧觸');
+      if (s.type !== '失誤上壘' && outsInPlay < 2) rbi = counted;
+      if (rbi) tags.push('打點 ' + rbi);
+    } else {
+      text = '跑壘事件';
+    }
+    const sub = [];
+    if (scorers.length) sub.push(scorers.join('、') + ' 得分');
+    if (moved.length) sub.push(moved.join('、'));
+    if (outNames.length) sub.push(outNames.join('、'));
+    if (voidRuns) sub.push('第三出局為打者出局或封殺，本球得分不算');
+    if (halfOver && tagOut && runs > 0 && !voidRuns) sub.push('觸殺造成第三出局：跑者要先踩本壘，得分才算');
+    let bat = s.bat;
+    if (s.mode === 'pa') bat = (s.bat + 1) % 9;
+    else if (halfOver) sub.push('第 ' + (s.bat + 1) + ' 棒 ' + batter.name + ' 下一局第一個打擊，這次不算打席');
+    const head = s.inning + ' 局上・' + (s.mode === 'pa' ? '第 ' + (s.bat + 1) + ' 棒 ' + batter.name : '打者 ' + batter.name + ' 打擊中');
+    const entry = { head: head, text: text, tags: tags.join('・'), sub: sub.join('；') };
+    this.setState({
+      history: history, log: [entry].concat(s.log), bases: halfOver ? [null, null, null] : bases,
+      outs: outs, us: s.us + counted, bat: bat, step: halfOver ? 'halfEnd' : 'cat',
+      cat: null, type: null, pos: null, plan: [], mode: 'pa', subOpen: false
+    });
+  }
+
+  renderVals() {
+    if (!this.state || !this.state.lineup) this.state = this.initState();
+    const s = this.state;
+    const c = this.C();
+    const BN = c.BN;
+    const self = this;
+
+    const outDots = [0, 1, 2].map(i => ({
+      style: 'width: 14px; height: 14px; border-radius: 7px; display: inline-block; box-sizing: border-box; border: 2px solid #E0A526; background: ' + (i < s.outs ? '#E0A526' : 'transparent')
+    }));
+
+    const bp = [{ x: 181, y: 95, cx: 136, cy: 114 }, { x: 110, y: 24, cx: 126, cy: 12 }, { x: 39, y: 95, cx: 4, cy: 114 }];
+    const baseViews = bp.map((p, i) => {
+      const r = s.bases[i];
+      return {
+        occupied: !!r, name: r ? r.name : '',
+        baseStyle: 'position: absolute; left: ' + (p.x - 9) + 'px; top: ' + (p.y - 9) + 'px; width: 18px; height: 18px; transform: rotate(45deg); box-sizing: border-box; border: 2px solid ' + (r ? '#2F6B4F' : '#B3A88F') + '; background: ' + (r ? '#2F6B4F' : '#FFFFFF'),
+        chipStyle: 'position: absolute; left: ' + p.cx + 'px; top: ' + p.cy + 'px; width: 80px; text-align: center; padding: 3px 0; border-radius: 12px; background: #2F6B4F; color: #FFFFFF; font-size: 13px; font-weight: 500'
+      };
+    });
+
+    const batter = s.lineup[s.bat];
+    const posFull = {};
+    c.POS.forEach(p => { posFull[p.p] = p.full; });
+
+    const benchItems = s.bench.map((b, i) => ({
+      num: b.num, name: b.name,
+      pick: () => {
+        const st = self.state;
+        const history = self.pushHist('cat');
+        const old = st.lineup[st.bat];
+        const lineup = st.lineup.map((x, k) => k === st.bat ? { num: b.num, name: b.name, pos: null } : x);
+        const bench = st.bench.filter((x, k) => k !== i);
+        const entry = { head: st.inning + ' 局上・第 ' + (st.bat + 1) + ' 棒', text: '代打 ' + b.name, tags: '', sub: '替換 ' + old.name + '（' + (posFull[old.pos] || '') + '），守位待換局前補齊' };
+        self.setState({ history: history, lineup: lineup, bench: bench, subOpen: false, log: [entry].concat(st.log) });
+      }
+    }));
+
+    const isCat = s.step === 'cat', isType = s.step === 'type', isPos = s.step === 'pos', isRunners = s.step === 'runners', isHalfEnd = s.step === 'halfEnd';
+
+    const crumbParts = [];
+    if (s.mode === 'event') crumbParts.push('跑壘事件');
+    else {
+      if (s.cat) crumbParts.push(s.cat === 'on' ? '上壘' : '出局');
+      if (s.type) crumbParts.push(s.type);
+      if (s.pos) crumbParts.push(posFull[s.pos]);
+    }
+
+    const back = () => {
+      const st = self.state;
+      if (st.step === 'type') self.setState({ step: 'cat', cat: null, type: null });
+      else if (st.step === 'pos') self.setState({ step: 'type', type: null, pos: null });
+      else if (st.step === 'runners') {
+        if (st.mode === 'event') self.setState({ step: 'cat', mode: 'pa', plan: [] });
+        else if (self.typeInfo(st.cat, st.type).pos === 'no') self.setState({ step: 'type', type: null, plan: [] });
+        else self.setState({ step: 'pos', pos: null, plan: [] });
+      }
+    };
+
+    const ukOK = !s.bases[0] || s.outs === 2;
+    const typeList = s.cat === 'out' ? c.OUT_T : c.ON_T;
+    const typeItems = typeList.map((t, i) => {
+      const disabled = t.t === '不死三振' && !ukOK;
+      const wide = t.t === '三振';
+      const bg = s.cat === 'out' ? '#9E3B1B' : '#2F6B4F';
+      const primary = wide || (s.cat === 'on' && i < 4);
+      return {
+        label: t.t, disabled: disabled,
+        style: (wide ? 'grid-column: 1 / -1; height: 64px; font-size: 20px; ' : 'height: 56px; font-size: 16px; ') + 'border-radius: 12px; font-weight: 700; ' + (primary ? 'border: none; background: ' + bg + '; color: #FFFFFF' : 'border: 1px solid #CFC6B3; background: #FFFFFF; color: #1B2430'),
+        pick: () => {
+          if (t.pos === 'no') self.goRunners(null, t.t);
+          else self.setState({ step: 'pos', type: t.t });
+        }
+      };
+    });
+    let typeNote = '';
+    if (s.cat === 'on') typeNote = ukOK ? '不死三振：依聯盟規則，打者安全上壘才選這裡；紀錄上仍算三振。' : '不死三振：一壘有人且未滿兩出局時不成立。';
+    if (s.cat === 'out') typeNote = '三振不用選守位，直接進入確認。';
+
+    const posItems = c.POS.map(p => ({
+      p: p.p, full: p.full,
+      style: 'position: absolute; left: ' + (p.x - 30) + 'px; top: ' + (p.y - 22) + 'px; width: 60px; height: 44px; border-radius: 10px; border: 1px solid #1B2430; background: #FFFFFF; font-size: 15px; font-weight: 700; color: #1B2430',
+      pick: () => self.goRunners(p.p)
+    }));
+    const posOptional = s.cat === 'on' && self.typeInfo(s.cat, s.type).pos === 'opt';
+    let posTitle = '③ 哪個守位處理這球？';
+    if (s.cat === 'on') posTitle = posOptional ? '③ 擊球方向（可略過）' : (s.type === '失誤上壘' ? '③ 哪位野手失誤？' : '③ 哪個守位處理這球？');
+
+    const conflict = this.conflictOf(s.plan);
+    const changedAny = s.plan.some(r => r.to !== r.from);
+    const planRows = s.plan.map(r => {
+      let vals;
+      if (r.key === 'b') vals = s.cat === 'out' ? [-1] : [1, 2, 3, 4, -1];
+      else { vals = []; for (let v = r.from; v <= 4; v++) vals.push(v); vals.push(-1); }
+      const setTo = (v) => {
+        const st = self.state;
+        const plan = st.plan.map(x => {
+          if (x.key !== r.key) return x;
+          const nx = Object.assign({}, x, { to: v });
+          const list = self.reasonList(nx, st.mode);
+          nx.reason = list.length ? (list.indexOf(x.reason) >= 0 ? x.reason : list[0]) : null;
+          return nx;
+        });
+        self.setState({ plan: plan });
+      };
+      const opts = vals.map(v => {
+        const sel = r.to === v;
+        let bg = '#1B2430';
+        if (v === -1) bg = '#9E3B1B';
+        if (v === 4) bg = '#2F6B4F';
+        let label = v === -1 ? '出局' : v === 4 ? '得分' : (v === r.from ? '留' : BN[v]);
+        return {
+          label: label,
+          style: 'flex-grow: 1; flex-basis: 0; height: 44px; border-radius: 10px; font-size: 14px; font-weight: 700; ' + (sel ? 'border: none; background: ' + bg + '; color: #FFFFFF' : 'border: 1px solid #CFC6B3; background: #FFFFFF; color: #1B2430'),
+          pick: () => setTo(v)
+        };
+      });
+      const reasons = self.reasonList(r, s.mode).map(x => ({
+        label: x,
+        style: 'height: 36px; padding: 0 12px; border-radius: 18px; font-size: 13px; ' + (r.reason === x ? 'border: none; background: #1B2430; color: #FFFFFF' : 'border: 1px solid #CFC6B3; background: #FFFFFF; color: #1B2430'),
+        pick: () => {
+          const st = self.state;
+          self.setState({ plan: st.plan.map(y => y.key === r.key ? Object.assign({}, y, { reason: x }) : y) });
+        }
+      }));
+      const changed = r.to !== r.def;
+      return {
+        title: r.key === 'b' ? '打者 ' + r.name : BN[r.from] + '跑者 ' + r.name,
+        defLabel: s.mode === 'event' ? '原在' + BN[r.from] : '預設：' + self.toLabel(r.def, r.from),
+        opts: opts, reasons: reasons, showReasons: reasons.length > 0,
+        boxStyle: 'padding: 10px 12px; border-radius: 12px; background: #FFFFFF; display: flex; flex-direction: column; gap: 8px; border: ' + (changed ? '2px solid #9E3B1B' : '1px solid #DDD5C4')
+      };
+    });
+    const hasRunners = s.bases.some(b => !!b);
+    const runnerTitle = s.mode === 'event' ? '打席中的跑壘事件：點有動的跑者' : (hasRunners ? '④ 跑者確認：預設沒問題就直接送出，有例外再點' : '④ 確認送出');
+
+    const halfRuns = s.us - s.halfStart;
+    const used = s.lineup.map(x => x.pos).filter(Boolean);
+    const openPos = c.POS.filter(p => used.indexOf(p.p) < 0);
+    const missing = s.lineup.map((x, i) => ({ x: x, i: i })).filter(o => !o.x.pos).map(o => ({
+      label: '第 ' + (o.i + 1) + ' 棒 ' + o.x.name,
+      opts: openPos.map(p => ({
+        label: p.full,
+        pick: () => {
+          const st = self.state;
+          self.setState({ lineup: st.lineup.map((y, k) => k === o.i ? Object.assign({}, y, { pos: p.p }) : y) });
+        }
+      }))
+    }));
+
+    return {
+      inningLabel: '第 ' + s.inning + ' 局上・龍安進攻' + (isHalfEnd ? '（半局結束）' : ''),
+      outDots: outDots, us: s.us, them: s.them, baseViews: baseViews,
+      batSlot: s.bat + 1, batterNum: batter.num, batterName: batter.name,
+      batterPos: batter.pos ? posFull[batter.pos] : '代打・未排守位',
+      batterPosStyle: 'font-size: 13px; font-weight: 500; color: ' + (batter.pos ? '#5E6672' : '#9E3B1B'),
+      lockBatter: !isCat || s.bench.length === 0,
+      noEvent: !isCat || !hasRunners,
+      toggleSub: () => self.setState({ subOpen: !self.state.subOpen }),
+      startEvent: () => self.setState({ mode: 'event', step: 'runners', plan: self.buildPlan(null, null, 'event'), subOpen: false }),
+      subOpen: s.subOpen && isCat, benchItems: benchItems, benchEmpty: s.bench.length === 0,
+      showCrumb: isType || isPos || isRunners, crumb: crumbParts.join(' › '), back: back,
+      isCat: isCat, isType: isType, isPos: isPos, isRunners: isRunners, isHalfEnd: isHalfEnd,
+      pickOn: () => self.setState({ step: 'type', cat: 'on', subOpen: false }),
+      pickOut: () => self.setState({ step: 'type', cat: 'out', subOpen: false }),
+      typeTitle: s.cat === 'out' ? '② 怎麼出局？' : '② 怎麼上壘？',
+      typeItems: typeItems, typeNote: typeNote,
+      posTitle: posTitle, posItems: posItems, posOptional: posOptional, skipPos: () => self.goRunners(null),
+      runnerTitle: runnerTitle, showResult: s.mode === 'pa' && isRunners, resultText: isRunners && s.mode === 'pa' ? '打者：' + this.playText() : '',
+      planRows: planRows, conflict: conflict,
+      cannotConfirm: !!conflict || (s.mode === 'event' && !changedAny),
+      confirmLabel: s.mode === 'event' ? '確認跑壘事件' : '確認，下一位打者',
+      confirm: () => self.confirm(),
+      halfTitle: '第 ' + s.inning + ' 局上結束', halfRuns: halfRuns,
+      missing: missing, hasMissing: missing.length > 0,
+      nextInning: () => {
+        const st = self.state;
+        if (st.lineup.some(x => !x.pos)) return;
+        self.setState({ history: self.pushHist('halfEnd'), inning: st.inning + 1, outs: 0, bases: [null, null, null], halfStart: st.us, step: 'cat' });
+      },
+      undo: () => {
+        const st = self.state;
+        if (!st.history.length) return;
+        const prev = st.history[st.history.length - 1];
+        self.setState(Object.assign({}, prev, { history: st.history.slice(0, -1), cat: null, type: null, pos: null, plan: [], mode: 'pa', subOpen: false }));
+      },
+      noHistory: s.history.length === 0,
+      logs: s.log, noLog: s.log.length === 0
+    };
+  }
+}
+</script>
+</body>
+</html>

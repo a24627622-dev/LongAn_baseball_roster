@@ -1,0 +1,333 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<title>打席與調度串接</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0;background:#E6E0D2;font-family:'Noto Sans TC',sans-serif;color:#1B2430}
+button{font-family:inherit;cursor:pointer}
+button:disabled{cursor:not-allowed;opacity:.35}
+a{color:#9E3B1B}a:hover{color:#7A2D14}
+</style>
+</helmet>
+<div style="width: 900px; height: 904px; box-sizing: border-box; padding: 30px; background: #E6E0D2; display: flex; gap: 30px; font-family: 'Noto Sans TC', sans-serif; color: #1B2430">
+
+<div style="position: relative; width: 390px; height: 844px; flex-shrink: 0; border-radius: 28px; overflow: hidden; background: #F6F3EC; border: 1px solid #C9BFA8; display: flex; flex-direction: column">
+
+<sc-if value="{{showPA}}" hint-placeholder-val="{{true}}">
+<div style="background: #1B2430; color: #F6F3EC; padding: 16px 16px 12px; display: flex; flex-direction: column; gap: 8px">
+<div style="display: flex; justify-content: space-between; align-items: center">
+<span style="font-size: 14px; font-weight: 500">{{sc.header}}</span>
+<button style="{{adjustStyle}}">調度</button>
+</div>
+<div style="display: flex; justify-content: space-between; align-items: center">
+<div style="display: flex; align-items: baseline; gap: 10px">
+<span style="font-size: 14px; color: #B9C1CC">龍安</span>
+<span style="font-size: 28px; font-weight: 700">{{sc.score}}</span>
+<span style="font-size: 14px; color: #B9C1CC">對手</span>
+</div>
+<div style="display: flex; gap: 6px; align-items: center">
+<span style="font-size: 12px; color: #B9C1CC">出局</span>
+<sc-for list="{{outDots}}" as="d" hint-placeholder-count="3"><span style="{{d.style}}"></span></sc-for>
+</div>
+</div>
+</div>
+
+<div style="position: relative; width: 220px; height: 170px; align-self: center; flex-shrink: 0">
+<div style="position: absolute; left: 60px; top: 40px; width: 100px; height: 100px; transform: rotate(45deg); box-sizing: border-box; border: 2px solid #D8CFBC"></div>
+<sc-for list="{{baseViews}}" as="b" hint-placeholder-count="3">
+<div style="{{b.baseStyle}}"></div>
+<sc-if value="{{b.occupied}}" hint-placeholder-val="{{false}}">
+<button style="{{b.chipStyle}}">{{b.name}}</button>
+</sc-if>
+</sc-for>
+</div>
+<sc-if value="{{sc.runnerNote}}" hint-placeholder-val="{{false}}">
+<div style="margin: -4px 16px 6px; font-size: 12px; color: #5E6672; text-align: center">{{sc.runnerNote}}</div>
+</sc-if>
+
+<div style="margin: 0 16px; padding: 10px 12px; background: #FFFFFF; border: 1px solid #DDD5C4; border-radius: 12px; display: flex; align-items: center; gap: 10px">
+<div style="flex-grow: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px">
+<span style="font-size: 12px; color: #5E6672">{{sc.b.label}}</span>
+<span style="font-size: 17px; font-weight: 700">{{sc.b.name}}</span>
+<sc-if value="{{sc.b.tag}}" hint-placeholder-val="{{false}}"><span style="{{batterTagStyle}}">{{sc.b.tag}}</span></sc-if>
+<sc-if value="{{isDef}}" hint-placeholder-val="{{false}}"><span style="font-size: 13px; color: #1B2430">投手：<b>{{sc.pitcher}}</b></span></sc-if>
+</div>
+<sc-if value="{{isOff}}" hint-placeholder-val="{{true}}">
+<button style="{{phStyle}}">代打</button>
+</sc-if>
+</div>
+
+<div style="margin: 12px 16px 0; display: flex; gap: 10px">
+<button style="flex-grow: 1; flex-basis: 0; height: 96px; border-radius: 14px; border: none; background: #2F6B4F; color: #FFFFFF; font-size: 22px; font-weight: 700">上壘</button>
+<button style="flex-grow: 1; flex-basis: 0; height: 96px; border-radius: 14px; border: none; background: #9E3B1B; color: #FFFFFF; font-size: 22px; font-weight: 700">出局</button>
+</div>
+<div style="margin: 10px 16px 0; font-size: 12px; color: #8A8F96; text-align: center">（打席輸入流程同前一個範例）</div>
+
+<div style="flex-grow: 1"></div>
+<div style="padding: 10px 16px 16px; border-top: 1px solid #DDD5C4; background: #FFFFFF">
+<button style="{{undoStyle}}">復原上一筆</button>
+</div>
+
+<sc-if value="{{isSheet}}" hint-placeholder-val="{{false}}">
+<div style="position: absolute; left: 0; top: 0; width: 390px; height: 844px; background: rgba(20, 24, 30, 0.45); display: flex; flex-direction: column; justify-content: flex-end">
+<div style="background: #FFFFFF; border-radius: 18px 18px 0 0; padding: 16px 16px 22px; display: flex; flex-direction: column; gap: 10px">
+<div style="font-size: 12px; font-weight: 700; color: #7A4A00">調度・① 先換人</div>
+<div style="font-size: 17px; font-weight: 700">{{sc.sheet.title}}</div>
+<div style="font-size: 13px; color: #5E6672">{{sc.sheet.hint}}</div>
+<sc-for list="{{sheetItems}}" as="it" hint-placeholder-count="2">
+<button style="{{it.style}}">{{it.label}} <span style="font-size: 12px; color: #5E6672">{{it.note}}</span></button>
+</sc-for>
+<button style="height: 44px; border-radius: 10px; border: none; background: #EDE8DC; font-size: 15px; color: #1B2430">取消</button>
+</div>
+</div>
+</sc-if>
+</sc-if>
+
+<sc-if value="{{isAssign}}" hint-placeholder-val="{{false}}">
+<div style="background: #1B2430; color: #F6F3EC; padding: 16px; display: flex; flex-direction: column; gap: 8px">
+<span style="font-size: 12px; font-weight: 700; color: #E0A526">調度・② 再排守位</span>
+<span style="font-size: 17px; font-weight: 700">{{sc.header}}</span>
+</div>
+<div style="flex-grow: 1; padding: 12px 16px; display: flex; flex-direction: column; gap: 10px">
+<div style="font-size: 13px; color: #5E6672">先點一位球員，再點要去的守位。</div>
+<sc-if value="{{hasUn}}" hint-placeholder-val="{{false}}">
+<div style="display: flex; gap: 6px; flex-wrap: wrap; align-items: center">
+<span style="font-size: 13px; font-weight: 700; color: #9E3B1B">守位未定</span>
+<sc-for list="{{unItems}}" as="u" hint-placeholder-count="1">
+<button style="{{u.style}}">{{u.label}}</button>
+</sc-for>
+</div>
+</sc-if>
+<div style="position: relative; width: 330px; height: 258px; align-self: center; background: #E4EDDF; border-radius: 165px 165px 16px 16px">
+<div style="position: absolute; left: 120px; top: 120px; width: 90px; height: 90px; transform: rotate(45deg); background: #E9DDC4"></div>
+<sc-for list="{{posItems}}" as="p" hint-placeholder-count="9">
+<button style="{{p.style}}">
+<span style="font-size: 11px; opacity: .8">{{p.label}}</span>
+<span style="font-size: 13px; font-weight: 700">{{p.name}}</span>
+</button>
+</sc-for>
+</div>
+<div style="{{checkStyle}}">{{sc.checkText}}</div>
+</div>
+<div style="padding: 10px 16px 16px; border-top: 1px solid #DDD5C4; background: #FFFFFF">
+<button style="{{confirmStyle}}">{{sc.confirmLabel}}</button>
+</div>
+</sc-if>
+
+</div>
+
+<div style="flex-grow: 1; min-width: 0; display: flex; flex-direction: column; gap: 16px">
+<div style="display: flex; flex-direction: column; gap: 6px">
+<div style="font-size: 13px; font-weight: 700; color: #7A4A00">第 {{stepNo}} / {{stepTotal}} 步・{{sc.entry}}</div>
+<h1 style="margin: 0; font-size: 26px; line-height: 1.3">{{sc.title}}</h1>
+<p style="margin: 0; font-size: 15px; line-height: 1.75; color: #3E4652">{{sc.body}}</p>
+</div>
+<div style="display: flex; gap: 8px">
+<button onClick="{{prev}}" disabled="{{atStart}}" style="height: 48px; padding: 0 18px; border-radius: 12px; border: 1px solid #1B2430; background: #FFFFFF; font-size: 15px; color: #1B2430">‹ 上一步</button>
+<button onClick="{{next}}" disabled="{{atEnd}}" style="flex-grow: 1; height: 48px; border-radius: 12px; border: none; background: #1B2430; color: #FFFFFF; font-size: 16px; font-weight: 700">下一步 ›</button>
+</div>
+<div style="display: flex; gap: 6px; flex-wrap: wrap">
+<sc-for list="{{dots}}" as="d" hint-placeholder-count="14">
+<button onClick="{{d.pick}}" aria-label="{{d.aria}}" style="{{d.style}}">{{d.n}}</button>
+</sc-for>
+</div>
+<div style="flex-grow: 1; min-height: 0; display: flex; flex-direction: column; gap: 6px; padding: 14px; background: #FFFFFF; border-radius: 14px; border: 1px solid #D8CFBC; overflow-y: auto">
+<div style="font-size: 13px; font-weight: 700; color: #5E6672">比賽時間軸（打席與調度記在同一條）</div>
+<sc-for list="{{timeline}}" as="t" hint-placeholder-count="4">
+<div style="{{t.rowStyle}}">
+<span style="{{t.tagStyle}}">{{t.tag}}</span>
+<span style="font-size: 14px">{{t.text}}</span>
+</div>
+</sc-for>
+<sc-if value="{{sc.tlNote}}" hint-placeholder-val="{{false}}">
+<div style="font-size: 13px; color: #9E3B1B">{{sc.tlNote}}</div>
+</sc-if>
+</div>
+</div>
+
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":900,"height":904}}'>
+class Component extends DCLogic {
+  T() {
+    return [
+      ['打席', '第 2 棒 林冠廷 一安'],
+      ['打席', '第 3 棒 王承恩 三振'],
+      ['調度', '第 4 棒代打：許志明 替 張家豪'],
+      ['打席', '第 4 棒 許志明 一安，林冠廷上二壘'],
+      ['調度', '代跑：鄭凱文 替 許志明（一壘）'],
+      ['打席', '第 5 棒 李宗翰 游滾，跑者各進一壘'],
+      ['打席', '第 6 棒 黃俊傑 中飛，三出局'],
+      ['調度', '守位：鄭凱文 守一壘'],
+      ['打席', '對手第 1 棒 三振（投手 蔡明軒）'],
+      ['打席', '對手第 2 棒 一安（投手 蔡明軒）'],
+      ['調度', '第 9 棒換投：周家銘 替 蔡明軒']
+    ];
+  }
+
+  S() {
+    const F0 = { '中': '陳柏宇', '左': '劉育成', '右': '吳哲維', '游': '王承恩', '二': '林冠廷', '三': '李宗翰', '一': '張家豪', '投': '蔡明軒', '捕': '黃俊傑' };
+    const F8 = Object.assign({}, F0, { '一': '' });
+    const F9 = Object.assign({}, F0, { '一': '鄭凱文' });
+    const F12 = Object.assign({}, F9, { '投': '周家銘' });
+    const off = { half: 'off', header: '第 5 局上・龍安進攻', score: '2 : 3' };
+    const def = { half: 'def', header: '第 5 局下・龍安守備', score: '2 : 3', outs: 1, bases: ['對手 2 棒', '', ''], b: { label: '對手打擊', name: '對手 第 3 棒', tag: '' } };
+    const b2 = { label: '現在打擊・第 4 棒', name: '#24 張家豪', tag: '一壘' };
+    const b5 = { label: '現在打擊・第 5 棒', name: '#31 李宗翰', tag: '三壘' };
+    return [
+      Object.assign({}, off, { screen: 'pa', outs: 0, bases: ['林冠廷', '', ''], b: { label: '現在打擊・第 3 棒', name: '#10 王承恩', tag: '游擊' }, hl: null, n: 1,
+        entry: '主畫面', title: '平常都在打席輸入畫面',
+        body: '記錄員大部分時間都在這裡記打席。跟之前的範例比，多了兩個調度入口：頂部常駐的「調度」按鈕，和打者卡上的「代打」。' }),
+      Object.assign({}, off, { screen: 'pa', outs: 1, bases: ['林冠廷', '', ''], b: b2, hl: 'ph', n: 2,
+        entry: '入口一：打者卡「代打」', title: '教練要替第 4 棒代打',
+        body: '王承恩三振後輪到第 4 棒。教練喊代打，記錄員直接點打者卡上的「代打」，不用自己去找是哪一棒。' }),
+      Object.assign({}, off, { screen: 'sheet', outs: 1, bases: ['林冠廷', '', ''], b: b2, hl: 'bench', n: 2,
+        sheet: { title: '第 4 棒 張家豪・代打', hint: '進攻中換人：新球員先不排守位，換局前再排。', items: [['#22 許志明', '', true], ['#15 鄭凱文', '', false], ['#33 周家銘', '投手', false]] },
+        entry: '調度畫面（已帶入第 4 棒）', title: '調度畫面已經知道是哪一棒',
+        body: '從打者卡進來，換人對象和種類（代打）都決定好了，記錄員只要選板凳球員。這是調度的「① 先換人」。' }),
+      Object.assign({}, off, { screen: 'pa', outs: 1, bases: ['林冠廷', '', ''], b: { label: '現在打擊・第 4 棒', name: '#22 許志明', tag: '代打・守位未定', red: true }, hl: null, n: 3,
+        entry: '自動回到打席輸入', title: '換完自動回到打席輸入',
+        body: '打者卡已經是許志明。他還沒有守位，先空著，換局前再排。右邊時間軸多了一筆調度，夾在兩個打席中間。' }),
+      Object.assign({}, off, { screen: 'pa', outs: 1, bases: ['許志明', '林冠廷', ''], b: b5, hl: 'runner1', n: 4,
+        entry: '入口二：點壘包上的跑者', title: '替一壘跑者代跑',
+        body: '許志明擊出一安。教練要替他代跑，記錄員直接點壘包上「許志明」的名字。' }),
+      Object.assign({}, off, { screen: 'sheet', outs: 1, bases: ['許志明', '林冠廷', ''], b: b5, hl: 'bench', n: 4,
+        sheet: { title: '一壘跑者 許志明・代跑', hint: '換上的人直接站上一壘，打序接第 4 棒。', items: [['#15 鄭凱文', '', true], ['#33 周家銘', '投手', false]] },
+        entry: '調度畫面（已帶入一壘跑者）', title: '從壘包進來，就是代跑',
+        body: '入口決定了換人的種類：從打者卡進來是代打，從壘包進來是代跑。記錄員不用自己選。' }),
+      Object.assign({}, off, { screen: 'pa', outs: 1, bases: ['鄭凱文', '林冠廷', ''], b: b5, hl: null, n: 5,
+        entry: '自動回到打席輸入', title: '壘包和打序一起更新',
+        body: '一壘上的名字變成鄭凱文，打序第 4 棒也是他。之後他跑回本壘，得分記在鄭凱文；剛才的一安仍然記在許志明。' }),
+      { screen: 'assign', header: '第 5 局上結束', field: F8, un: [['第 4 棒 鄭凱文', true]], ok: false, hl: 'chip', n: 7,
+        checkText: '尚缺守位：一壘\n尚未排守位：第 4 棒 鄭凱文', confirmLabel: '確認守位，開始守備',
+        entry: '入口三：三出局自動跳出', title: '換局前自動帶到排守位',
+        body: '李宗翰、黃俊傑出局，半局結束。第 4 棒還沒有守位，所以工具不會直接進入守備，而是自動帶到「② 再排守位」。原本守一壘的張家豪已經退場，一壘空著。' },
+      { screen: 'assign', header: '第 5 局上結束', field: F9, un: [], ok: true, hl: 'confirm', n: 8,
+        checkText: '守位檢查通過：九個守位齊全、沒有重複', confirmLabel: '確認守位，開始守備',
+        entry: '② 再排守位', title: '點鄭凱文，再點一壘',
+        body: '檢查通過後才能開始守備。如果這半局完全沒有換人，這一步只是按一次確認。' },
+      Object.assign({}, def, { screen: 'pa', pitcher: '蔡明軒', runnerNote: '一壘跑者的責任投手：蔡明軒', hl: 'adjust', n: 10,
+        entry: '入口四：頂部「調度」按鈕', title: '守備中要換投',
+        body: '守備時沒有打者卡的代打可以點，換投從頂部常駐的「調度」按鈕進去。這個按鈕任何時候都能用，板凳用完時也能直接調守位。' }),
+      Object.assign({}, def, { screen: 'sheet', pitcher: '蔡明軒', runnerNote: '一壘跑者的責任投手：蔡明軒', hl: 'bench', n: 10,
+        sheet: { title: '第 9 棒 蔡明軒（投手）・換投', hint: '一般賽制投手在第 9 棒，新投手接第 9 棒。', items: [['#33 周家銘', '投手', true]] },
+        entry: '調度畫面（從打序選投手）', title: '先換人：周家銘接第 9 棒',
+        body: '從「調度」按鈕進來會先看到打序，點第 9 棒蔡明軒，選換投。DH 制的話，投手不在打序，換投就只換投手。' }),
+      { screen: 'assign', header: '第 5 局下・守備中換人', field: F12, un: [], ok: true, hl: 'confirm', n: 10,
+        checkText: '守位檢查通過：九個守位齊全、沒有重複', confirmLabel: '確認守位，繼續比賽',
+        entry: '② 再排守位（守備中強制）', title: '守備中換人，一定要先過守位檢查',
+        body: '新投手預設接投手守位，記錄員確認一次就好。守備中每個打席開始前九個守位都必須齊全，所以這一步不能跳過。' },
+      Object.assign({}, def, { screen: 'pa', pitcher: '周家銘', runnerNote: '一壘跑者的責任投手：蔡明軒（承繼跑者）', hl: null, n: 11,
+        entry: '自動回到打席輸入', title: '承繼跑者自動標記',
+        body: '一壘跑者是蔡明軒放上壘的。他之後如果得分，失分算蔡明軒，不算周家銘。工具照時間軸的先後順序就能判斷。' }),
+      Object.assign({}, def, { screen: 'pa', pitcher: '蔡明軒', runnerNote: '一壘跑者的責任投手：蔡明軒', hl: 'undo', n: 10,
+        tlNote: '已復原：第 9 棒換投（周家銘 替 蔡明軒）',
+        entry: '復原上一筆', title: '復原也包含調度',
+        body: '如果換投點錯，按「復原上一筆」就退回換投前，和復原一個打席一樣。打席和調度記在同一條時間軸上，不需要另外做一套調度的修正功能。' })
+    ];
+  }
+
+  renderVals() {
+    const self = this;
+    const scenes = this.S();
+    const i = (this.state && typeof this.state.i === 'number') ? this.state.i : 0;
+    const sc = Object.assign({ b: { label: '', name: '', tag: '' }, sheet: { title: '', hint: '', items: [] }, runnerNote: '', tlNote: '', pitcher: '', checkText: '', confirmLabel: '', header: '', score: '' }, scenes[i]);
+    const RING = ' box-shadow: 0 0 0 4px #E0A526;';
+    const hl = sc.hl;
+
+    const outs = sc.outs || 0;
+    const outDots = [0, 1, 2].map(k => ({ style: 'width: 14px; height: 14px; border-radius: 7px; display: inline-block; box-sizing: border-box; border: 2px solid #E0A526; background: ' + (k < outs ? '#E0A526' : 'transparent') }));
+
+    const bp = [{ x: 181, y: 90, cx: 132, cy: 110 }, { x: 110, y: 20, cx: 126, cy: 6 }, { x: 39, y: 90, cx: 4, cy: 110 }];
+    const bases = sc.bases || ['', '', ''];
+    const baseViews = bp.map((p, k) => {
+      const nm = bases[k];
+      const ring = (k === 0 && hl === 'runner1') ? RING : '';
+      return {
+        occupied: !!nm, name: nm,
+        baseStyle: 'position: absolute; left: ' + (p.x - 9) + 'px; top: ' + (p.y - 9) + 'px; width: 18px; height: 18px; transform: rotate(45deg); box-sizing: border-box; border: 2px solid ' + (nm ? '#2F6B4F' : '#B3A88F') + '; background: ' + (nm ? '#2F6B4F' : '#FFFFFF'),
+        chipStyle: 'position: absolute; left: ' + p.cx + 'px; top: ' + p.cy + 'px; width: 84px; height: 30px; border-radius: 15px; border: none; background: #2F6B4F; color: #FFFFFF; font-size: 13px; font-weight: 500;' + ring
+      };
+    });
+
+    const btn = 'height: 40px; padding: 0 14px; border-radius: 10px; font-size: 14px; font-weight: 700;';
+    const adjustStyle = btn + ' border: 1px solid #E0A526; background: transparent; color: #F6F3EC;' + (hl === 'adjust' ? RING : '');
+    const phStyle = 'height: 44px; padding: 0 14px; border-radius: 10px; border: 1px solid #CFC6B3; background: #FFFFFF; font-size: 15px; color: #1B2430; flex-shrink: 0;' + (hl === 'ph' ? RING : '');
+    const undoStyle = 'width: 100%; height: 48px; border-radius: 10px; border: 1px solid #1B2430; background: #FFFFFF; font-size: 15px; color: #1B2430;' + (hl === 'undo' ? RING : '');
+    const batterTagStyle = 'font-size: 13px; font-weight: 500; color: ' + (sc.b && sc.b.red ? '#9E3B1B' : '#5E6672');
+
+    const sheetItems = sc.sheet ? sc.sheet.items.map(it => ({
+      label: it[0], note: it[1],
+      style: 'height: 48px; padding: 0 14px; border-radius: 10px; border: 1px solid #CFC6B3; background: #FFFFFF; font-size: 15px; text-align: left; color: #1B2430;' + (it[2] ? RING : '')
+    })) : [];
+
+    const L = { '投': '投手', '捕': '捕手', '一': '一壘', '二': '二壘', '三': '三壘', '游': '游擊', '左': '左外', '中': '中外', '右': '右外' };
+    const FIELD = [
+      { p: '中', x: 165, y: 30 }, { p: '左', x: 55, y: 72 }, { p: '右', x: 275, y: 72 },
+      { p: '游', x: 113, y: 126 }, { p: '二', x: 217, y: 126 }, { p: '三', x: 50, y: 184 },
+      { p: '一', x: 280, y: 184 }, { p: '投', x: 165, y: 176 }, { p: '捕', x: 165, y: 230 }
+    ];
+    const prev = i > 0 ? scenes[i - 1] : null;
+    const posItems = sc.field ? FIELD.map(f => {
+      const nm = sc.field[f.p];
+      const changed = prev && prev.field && prev.field[f.p] !== nm && nm;
+      let look = nm ? 'border: 1px solid #1B2430; background: #FFFFFF; color: #1B2430' : 'border: 2px dashed #9E3B1B; background: #FFF3EE; color: #9E3B1B';
+      if (changed) look = 'border: none; background: #1B2430; color: #FFFFFF';
+      return {
+        label: L[f.p], name: nm || '（空）',
+        style: 'position: absolute; left: ' + (f.x - 40) + 'px; top: ' + (f.y - 24) + 'px; width: 80px; height: 48px; border-radius: 10px; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 0; ' + look
+      };
+    }) : [];
+    const unItems = sc.un ? sc.un.map(u => ({
+      label: u[0],
+      style: 'height: 40px; padding: 0 12px; border-radius: 10px; border: 2px solid #9E3B1B; background: #FFFFFF; color: #9E3B1B; font-size: 14px; font-weight: 700;' + (u[1] && hl === 'chip' ? RING : '')
+    })) : [];
+    const checkStyle = sc.ok
+      ? 'padding: 10px 12px; border-radius: 10px; background: #DDEBE2; color: #1F4D37; font-size: 14px; font-weight: 700'
+      : 'padding: 10px 12px; border-radius: 10px; background: #FFF8E8; border: 1px solid #E8D9B0; color: #7A4A00; font-size: 14px; white-space: pre-line';
+    const confirmStyle = 'width: 100%; height: 52px; border-radius: 12px; border: none; background: #2F6B4F; color: #FFFFFF; font-size: 16px; font-weight: 700;' + (sc.ok ? '' : ' opacity: .35;') + (hl === 'confirm' ? RING : '');
+
+    const T = this.T();
+    const timeline = T.slice(0, sc.n).map((t, k) => {
+      const isSub = t[0] === '調度';
+      const isNew = k === sc.n - 1 && (!prev || prev.n !== sc.n || i === 0);
+      return {
+        tag: t[0], text: t[1],
+        rowStyle: 'display: flex; gap: 8px; align-items: center; padding: 6px 8px; border-radius: 8px; ' + (isNew ? 'background: #FFF3D6;' : 'background: transparent;'),
+        tagStyle: 'font-size: 12px; font-weight: 700; padding: 2px 8px; border-radius: 10px; flex-shrink: 0; ' + (isSub ? 'background: #7A4A00; color: #FFFFFF' : 'background: #E4DDCC; color: #1B2430')
+      };
+    });
+
+    const dots = scenes.map((s, k) => ({
+      n: k + 1, aria: '第 ' + (k + 1) + ' 步',
+      style: 'width: 36px; height: 36px; border-radius: 18px; font-size: 13px; font-weight: 700; ' + (k === i ? 'border: none; background: #1B2430; color: #FFFFFF' : 'border: 1px solid #B3A88F; background: #FFFFFF; color: #1B2430'),
+      pick: () => self.setState({ i: k })
+    }));
+
+    return {
+      sc: sc,
+      showPA: sc.screen === 'pa' || sc.screen === 'sheet',
+      isSheet: sc.screen === 'sheet', isAssign: sc.screen === 'assign',
+      isOff: sc.half === 'off', isDef: sc.half === 'def',
+      outDots: outDots, baseViews: baseViews,
+      adjustStyle: adjustStyle, phStyle: phStyle, undoStyle: undoStyle, batterTagStyle: batterTagStyle,
+      sheetItems: sheetItems,
+      posItems: posItems, unItems: unItems, hasUn: unItems.length > 0, checkStyle: checkStyle, confirmStyle: confirmStyle,
+      timeline: timeline, dots: dots,
+      stepNo: i + 1, stepTotal: scenes.length,
+      atStart: i === 0, atEnd: i === scenes.length - 1,
+      prev: () => self.setState({ i: Math.max(0, i - 1) }),
+      next: () => self.setState({ i: Math.min(scenes.length - 1, i + 1) })
+    };
+  }
+}
+</script>
+</body>
+</html>

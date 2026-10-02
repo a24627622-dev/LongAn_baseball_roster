@@ -8,7 +8,7 @@
   // 簡碼標籤的顏色分類：安打、上壘（沒有打數）、出局
   function badgeClass(kind) {
     if (['1B', '2B', '3B', 'HR'].includes(kind)) return 'hit';
-    if (['BB', 'IBB', 'HBP', 'E', 'FC', 'K_REACH'].includes(kind)) return 'onbase';
+    if (['BB', 'IBB', 'HBP', 'E', 'FC', 'K_REACH', 'CI'].includes(kind)) return 'onbase';
     return 'out';
   }
 
@@ -116,7 +116,8 @@
   }
 
   function battingHTML(game) {
-    const cols = ['AB', 'R', 'H', '2B', '3B', 'HR', 'RBI', 'BB', 'HBP', 'K', 'SB'];
+    // E（失誤）：實況賽事紀錄才有（V01.09.00 起），舊的文字紀錄場次沒有這欄就不顯示
+    const cols = ['AB', 'R', 'H', '2B', '3B', 'HR', 'RBI', 'BB', 'HBP', 'K', 'SB', ...(game.batting.some((b) => 'E' in b) ? ['E'] : [])];
     const rows = game.batting.filter((b) => cols.some((c) => b[c]) || b.appeared);
     const sum = (c) => rows.reduce((a, b) => a + (b[c] || 0), 0);
     let lastSlot = null;

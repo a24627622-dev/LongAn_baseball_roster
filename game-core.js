@@ -138,6 +138,14 @@
   /* ---------- 檢查 ---------- */
   function checkRunnerMoves(s, rows, out) {
     // 同一個壘、超過前位跑者、一球超過三個出局
+    const outs = rows.filter(isOut).length;
+    if (s.outs + outs > 3) out.push(`一球最多只能到三個出局（現在 ${s.outs} 出局，這球記了 ${outs} 個出局）`);
+    rows.forEach((r) => {
+      if (![-1, 1, 2, 3, 4].includes(r.to)) out.push('跑者去向不正確');
+      else if (!isOut(r) && r.to < r.from) out.push(`${BASE_LABEL[r.from]}跑者不能退回 ${BASE_LABEL[r.to]}`);
+    });
+    // 這一球三出局：半局結束、壘包清空，跑者停在哪裡不影響紀錄，不檢查同壘與超前（【修正】雙殺結束半局時卡住）
+    if (s.outs + outs >= 3) return;
     const safe = rows.filter((r) => !isOut(r) && r.to < 4);
     const seen = {};
     safe.forEach((r) => {
@@ -155,12 +163,6 @@
         }
       }
     }
-    const outs = rows.filter(isOut).length;
-    if (s.outs + outs > 3) out.push(`一球最多只能到三個出局（現在 ${s.outs} 出局，這球記了 ${outs} 個出局）`);
-    rows.forEach((r) => {
-      if (![-1, 1, 2, 3, 4].includes(r.to)) out.push('跑者去向不正確');
-      else if (!isOut(r) && r.to < r.from) out.push(`${BASE_LABEL[r.from]}跑者不能退回 ${BASE_LABEL[r.to]}`);
-    });
   }
 
   function validatePA(s, ev, out) {
@@ -423,7 +425,7 @@
     h.items.push({
       type: 'pa', slot: batter.slot, number: batter.number, name: batter.name, kind,
       display: displayOf(kind, ev.pos), desc,
-      runs: counted.length, rbi: isUs ? rbi : null,
+      runs: counted.length, voidedRuns: voided ? scorers.length : 0, rbi: isUs ? rbi : null,
       scorers: counted.map((r) => ({ number: r.runner.number, name: runnerName(s, r.runner) })),
       runnersOut: rows.filter((r) => isOut(r) && r.from > 0).map((r) => ({ number: r.runner.number, name: runnerName(s, r.runner) })),
       outsBefore, outsAfter: Math.min(outsAfter, 3),

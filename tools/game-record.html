@@ -459,7 +459,9 @@
       }
       const head = isRun ? '<div class="crumb"><button class="btn" data-act="back">‹ 取消</button><span class="hint">跑壘事件：點有動的跑者</span></div>'
         : `<div class="hint" style="margin:6px 0">④ 跑者確認：預設沒問題就直接送出，有例外再點</div>`;
-      return `${head}${preview ? `<div style="font-weight:800;margin:4px 0">${esc(preview.display || '')}　${esc(preview.desc || preview.text || '')}</div>` : ''}
+      const voidNote = preview && preview.voidedRuns
+        ? `<div class="warnbox">第三個出局是打者出局或封殺：這一球的得分<b>不算</b>（${preview.voidedRuns} 分取消）。半局結束，跑者停在哪裡都不影響紀錄。</div>` : '';
+      return `${head}${preview ? `<div style="font-weight:800;margin:4px 0">${esc(preview.display || '')}　${esc(preview.desc || preview.text || '')}</div>` : ''}${voidNote}
         ${rows}${extra}
         ${errors.length ? `<div class="errbox">${errors.map(esc).join('<br>')}</div>` : ''}
         <button class="btn dark wide" style="margin-top:8px;height:52px" data-act="submit" ${errors.length ? 'disabled' : ''}>${isRun ? '確認跑壘事件' : '確認，下一位打者'}</button>`;
@@ -506,6 +508,9 @@
           <div id="copy-msg" class="ok"></div>
           <div class="hint" style="margin-top:6px">雲端備份上傳（PR③）完成前，請也按「下載備份檔」留一份原始紀錄。</div>
           <div class="row" style="margin-top:8px"><button class="btn" data-act="backup">下載備份檔</button><button class="btn" data-act="back-main">回到紀錄畫面</button></div></div>
+        <div class="gr-card"><b>結束</b>
+          <div class="hint">確認已經發布到 GitHub，或已經下載備份檔，再清除這台裝置上的紀錄。清除後就能記下一場。</div>
+          <div class="row" style="margin-top:8px"><button class="btn red" data-act="clear-exit">結束，清除這台裝置的紀錄</button><a class="btn" href="index.html">← 球隊管理</a></div></div>
         <h2>預覽（公開的賽事成績頁會長這樣）</h2>
         ${GameView.renderGame(out, GameView.photoMap(players, '../'))}`;
     }
@@ -689,6 +694,11 @@
           push({ t: 'end' }); ui.screen = 'done'; break;
         case 'to-done': ui.screen = 'done'; break;
         case 'back-main': ui.screen = 'main'; break;
+        case 'clear-exit':
+          if (!confirm('確定清除這台裝置上這場的紀錄？\n清除前請確認已經發布到 GitHub，或已經按「下載備份檔」。')) break;
+          store.del(SAVE_KEY); game = null; st = null; resetPA();
+          ui = { screen: 'setup' }; pre.lineupData = null; pre.msg = '';
+          break;
         case 'copy': {
           const ta = $('out-json');
           (navigator.clipboard ? navigator.clipboard.writeText(ta.value) : Promise.reject()).catch(() => { ta.select(); document.execCommand('copy'); })

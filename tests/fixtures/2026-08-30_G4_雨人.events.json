@@ -1,0 +1,1059 @@
+{
+ "_note": "2026-08-30 G4 對雨人，依補正版文字紀錄（tests/fixtures/2026-08-30_G4_雨人.txt）逐筆改寫成實況賽事紀錄的事件。標準答案是賽事戰報（見 tests/test_game_core.js）",
+ "setup": {
+  "id": "2026-08-30_G4_雨人",
+  "date": "2026-08-30",
+  "gameNum": "G4",
+  "opponent": "雨人",
+  "teamName": "龍安",
+  "usBatFirst": true,
+  "dh": false,
+  "lineup": [
+   {
+    "number": "56",
+    "name": "蘇垣華",
+    "pos": "3B"
+   },
+   {
+    "number": "17",
+    "name": "蘇巽雄",
+    "pos": "1B"
+   },
+   {
+    "number": "6",
+    "name": "黃宥憬",
+    "pos": "C"
+   },
+   {
+    "number": "2",
+    "name": "梁佑丞",
+    "pos": "LF"
+   },
+   {
+    "number": "19",
+    "name": "林廷軒",
+    "pos": "SS"
+   },
+   {
+    "number": "91",
+    "name": "黃宥挺",
+    "pos": "RF"
+   },
+   {
+    "number": "12",
+    "name": "陳佳瑋",
+    "pos": "2B"
+   },
+   {
+    "number": "39",
+    "name": "駱家鈞",
+    "pos": "CF"
+   },
+   {
+    "number": "1",
+    "name": "張容基",
+    "pos": "P"
+   }
+  ],
+  "bench": [
+   {
+    "number": "21",
+    "name": "李浩偉"
+   },
+   {
+    "number": "55",
+    "name": "葉展昆"
+   },
+   {
+    "number": "36",
+    "name": "李尊堯"
+   },
+   {
+    "number": "49",
+    "name": "蘇辰雄"
+   }
+  ]
+ },
+ "events": [
+  {
+   "t": "pa",
+   "result": "GROUND",
+   "pos": 4,
+   "runners": [
+    {
+     "from": 0,
+     "to": -1
+    }
+   ]
+  },
+  {
+   "t": "pa",
+   "result": "BB",
+   "pos": null,
+   "runners": [
+    {
+     "from": 0,
+     "to": 1
+    }
+   ]
+  },
+  {
+   "t": "pa",
+   "result": "E",
+   "pos": 5,
+   "runners": [
+    {
+     "from": 0,
+     "to": 2,
+     "reason": "失誤"
+    },
+    {
+     "from": 1,
+     "to": 3,
+     "reason": "失誤"
+    }
+   ]
+  },
+  {
+   "t": "pa",
+   "result": "HBP",
+   "pos": null,
+   "runners": [
+    {
+     "from": 0,
+     "to": 1
+    },
+    {
+     "from": 2,
+     "to": 2
+    },
+    {
+     "from": 3,
+     "to": 3
+    }
+   ]
+  },
+  {
+   "t": "pa",
+   "result": "K",
+   "pos": null,
+   "runners": [
+    {
+     "from": 0,
+     "to": -1
+    },
+    {
+     "from": 1,
+     "to": 1
+    },
+    {
+     "from": 2,
+     "to": 2
+    },
+    {
+     "from": 3,
+     "to": 3
+    }
+   ]
+  },
+  {
+   "t": "pa",
+   "result": "E",
+   "pos": 4,
+   "runners": [
+    {
+     "from": 0,
+     "to": 1
+    },
+    {
+     "from": 1,
+     "to": 2
+    },
+    {
+     "from": 2,
+     "to": 4,
+     "reason": "失誤"
+    },
+    {
+     "from": 3,
+     "to": 4
+    }
+   ]
+  },
+  {
+   "t": "pa",
+   "result": "FLY",
+   "pos": 9,
+   "runners": [
+    {
+     "from": 0,
+     "to": -1
+    },
+    {
+     "from": 1,
+     "to": 1
+    },
+    {
+     "from": 2,
+     "to": 2
+    }
+   ]
+  },
+  {
+   "t": "pa",
+   "result": "GROUND",
+   "pos": 4,
+   "runners": [
+    {
+     "from": 0,
+     "to": -1
+    }
+   ]
+  },
+  {
+   "t": "pa",
+   "result": "1B",
+   "pos": 5,
+   "runners": [
+    {
+     "from": 0,
+     "to": 1
+    }
+   ]
+  },
+  {
+   "t": "run",
+   "runners": [
+    {
+     "from": 1,
+     "to": 2,
+     "reason": "盜壘"
+    }
+   ]
+  },
+  {
+   "t": "pa",
+   "result": "K",
+   "pos": null,
+   "runners": [
+    {
+     "from": 0,
+     "to": -1
+    },
+    {
+     "from": 2,
+     "to": 2
+    }
+   ]
+  },
+  {
+   "t": "pa",
+   "result": "BB",
+   "pos": null,
+   "runners": [
+    {
+     "from": 0,
+     "to": 1
+    },
+    {
+     "from": 2,
+     "to": 2
+    }
+   ]
+  },
+  {
+   "t": "pa",
+   "result": "FLY",
+   "pos": 4,
+   "runners": [
+    {
+     "from": 0,
+     "to": -1
+    },
+    {
+     "from": 1,
+     "to": 1
+    },
+    {
+     "from": 2,
+     "to": 2
+    }
+   ]
+  },
+  {
+   "t": "pa",
+   "result": "BB",
+   "pos": null,
+   "runners": [
+    {
+     "from": 0,
+     "to": 1
+    }
+   ]
+  },
+  {
+   "t": "run",
+   "runners": [
+    {
+     "from": 1,
+     "to": 2,
+     "reason": "盜壘"
+    }
+   ]
+  },
+  {
+   "t": "pa",
+   "result": "BB",
+   "pos": null,
+   "runners": [
+    {
+     "from": 0,
+     "to": 1
+    },
+    {
+     "from": 2,
+     "to": 2
+    }
+   ]
+  },
+  {
+   "t": "note",
+   "text": "雨人更換投手（低肩側投）"
+  },
+  {
+   "t": "run",
+   "runners": [
+    {
+     "from": 1,
+     "to": 2,
+     "reason": "暴投"
+    },
+    {
+     "from": 2,
+     "to": 3,
+     "reason": "暴投"
+    }
+   ]
+  },
+  {
+   "t": "pa",
+   "result": "2B",
+   "pos": 6,
+   "runners": [
+    {
+     "from": 0,
+     "to": 2
+    },
+    {
+     "from": 2,
+     "to": 4
+    },
+    {
+     "from": 3,
+     "to": 4
+    }
+   ]
+  },
+  {
+   "t": "run",
+   "runners": [
+    {
+     "from": 2,
+     "to": 4,
+     "reason": "暴投"
+    }
+   ]
+  },
+  {
+   "t": "pa",
+   "result": "BB",
+   "pos": null,
+   "runners": [
+    {
+     "from": 0,
+     "to": 1
+    }
+   ]
+  },
+  {
+   "t": "run",
+   "runners": [
+    {
+     "from": 1,
+     "to": 2,
+     "reason": "盜壘"
+    }
+   ]
+  },
+  {
+   "t": "pa",
+   "result": "1B",
+   "pos": null,
+   "runners": [
+    {
+     "from": 0,
+     "to": 1
+    },
+    {
+     "from": 2,
+     "to": 2
+    }
+   ]
+  },
+  {
+   "t": "sub",
+   "kind": "PR",
+   "base": 2,
+   "in": {
+    "number": "21",
+    "name": "李浩偉"
+   }
+  },
+  {
+   "t": "pa",
+   "result": "BB",
+   "pos": null,
+   "runners": [
+    {
+     "from": 0,
+     "to": 1
+    },
+    {
+     "from": 1,
+     "to": 2
+    },
+    {
+     "from": 2,
+     "to": 3
+    }
+   ]
+  },
+  {
+   "t": "pa",
+   "result": "FLY",
+   "pos": 7,
+   "runners": [
+    {
+     "from": 0,
+     "to": -1
+    },
+    {
+     "from": 1,
+     "to": 1
+    },
+    {
+     "from": 2,
+     "to": 2
+    },
+    {
+     "from": 3,
+     "to": 4
+    }
+   ]
+  },
+  {
+   "t": "pa",
+   "result": "GROUND",
+   "pos": 4,
+   "runners": [
+    {
+     "from": 0,
+     "to": 2,
+     "reason": "失誤"
+    },
+    {
+     "from": 1,
+     "to": -1,
+     "reason": "封殺"
+    },
+    {
+     "from": 2,
+     "to": 4,
+     "reason": "失誤"
+    }
+   ]
+  },
+  {
+   "t": "pa",
+   "result": "K",
+   "pos": null,
+   "runners": [
+    {
+     "from": 0,
+     "to": -1
+    },
+    {
+     "from": 2,
+     "to": 2
+    }
+   ]
+  },
+  {
+   "t": "pos",
+   "changes": [
+    {
+     "slot": 2,
+     "pos": "1B"
+    }
+   ]
+  },
+  {
+   "t": "pa",
+   "result": "HBP",
+   "pos": null,
+   "runners": [
+    {
+     "from": 0,
+     "to": 1
+    }
+   ]
+  },
+  {
+   "t": "run",
+   "runners": [
+    {
+     "from": 1,
+     "to": 2,
+     "reason": "盜壘"
+    }
+   ]
+  },
+  {
+   "t": "pa",
+   "result": "FLY",
+   "pos": 6,
+   "runners": [
+    {
+     "from": 0,
+     "to": -1
+    },
+    {
+     "from": 2,
+     "to": 3,
+     "reason": "趁接殺"
+    }
+   ]
+  },
+  {
+   "t": "pa",
+   "result": "GROUND",
+   "pos": 6,
+   "runners": [
+    {
+     "from": 0,
+     "to": -1
+    },
+    {
+     "from": 3,
+     "to": -1,
+     "reason": "觸殺"
+    }
+   ]
+  },
+  {
+   "t": "pa",
+   "result": "K",
+   "pos": null,
+   "runners": [
+    {
+     "from": 0,
+     "to": -1
+    }
+   ]
+  },
+  {
+   "t": "sub",
+   "kind": "PH",
+   "in": {
+    "number": "49",
+    "name": "蘇辰雄"
+   }
+  },
+  {
+   "t": "pa",
+   "result": "FLY",
+   "pos": 6,
+   "runners": [
+    {
+     "from": 0,
+     "to": -1
+    }
+   ]
+  },
+  {
+   "t": "pa",
+   "result": "GROUND",
+   "pos": 1,
+   "runners": [
+    {
+     "from": 0,
+     "to": -1
+    }
+   ]
+  },
+  {
+   "t": "pos",
+   "changes": [
+    {
+     "slot": 1,
+     "pos": "P"
+    },
+    {
+     "slot": 9,
+     "pos": "3B"
+    }
+   ]
+  },
+  {
+   "t": "pa",
+   "result": "K",
+   "pos": null,
+   "runners": [
+    {
+     "from": 0,
+     "to": -1
+    }
+   ]
+  },
+  {
+   "t": "pa",
+   "result": "GROUND",
+   "pos": 3,
+   "runners": [
+    {
+     "from": 0,
+     "to": -1
+    }
+   ]
+  },
+  {
+   "t": "pa",
+   "result": "1B",
+   "pos": 6,
+   "runners": [
+    {
+     "from": 0,
+     "to": 1
+    }
+   ]
+  },
+  {
+   "t": "pa",
+   "result": "E",
+   "pos": 6,
+   "runners": [
+    {
+     "from": 0,
+     "to": 1
+    },
+    {
+     "from": 1,
+     "to": 2
+    }
+   ]
+  },
+  {
+   "t": "pa",
+   "result": "1B",
+   "pos": null,
+   "runners": [
+    {
+     "from": 0,
+     "to": 1
+    },
+    {
+     "from": 1,
+     "to": 2
+    },
+    {
+     "from": 2,
+     "to": 3
+    }
+   ]
+  },
+  {
+   "t": "pa",
+   "result": "K_REACH",
+   "pos": null,
+   "runners": [
+    {
+     "from": 0,
+     "to": 1
+    },
+    {
+     "from": 1,
+     "to": 2
+    },
+    {
+     "from": 2,
+     "to": 3
+    },
+    {
+     "from": 3,
+     "to": 4,
+     "reason": "捕逸"
+    }
+   ]
+  },
+  {
+   "t": "pa",
+   "result": "1B",
+   "pos": null,
+   "runners": [
+    {
+     "from": 0,
+     "to": 1
+    },
+    {
+     "from": 1,
+     "to": 2
+    },
+    {
+     "from": 2,
+     "to": 3
+    },
+    {
+     "from": 3,
+     "to": 4
+    }
+   ]
+  },
+  {
+   "t": "pa",
+   "result": "BB",
+   "pos": null,
+   "runners": [
+    {
+     "from": 0,
+     "to": 1
+    },
+    {
+     "from": 1,
+     "to": 2
+    },
+    {
+     "from": 2,
+     "to": 3
+    },
+    {
+     "from": 3,
+     "to": 4
+    }
+   ]
+  },
+  {
+   "t": "pa",
+   "result": "1B",
+   "pos": null,
+   "runners": [
+    {
+     "from": 0,
+     "to": 1
+    },
+    {
+     "from": 1,
+     "to": 2
+    },
+    {
+     "from": 2,
+     "to": 4
+    },
+    {
+     "from": 3,
+     "to": 4
+    }
+   ]
+  },
+  {
+   "t": "pa",
+   "result": "1B",
+   "pos": null,
+   "runners": [
+    {
+     "from": 0,
+     "to": 1
+    },
+    {
+     "from": 1,
+     "to": 2
+    },
+    {
+     "from": 2,
+     "to": 4
+    }
+   ]
+  },
+  {
+   "t": "pa",
+   "result": "OUT",
+   "pos": null,
+   "runners": [
+    {
+     "from": 0,
+     "to": -1
+    },
+    {
+     "from": 1,
+     "to": 1
+    },
+    {
+     "from": 2,
+     "to": 2
+    }
+   ]
+  },
+  {
+   "t": "sub",
+   "kind": "DEF",
+   "slot": 4,
+   "in": {
+    "number": "55",
+    "name": "葉展昆"
+   },
+   "pos": "LF"
+  },
+  {
+   "t": "sub",
+   "kind": "DEF",
+   "slot": 6,
+   "in": {
+    "number": "36",
+    "name": "李尊堯"
+   },
+   "pos": "RF"
+  },
+  {
+   "t": "pa",
+   "result": "GROUND",
+   "pos": 4,
+   "runners": [
+    {
+     "from": 0,
+     "to": -1
+    }
+   ]
+  },
+  {
+   "t": "pa",
+   "result": "K",
+   "pos": null,
+   "runners": [
+    {
+     "from": 0,
+     "to": -1
+    }
+   ]
+  },
+  {
+   "t": "pa",
+   "result": "K",
+   "pos": null,
+   "runners": [
+    {
+     "from": 0,
+     "to": -1
+    }
+   ]
+  },
+  {
+   "t": "pa",
+   "result": "BUNT",
+   "pos": 1,
+   "runners": [
+    {
+     "from": 0,
+     "to": -1
+    }
+   ]
+  },
+  {
+   "t": "pa",
+   "result": "1B",
+   "pos": null,
+   "runners": [
+    {
+     "from": 0,
+     "to": 1
+    }
+   ]
+  },
+  {
+   "t": "pa",
+   "result": "K",
+   "pos": null,
+   "runners": [
+    {
+     "from": 0,
+     "to": -1
+    },
+    {
+     "from": 1,
+     "to": 1
+    }
+   ]
+  },
+  {
+   "t": "pa",
+   "result": "K",
+   "pos": null,
+   "runners": [
+    {
+     "from": 0,
+     "to": -1
+    },
+    {
+     "from": 1,
+     "to": 1
+    }
+   ]
+  },
+  {
+   "t": "pa",
+   "result": "BB",
+   "pos": null,
+   "runners": [
+    {
+     "from": 0,
+     "to": 1
+    }
+   ]
+  },
+  {
+   "t": "run",
+   "runners": [
+    {
+     "from": 1,
+     "to": 3,
+     "reason": "捕逸"
+    }
+   ]
+  },
+  {
+   "t": "pa",
+   "result": "K",
+   "pos": null,
+   "runners": [
+    {
+     "from": 0,
+     "to": -1
+    },
+    {
+     "from": 3,
+     "to": 3
+    }
+   ]
+  },
+  {
+   "t": "pa",
+   "result": "K",
+   "pos": null,
+   "runners": [
+    {
+     "from": 0,
+     "to": -1
+    },
+    {
+     "from": 3,
+     "to": 3
+    }
+   ]
+  },
+  {
+   "t": "pa",
+   "result": "K",
+   "pos": null,
+   "runners": [
+    {
+     "from": 0,
+     "to": -1
+    },
+    {
+     "from": 3,
+     "to": 3
+    }
+   ]
+  },
+  {
+   "t": "pa",
+   "result": "2B",
+   "pos": 9,
+   "runners": [
+    {
+     "from": 0,
+     "to": 2
+    }
+   ]
+  },
+  {
+   "t": "pa",
+   "result": "K",
+   "pos": null,
+   "runners": [
+    {
+     "from": 0,
+     "to": -1
+    },
+    {
+     "from": 2,
+     "to": 2
+    }
+   ]
+  },
+  {
+   "t": "pa",
+   "result": "E",
+   "pos": 9,
+   "runners": [
+    {
+     "from": 0,
+     "to": 1
+    },
+    {
+     "from": 2,
+     "to": 3
+    }
+   ]
+  },
+  {
+   "t": "pa",
+   "result": "K",
+   "pos": null,
+   "runners": [
+    {
+     "from": 0,
+     "to": -1
+    },
+    {
+     "from": 1,
+     "to": 1
+    },
+    {
+     "from": 3,
+     "to": 3
+    }
+   ]
+  },
+  {
+   "t": "pa",
+   "result": "K",
+   "pos": null,
+   "runners": [
+    {
+     "from": 0,
+     "to": -1
+    },
+    {
+     "from": 1,
+     "to": 1
+    },
+    {
+     "from": 3,
+     "to": 3
+    }
+   ]
+  },
+  {
+   "t": "end"
+  }
+ ]
+}

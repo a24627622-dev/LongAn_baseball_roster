@@ -39,11 +39,11 @@ node tests/test_scenarios.js           # 26 項：三大調度情境、規則守
 node tests/test_scenarios.js --repeat 5
 node tests/test_record_engine.js       # 39 項：比賽文字紀錄轉換引擎
 node tests/test_check_data.js          # 44 項：資料檔檢查規則、公告連結、比賽資料對名單
-node tests/test_game_core.js           # 52 項：實況賽事紀錄的計算核心（漏洞清單、8/30 驗收）
+node tests/test_game_core.js           # 53 項：實況賽事紀錄的計算核心（漏洞清單、8/30 驗收）
 node tests/check_data.js               # 不是測試：檢查 data/*.json 與 data/games/*.json
 ```
 
-基準（2026-10-02，V01.09.00 開發中）：19＋28＋26＋39＋44＋52，`check_data` 沒有錯誤。測試數量有增減時，這裡、`tests/README.md`、`docs/測試報告_調度三情境.md` 一起更新。
+基準（2026-10-02，V01.09.00 開發中）：19＋28＋26＋39＋44＋53，`check_data` 沒有錯誤。測試數量有增減時，這裡、`tests/README.md`、`docs/測試報告_調度三情境.md` 一起更新。
 
 ### 測試放哪裡
 

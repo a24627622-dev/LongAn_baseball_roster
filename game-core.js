@@ -6,7 +6,7 @@
    - 復原上一筆 ＝ 刪掉最後一筆再重算
    - 雲端備份上傳的也是這一串紀錄
    紀錄的種類：
-     { t:'pa',   result, pos, runners:[{from,to,reason}], rbi?, sf?, sac?, runsBeforeTag? }  打席
+     { t:'pa',   result, pos, runners:[{from,to,reason}], rbi?, sf?, sac?, runsBeforeTag?, bunt? }  打席
      { t:'run',  runners:[{from,to,reason}] }                                            跑壘事件（盜壘、暴投…）
      { t:'sub',  kind:'PH'|'PR'|'P'|'DEF', in:{number,name}, slot?, base?, pos? }       換人
      { t:'pos',  changes:[{slot,pos}] }                                                  守位調整
@@ -131,7 +131,7 @@
       return row;
     });
     const ev = { t: 'pa', result, pos: pos == null ? null : pos, runners };
-    ['rbi', 'sf', 'sac', 'runsBeforeTag'].forEach((k) => { if (opts[k] !== undefined) ev[k] = opts[k]; });
+    ['rbi', 'sf', 'sac', 'runsBeforeTag', 'bunt'].forEach((k) => { if (opts[k] !== undefined) ev[k] = opts[k]; });
     return ev;
   }
 
@@ -333,8 +333,11 @@
       K: '三振出局', K_REACH: '不死三振，打者上壘',
       GROUND: `${where}滾地球出局`, FLY: `${where}高飛球接殺`, LINE: `${where}平飛球接殺`, BUNT: `${where}觸擊出局`, OUT: '出局',
     }[ev.result] || '';
+    // 觸擊安打：成績照樣是安打，只有文字不同（一安寫「捕手方向觸擊安打」，長打保留壘數）
+    let hitText = base;
+    if (ev.bunt && HITS[ev.result]) hitText = ev.result === '1B' ? `${dir}觸擊安打` : base.replace('安打', '觸擊安打');
     const tag = { SF: '（高飛犧牲打）', SAC: '（犧牲觸擊）', DP: '（雙殺）', TP: '（三殺）' }[kind] || '';
-    return base.trim() + tag + runnerNotes(s, ev.runners, true);
+    return hitText.trim() + tag + runnerNotes(s, ev.runners, true);
   }
 
   /* 跑者的特別狀況：有原因或出局的才寫（正常推進不寫，避免太長） */

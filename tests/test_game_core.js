@@ -172,6 +172,16 @@ test('B3 安打帶回的分算打點，暴投、捕逸跑回來的不算', () =>
   assert.strictEqual(m.score.us, 1);
 });
 
+test('觸擊安打：勾「觸擊」時文字轉播寫「觸擊安打」，成績照樣是一安', () => {
+  const s = at(fresh(), 0, [null, null, null]);
+  const n = GC.apply(s, PA(s, '1B', 2, { bunt: true }));
+  const it = n.halves[0].items.slice(-1)[0];
+  assert.match(it.desc, /捕手方向觸擊安打/);
+  assert.deepStrictEqual([it.display, usBatting(n, '11').H, usBatting(n, '11').AB], ['一安', 1, 1]);
+  const plain = GC.apply(s, PA(s, '1B', 2));
+  assert.doesNotMatch(plain.halves[0].items.slice(-1)[0].desc, /觸擊/);
+});
+
 console.log('\nC 跑者推進');
 
 test('C1 一壘有人滾地出局：被擠的一壘跑者預設進一個壘；沒被擠的三壘跑者預設不動', () => {

@@ -138,6 +138,9 @@
     const RUN_ADV = ['盜壘', '暴投', '捕逸', '投手犯規', '失誤'];
     const RUN_OUT = ['盜壘失敗', '牽制出局', '觸殺'];
     const FIELD_LABEL = GC.POS_LABEL;
+    const POS_NUM = { P: 1, C: 2, '1B': 3, '2B': 4, '3B': 5, SS: 6, LF: 7, CF: 8, RF: 9 };
+    /* 守位顯示：中外野 (8)；DH 沒有號碼 */
+    const posText = (c) => (c ? `${FIELD_LABEL[c] || c}${POS_NUM[c] ? ` (${POS_NUM[c]})` : ''}` : '守位未定');
 
     let game = null;    // { setup, events }
     let st = null;      // 目前狀態（replay 結果）
@@ -263,14 +266,14 @@
         <div class="lu-row ${sel === i + 1 ? 'sel' : ''}" data-act="pick-slot" data-slot="${i + 1}">
           <span class="n">${i + 1}</span>
           <span class="nm"><b>#${esc(p.number)} ${esc(p.name)}</b></span>
-          <span class="ps ${p.pos ? '' : 'none'}">${p.pos ? esc(FIELD_LABEL[p.pos]) : '守位未定'}</span>
+          <span class="ps ${p.pos ? '' : 'none'}">${esc(posText(p.pos))}</span>
         </div>`).join('');
-      const pit = s.dh && s.pitcher ? `<div class="lu-row"><span class="n">投</span><span class="nm"><b>#${esc(s.pitcher.number)} ${esc(s.pitcher.name)}</b><div class="hint">投手（DH 制，不在打序）</div></span><span class="ps">投手</span></div>` : '';
+      const pit = s.dh && s.pitcher ? `<div class="lu-row"><span class="n">投</span><span class="nm"><b>#${esc(s.pitcher.number)} ${esc(s.pitcher.name)}</b><div class="hint">投手（DH 制，不在打序）</div></span><span class="ps">${esc(posText('P'))}</span></div>` : '';
       let panel = '';
       if (sel) {
         const p = s.lineup[sel - 1];
         const isBatter = s.offense === 'us' && s.usNext === sel - 1;
-        const posBtns = [...GC.FIELD, ...(s.dh ? ['DH'] : [])].map((c) => `<button class="btn ${p.pos === c ? 'sel' : ''}" data-act="set-pos" data-pos="${c}">${esc(FIELD_LABEL[c])}</button>`).join('');
+        const posBtns = [...GC.FIELD, ...(s.dh ? ['DH'] : [])].map((c) => `<button class="btn ${p.pos === c ? 'sel' : ''}" data-act="set-pos" data-pos="${c}">${esc(FIELD_LABEL[c])}${POS_NUM[c] ? ' ' + POS_NUM[c] : ''}</button>`).join('');
         panel = `<div class="gr-card"><b>第 ${sel} 棒 #${esc(p.number)} ${esc(p.name)}</b>
           <label>改守位（會和原本守那個位置的人互換）</label><div class="posgrid">${posBtns}</div>
           <label>換人（從板凳選）</label>
@@ -286,13 +289,25 @@
       }
       const dhP = s.dh ? `<div class="gr-card"><b>投手</b><div class="row" style="margin-top:6px"><button class="btn ${ui.subKind === 'P' && !sel ? 'sel' : ''}" data-act="pitcher-sub">換投</button></div>${ui.subKind === 'P' && !sel ? benchHTML() : ''}</div>` : '';
       const defense = s.offense === 'opp';
+      // 調度紀錄（回報裁判用：裁判只看背號＋守位號碼）：這次進來之後做的放上面，之前的依半局收折在下面
+      const subs = umpireLog();
+      const fresh = subs.slice(ui.subsSeen || 0);
+      const older = subs.slice(0, ui.subsSeen || 0);
+      const subList = (list) => list.map((x) => `<div class="hint" style="padding:3px 0">${esc(x.label)}　${esc(x.text)}</div>`).join('');
+      const report = `
+        <div class="gr-card ${fresh.length ? 'warnbox' : ''}"><b>這次的調度</b>
+          ${fresh.length ? subList(fresh) : '<div class="hint">這次還沒有換人或改守位。</div>'}</div>
+        ${older.length ? `<details class="others"><summary>之前的調度紀錄（${older.length} 筆）</summary>${subList(older.slice().reverse())}</details>` : ''}
+        ${s.removed.length ? `<div class="hint" style="margin:6px 0">已退場（不能再上場）：${s.removed.map((n) => '#' + esc(n)).join('、')}</div>` : ''}`;
       return `
         <h2>調度</h2>
         <div class="hint">點一棒：可以改守位、換人。${s.offense === 'us' ? '進攻中換上的人可以先不排守位，換到守備前再排。' : '守備中九個守位都要排好才能繼續。'}</div>
+        <div style="font-weight:800;margin:8px 0 2px">最新打序</div>
         ${rows}${pit}
         ${panel}${dhP}
         ${fp.length ? `<div class="${defense ? 'errbox' : 'warnbox'}">${fp.map(esc).join('<br>')}</div>` : '<div class="ok" style="margin:8px 0">守位檢查通過：九個守位齊全、沒有重複</div>'}
         <div class="err">${esc(ui.lineupErr || '')}</div>
+        ${report}
         <button class="btn green wide" data-act="close-lineup" ${defense && fp.length ? 'disabled' : ''}>${defense ? '確認守位，繼續比賽' : '完成，回到打席輸入'}</button>
         <div style="height:20px"></div>`;
     }
@@ -311,6 +326,34 @@
           <div class="grid3" style="margin-top:6px">${others.map(btn).join('')}</div></details>` : ''}`;
     }
     const allPlayers = () => players.map((p) => ({ number: String(p.number), name: p.name }));
+    /* 調度紀錄，給裁判看的寫法：只有背號和守位號碼（例：#21 代打 #17、#12 守 1）。
+       每一筆用「換人前」的狀態判斷換下誰 */
+    function umpireLog() {
+      const out = [];
+      let s = GC.newGame(game.setup);
+      const num = (c) => POS_NUM[c] || c;
+      game.events.forEach((ev) => {
+        const label = `${s.inning}局${s.top ? '上' : '下'}`;
+        if (ev.t === 'sub') {
+          const n = `#${ev.in.number}`;
+          if (ev.kind === 'PH') out.push({ label, text: `${n} 代打 #${s.lineup[s.usNext].number}` });
+          else if (ev.kind === 'PR') out.push({ label, text: `${n} 代跑 #${s.bases[ev.base - 1].number}` });
+          else if (ev.kind === 'P') { const p = GC.currentPitcher(s); out.push({ label, text: `${n} 換 #${p ? p.number : '?'}，守 1` }); }
+          else { const old = s.lineup[ev.slot - 1]; out.push({ label, text: `${n} 換 #${old.number}，守 ${num(ev.pos || old.pos)}` }); }
+        } else if (ev.t === 'pos') {
+          out.push({ label, text: ev.changes.map((c) => `#${s.lineup[c.slot - 1].number} 守 ${num(c.pos)}`).join('、') });
+        } else if (ev.t === 'dhOff') {
+          out.push({ label, text: `DH 取消：#${s.pitcher.number} 打第 ${ev.slot} 棒、守 1，#${s.lineup[ev.slot - 1].number} 退場` });
+        }
+        s = GC.apply(s, ev);
+      });
+      return out;
+    }
+    /* 進入調度畫面：記下目前有幾筆調度，之後新增的就是「這次的調度」 */
+    function openLineup(slot, kind) {
+      ui.screen = 'lineup'; ui.selSlot = slot; ui.subKind = kind; ui.lineupErr = '';
+      ui.subsSeen = umpireLog().length;
+    }
     function benchList() {
       const seen = new Set((game.setup.bench || []).map((p) => p.number));
       return [...(game.setup.bench || []), ...allPlayers().filter((p) => !seen.has(p.number))];
@@ -447,6 +490,7 @@
           <button class="btn ${ui.opts.runsBeforeTag === true ? 'sel' : ''}" data-act="tag" data-v="1">跑者先踩本壘（得分算）</button>
           <button class="btn ${ui.opts.runsBeforeTag === false ? 'sel' : ''}" data-act="tag" data-v="0">觸殺在先（得分不算）</button></div></div>`;
         if (['FLY', 'LINE'].includes(ui.result) && !(ui.pos >= 7)) extra += `<label class="row" style="color:var(--text-dark)"><input type="checkbox" style="width:auto" data-act="sf" ${ui.opts.sf ? 'checked' : ''}> 內野手跑到外野接殺、跑者得分：算犧飛</label>`;
+        if (['1B', '2B', '3B'].includes(ui.result)) extra += `<label class="row"><input type="checkbox" style="width:auto" data-act="bunt" ${ui.opts.bunt ? 'checked' : ''}> 觸擊安打（文字轉播寫「觸擊安打」，成績照樣是安打）</label>`;
         if (ui.result === 'BUNT') extra += `<label class="row"><input type="checkbox" style="width:auto" data-act="nosac" ${ui.opts.sac === false ? 'checked' : ''}> 打者是搶安打，不算犧觸</label>`;
         if (preview && st.offense === 'us') {
           const tags = { SF: '犧飛', SAC: '犧觸', DP: '雙殺', TP: '三殺' }[preview.kind] || '';
@@ -577,7 +621,7 @@
         events: [],
       };
       recompute(); save(); resetPA();
-      ui.screen = 'lineup'; ui.selSlot = null; ui.subKind = null;
+      openLineup(null, null);
       render();
     }
 
@@ -608,7 +652,7 @@
         case 'start': startGame(); return;
         case 'resume': game = JSON.parse(store.get(SAVE_KEY)); recompute(); resetPA(); ui.screen = 'main'; break;
         case 'discard': if (confirm('確定捨棄這台裝置上記到一半的比賽？（建議先下載備份檔）')) store.del(SAVE_KEY); break;
-        case 'open-lineup': ui.screen = 'lineup'; ui.selSlot = null; ui.subKind = null; ui.lineupErr = ''; resetPA(); break;
+        case 'open-lineup': openLineup(null, null); resetPA(); break;
         case 'close-lineup': ui.screen = 'main'; ui.selSlot = null; ui.subKind = null; break;
         case 'pick-slot': ui.selSlot = ui.selSlot === Number(d.slot) ? null : Number(d.slot); ui.subKind = null; ui.lineupErr = ''; break;
         case 'set-pos': {
@@ -641,7 +685,7 @@
         case 'dh-off':
           if (confirm(`DH 取消：投手接第 ${ui.selSlot} 棒，原本第 ${ui.selSlot} 棒的球員退場。確定？`)) tryPush({ t: 'dhOff', slot: ui.selSlot }, 'lineupErr');
           break;
-        case 'ph': ui.screen = 'lineup'; ui.selSlot = st.usNext + 1; ui.subKind = 'PH'; break;
+        case 'ph': openLineup(st.usNext + 1, 'PH'); break;
         case 'pr': ui.prBase = ui.prBase === Number(d.base) ? null : Number(d.base); break;
         case 'pr-cancel': ui.prBase = null; break;
         case 'run-mode': resetPA(); ui.runMode = true; ui.step = 'runners'; break;
@@ -684,7 +728,7 @@
         }
         case 'half-ok': {
           ui.halfEnd = null;
-          if (st.offense === 'opp' && GC.fieldingProblems(st).length) { ui.screen = 'lineup'; ui.selSlot = null; ui.subKind = null; }
+          if (st.offense === 'opp' && GC.fieldingProblems(st).length) openLineup(null, null);
           break;
         }
         case 'undo': if (confirm('復原上一筆？')) { undo(); return; } break;
@@ -721,6 +765,7 @@
         pre.date = date; pre.opponent = opp; pre.gameNum = $('g-num').value || 'G1';
         render();
       } else if (t.dataset.act === 'sf') { if (t.checked) ui.opts.sf = true; else delete ui.opts.sf; render(); }
+      else if (t.dataset.act === 'bunt') { if (t.checked) ui.opts.bunt = true; else delete ui.opts.bunt; render(); }
       else if (t.dataset.act === 'nosac') { if (t.checked) ui.opts.sac = false; else delete ui.opts.sac; render(); }
       else if (t.id === 'restore-file' && t.files[0]) {
         const fr = new FileReader();

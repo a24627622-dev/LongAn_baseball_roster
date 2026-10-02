@@ -1,0 +1,435 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<title>賽中調度・先換人再排守位</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0;background:#EDE8DC;font-family:'Noto Sans TC',sans-serif;color:#1B2430}
+button{font-family:inherit;cursor:pointer}
+button:disabled{cursor:not-allowed;opacity:.35}
+a{color:#9E3B1B}a:hover{color:#7A2D14}
+</style>
+</helmet>
+<div style="position: relative; width: 390px; height: 844px; display: flex; flex-direction: column; background: #F6F3EC; overflow: hidden; font-family: 'Noto Sans TC', sans-serif; color: #1B2430">
+
+<div style="background: #1B2430; color: #F6F3EC; padding: 12px 16px; display: flex; flex-direction: column; gap: 10px; flex-shrink: 0">
+<div style="display: flex; align-items: center; gap: 8px">
+<span style="font-size: 12px; color: #B9C1CC">範例賽制</span>
+<sc-for list="{{modeItems}}" as="m" hint-placeholder-count="2">
+<button onClick="{{m.pick}}" style="{{m.style}}">{{m.label}}</button>
+</sc-for>
+</div>
+<div style="display: flex; justify-content: space-between; align-items: baseline">
+<span style="font-size: 18px; font-weight: 700">{{headerText}}</span>
+<span style="{{ruleStyle}}">{{ruleText}}</span>
+</div>
+<div style="display: flex; gap: 6px; align-items: center">
+<span style="{{step1Style}}">① 先換人</span>
+<span style="color: #6F7A88">→</span>
+<span style="{{step2Style}}">② 再排守位</span>
+</div>
+</div>
+
+<sc-if value="{{isLineup}}" hint-placeholder-val="{{true}}">
+<div style="flex-grow: 1; overflow-y: auto; padding: 12px 16px; display: flex; flex-direction: column; gap: 6px">
+<div style="font-size: 13px; color: #5E6672">{{lineupHint}}</div>
+<sc-for list="{{rows}}" as="r" hint-placeholder-count="9">
+<button onClick="{{r.pick}}" style="{{r.rowStyle}}">
+<span style="width: 28px; height: 28px; border-radius: 14px; background: #1B2430; color: #FFFFFF; display: flex; align-items: center; justify-content: center; font-size: 14px; font-weight: 700; flex-shrink: 0">{{r.slotNo}}</span>
+<span style="flex-grow: 1; display: flex; flex-direction: column; align-items: flex-start; min-width: 0">
+<span style="font-size: 16px; font-weight: 700">#{{r.num}} {{r.name}}</span>
+<sc-if value="{{r.hasTag}}" hint-placeholder-val="{{false}}"><span style="font-size: 12px; color: #7A4A00">{{r.tag}}</span></sc-if>
+</span>
+<span style="{{r.posStyle}}">{{r.posLabel}}</span>
+</button>
+</sc-for>
+<sc-if value="{{showPitcherRow}}" hint-placeholder-val="{{false}}">
+<div style="font-size: 12px; color: #5E6672; margin-top: 6px">投手（DH 制，不在打序）</div>
+<button onClick="{{pickPitcher}}" style="display: flex; align-items: center; gap: 10px; width: 100%; min-height: 52px; padding: 6px 12px; border-radius: 12px; border: 1px dashed #8A7F66; background: #FFFFFF; text-align: left; color: #1B2430">
+<span style="width: 28px; height: 28px; border-radius: 14px; border: 2px solid #1B2430; display: flex; align-items: center; justify-content: center; font-size: 13px; font-weight: 700; flex-shrink: 0">投</span>
+<span style="flex-grow: 1; display: flex; flex-direction: column; align-items: flex-start">
+<span style="font-size: 16px; font-weight: 700">#{{pitcherNum}} {{pitcherName}}</span>
+<sc-if value="{{pitcherHasTag}}" hint-placeholder-val="{{false}}"><span style="font-size: 12px; color: #7A4A00">{{pitcherTag}}</span></sc-if>
+</span>
+<span style="font-size: 14px; font-weight: 700; color: #1B2430">投手</span>
+</button>
+</sc-if>
+<div style="display: flex; flex-direction: column; gap: 4px; margin-top: 10px">
+<div style="font-size: 13px; font-weight: 700; color: #5E6672">調度紀錄</div>
+<sc-if value="{{noLog}}" hint-placeholder-val="{{true}}"><div style="font-size: 13px; color: #8A8F96">還沒有調度</div></sc-if>
+<sc-for list="{{logs}}" as="l" hint-placeholder-count="2">
+<div style="font-size: 13px; color: #3E4652; padding: 6px 10px; background: #FFFFFF; border-radius: 8px; border: 1px solid #E4DDCC">{{l.text}}</div>
+</sc-for>
+<sc-if value="{{hasOut}}" hint-placeholder-val="{{false}}">
+<div style="font-size: 12px; color: #8A8F96; margin-top: 4px">已退場（不能再上場）：{{outText}}</div>
+</sc-if>
+</div>
+</div>
+<div style="flex-shrink: 0; padding: 10px 16px 14px; border-top: 1px solid #DDD5C4; background: #FFFFFF">
+<button onClick="{{bottomAction}}" style="width: 100%; height: 52px; border-radius: 12px; border: none; background: #1B2430; color: #FFFFFF; font-size: 16px; font-weight: 700">{{bottomLabel}}</button>
+</div>
+</sc-if>
+
+<sc-if value="{{isAssign}}" hint-placeholder-val="{{false}}">
+<div style="flex-grow: 1; overflow-y: auto; padding: 12px 16px; display: flex; flex-direction: column; gap: 10px">
+<div style="font-size: 13px; color: #5E6672">{{assignHint}}</div>
+<sc-if value="{{hasUnassigned}}" hint-placeholder-val="{{false}}">
+<div style="display: flex; flex-direction: column; gap: 6px">
+<div style="font-size: 13px; font-weight: 700; color: #9E3B1B">守位未定</div>
+<div style="display: flex; gap: 6px; flex-wrap: wrap">
+<sc-for list="{{unassigned}}" as="u" hint-placeholder-count="1">
+<button onClick="{{u.pick}}" style="{{u.style}}">{{u.label}}</button>
+</sc-for>
+</div>
+</div>
+</sc-if>
+<div style="position: relative; width: 330px; height: 258px; align-self: center; background: #E4EDDF; border-radius: 165px 165px 16px 16px">
+<div style="position: absolute; left: 120px; top: 120px; width: 90px; height: 90px; transform: rotate(45deg); background: #E9DDC4"></div>
+<sc-for list="{{posButtons}}" as="p" hint-placeholder-count="9">
+<button onClick="{{p.pick}}" style="{{p.style}}">
+<span style="font-size: 11px; font-weight: 500; opacity: .8">{{p.label}}</span>
+<span style="font-size: 13px; font-weight: 700">{{p.name}}</span>
+</button>
+</sc-for>
+</div>
+<sc-if value="{{showDH}}" hint-placeholder-val="{{false}}">
+<button onClick="{{dhPick}}" style="{{dhStyle}}">
+<span style="font-size: 12px">指定打擊 DH</span>
+<span style="font-size: 15px; font-weight: 700">{{dhName}}</span>
+</button>
+</sc-if>
+<sc-if value="{{msg}}" hint-placeholder-val="{{false}}">
+<div style="padding: 10px 12px; border-radius: 10px; background: #FBE3DA; color: #7A2D14; font-size: 14px">{{msg}}</div>
+</sc-if>
+<div style="{{checkStyle}}">{{checkText}}</div>
+</div>
+<div style="flex-shrink: 0; padding: 10px 16px 14px; border-top: 1px solid #DDD5C4; background: #FFFFFF; display: flex; gap: 8px">
+<sc-if value="{{canBack}}" hint-placeholder-val="{{true}}">
+<button onClick="{{backToLineup}}" style="height: 52px; padding: 0 16px; border-radius: 12px; border: 1px solid #CFC6B3; background: #FFFFFF; font-size: 15px; color: #1B2430">‹ 回換人</button>
+</sc-if>
+<button onClick="{{confirmAssign}}" disabled="{{notValid}}" style="flex-grow: 1; height: 52px; border-radius: 12px; border: none; background: #2F6B4F; color: #FFFFFF; font-size: 16px; font-weight: 700">{{assignLabel}}</button>
+</div>
+</sc-if>
+
+<sc-if value="{{sheetOpen}}" hint-placeholder-val="{{false}}">
+<div style="position: absolute; left: 0; top: 0; width: 390px; height: 844px; background: rgba(20, 24, 30, 0.45); display: flex; flex-direction: column; justify-content: flex-end">
+<div style="background: #FFFFFF; border-radius: 18px 18px 0 0; padding: 16px 16px 20px; display: flex; flex-direction: column; gap: 12px">
+<div style="font-size: 17px; font-weight: 700">{{sheetTitle}}</div>
+<div style="display: flex; gap: 8px">
+<sc-for list="{{kindItems}}" as="k" hint-placeholder-count="2">
+<button onClick="{{k.pick}}" style="{{k.style}}">{{k.label}}</button>
+</sc-for>
+</div>
+<div style="font-size: 13px; color: #5E6672">{{sheetHint}}</div>
+<div style="display: flex; flex-direction: column; gap: 6px">
+<sc-for list="{{benchItems}}" as="b" hint-placeholder-count="3">
+<button onClick="{{b.pick}}" style="height: 48px; padding: 0 14px; border-radius: 10px; border: 1px solid #CFC6B3; background: #FFFFFF; font-size: 15px; text-align: left; color: #1B2430">#{{b.num}} {{b.name}} <span style="font-size: 12px; color: #5E6672">{{b.note}}</span></button>
+</sc-for>
+</div>
+<button onClick="{{closeSheet}}" style="height: 44px; border-radius: 10px; border: none; background: #EDE8DC; font-size: 15px; color: #1B2430">取消</button>
+</div>
+</div>
+</sc-if>
+
+<sc-if value="{{modalOpen}}" hint-placeholder-val="{{false}}">
+<div style="position: absolute; left: 0; top: 0; width: 390px; height: 844px; background: rgba(20, 24, 30, 0.55); display: flex; align-items: center; justify-content: center; padding: 0 20px; box-sizing: border-box">
+<div style="background: #FFFFFF; border-radius: 16px; padding: 18px; display: flex; flex-direction: column; gap: 12px; border-top: 6px solid #9E3B1B">
+<div style="font-size: 18px; font-weight: 700">DH 將取消</div>
+<div style="font-size: 15px; line-height: 1.7; white-space: pre-line">{{modalText}}</div>
+<div style="font-size: 12px; color: #5E6672">依 Rule 5.11(a)(5)(12)。確認後工具會自動補上這筆換人，再回到守位檢查。</div>
+<div style="display: flex; gap: 8px">
+<button onClick="{{modalCancel}}" style="flex-grow: 1; height: 48px; border-radius: 10px; border: 1px solid #CFC6B3; background: #FFFFFF; font-size: 15px; color: #1B2430">取消</button>
+<button onClick="{{modalOk}}" style="flex-grow: 1; height: 48px; border-radius: 10px; border: none; background: #9E3B1B; color: #FFFFFF; font-size: 15px; font-weight: 700">確認</button>
+</div>
+</div>
+</div>
+</sc-if>
+
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":390,"height":844}}'>
+class Component extends DCLogic {
+  P() {
+    return {
+      a: { num: '7', name: '陳柏宇' }, b: { num: '4', name: '林冠廷' }, c: { num: '10', name: '王承恩' },
+      d: { num: '24', name: '張家豪' }, e: { num: '31', name: '李宗翰' }, f: { num: '12', name: '黃俊傑' },
+      g: { num: '8', name: '吳哲維' }, h: { num: '5', name: '劉育成' }, p: { num: '18', name: '蔡明軒', pitcher: true },
+      x: { num: '27', name: '何承翰' },
+      s1: { num: '22', name: '許志明' }, s2: { num: '15', name: '鄭凱文' },
+      s3: { num: '33', name: '周家銘', pitcher: true }, s4: { num: '9', name: '楊子豪' }
+    };
+  }
+
+  init(mode) {
+    const base = { mode: mode, inning: 5, half: 'off', step: 'lineup', sheet: null, kind: null, sel: null, modal: null, msg: '', out: [], log: [] };
+    if (mode === 'normal') {
+      return Object.assign(base, {
+        dh: false, dhCancelled: false, pitcher: null,
+        slots: [['a', '中'], ['b', '二'], ['c', '游'], ['d', '一'], ['e', '三'], ['f', '捕'], ['g', '右'], ['h', '左'], ['p', '投']].map(s => ({ pid: s[0], pos: s[1], tag: '' })),
+        bench: ['s1', 's2', 's3', 's4', 'x']
+      });
+    }
+    return Object.assign(base, {
+      dh: true, dhCancelled: false, pitcher: 'p', pitcherTag: '',
+      slots: [['a', '中'], ['b', '二'], ['c', '游'], ['x', 'DH'], ['d', '一'], ['e', '三'], ['f', '捕'], ['g', '右'], ['h', '左']].map(s => ({ pid: s[0], pos: s[1], tag: '' })),
+      bench: ['s1', 's2', 's3', 's4']
+    });
+  }
+
+  L() {
+    return { '投': '投手', '捕': '捕手', '一': '一壘', '二': '二壘', '三': '三壘', '游': '游擊', '左': '左外', '中': '中外', '右': '右外', 'DH': 'DH' };
+  }
+
+  FIELD() {
+    return [
+      { p: '中', x: 165, y: 30 }, { p: '左', x: 55, y: 72 }, { p: '右', x: 275, y: 72 },
+      { p: '游', x: 113, y: 126 }, { p: '二', x: 217, y: 126 }, { p: '三', x: 50, y: 184 },
+      { p: '一', x: 280, y: 184 }, { p: '投', x: 165, y: 176 }, { p: '捕', x: 165, y: 230 }
+    ];
+  }
+
+  name(pid) { const q = this.P()[pid]; return q ? q.name : ''; }
+
+  // who is at a field position: {type:'slot', i} or {type:'pitcher'} or null
+  holderOf(s, pos) {
+    const i = s.slots.findIndex(x => x.pos === pos);
+    if (i >= 0) return { type: 'slot', i: i };
+    if (pos === '投' && s.dh && !s.dhCancelled && s.pitcher) return { type: 'pitcher' };
+    return null;
+  }
+
+  check(s) {
+    const L = this.L();
+    const count = {};
+    s.slots.forEach(x => { if (x.pos && x.pos !== 'DH') count[x.pos] = (count[x.pos] || 0) + 1; });
+    if (s.dh && !s.dhCancelled && s.pitcher) count['投'] = (count['投'] || 0) + 1;
+    const missing = this.FIELD().map(f => f.p).filter(p => !count[p]).map(p => L[p]);
+    const dup = Object.keys(count).filter(p => count[p] > 1).map(p => L[p]);
+    const un = s.slots.map((x, i) => ({ x: x, i: i })).filter(o => !o.x.pos).map(o => '第 ' + (o.i + 1) + ' 棒 ' + this.name(o.x.pid));
+    return { missing: missing, dup: dup, un: un, ok: !missing.length && !dup.length && !un.length };
+  }
+
+  addLog(s, text) { return [{ text: text }].concat(s.log); }
+
+  doSub(benchPid) {
+    const s = this.state;
+    const L = this.L();
+    const kind = s.kind;
+    const bench = s.bench.filter(b => b !== benchPid);
+    let log = s.log, out = s.out.slice();
+    let next = {};
+    if (s.sheet === 'P') {
+      out.push(s.pitcher);
+      log = this.addLog(s, '換投：' + this.name(benchPid) + ' 替 ' + this.name(s.pitcher) + '（打序不變）');
+      next = { pitcher: benchPid, pitcherTag: '換投上場' };
+    } else {
+      const i = s.sheet;
+      const old = s.slots[i];
+      out.push(old.pid);
+      let pos = null, tag = kind;
+      if (old.pos === 'DH' && (kind === '代打' || kind === '代跑')) { pos = 'DH'; tag = kind + '，接任 DH（不取消 DH）'; }
+      else if (kind === '換人') { pos = old.pos; tag = '守備換人，預設接 ' + L[old.pos]; }
+      else if (kind === '換投') { pos = '投'; tag = '換投上場'; }
+      const slots = s.slots.map((x, k) => k === i ? { pid: benchPid, pos: pos, tag: tag } : x);
+      log = [{ text: '第 ' + (i + 1) + ' 棒 ' + kind + '：' + this.name(benchPid) + ' 替 ' + this.name(old.pid) + (pos ? '' : '（守位待排）') }].concat(s.log);
+      next = { slots: slots };
+    }
+    const goAssign = s.half === 'def';
+    this.setState(Object.assign(next, { bench: bench, out: out, log: log, sheet: null, kind: null, step: goAssign ? 'assign' : 'lineup', msg: '', sel: null }));
+  }
+
+  // select a player (by holder) then tap a target position
+  tapPos(pos) {
+    const s = this.state;
+    const h = this.holderOf(s, pos);
+    if (s.sel === null) {
+      if (h) this.setState({ sel: h.type === 'pitcher' ? 'P' : h.i, msg: '' });
+      return;
+    }
+    const L = this.L();
+    const selIsP = s.sel === 'P';
+    const cur = selIsP ? '投' : s.slots[s.sel].pos;
+    if (h && ((h.type === 'pitcher' && selIsP) || (h.type === 'slot' && h.i === s.sel))) { this.setState({ sel: null }); return; }
+    const dhOn = s.dh && !s.dhCancelled;
+    if (dhOn && selIsP) { this.setState({ msg: '投手改守其他守位會取消 DH（Rule 5.11(a)(8)），這個範例沒有實作這條路徑。', sel: null }); return; }
+    if (dhOn && pos === '投' && h && h.type === 'pitcher') { this.setState({ msg: '打序中的球員改當投手會取消 DH（例如 Rule 5.11(a)(9)），這個範例沒有實作。換投請回到換人，從投手列操作。', sel: null }); return; }
+    if (dhOn && cur === 'DH') {
+      if (!h || h.type !== 'slot') { this.setState({ msg: 'DH 要去守備時，請點一個有人的守位：被換下的野手由投手接他的棒次。', sel: null }); return; }
+      const B = s.slots[h.i];
+      this.setState({ modal: { from: s.sel, to: h.i, pos: pos }, sel: null, msg: '' });
+      return;
+    }
+    // plain swap
+    const slots = s.slots.map(x => Object.assign({}, x));
+    const who = this.name(slots[s.sel].pid);
+    slots[s.sel].pos = pos;
+    let text = this.name(slots[s.sel].pid) + ' 守' + L[pos];
+    if (h && h.type === 'slot') {
+      slots[h.i].pos = cur;
+      text = who + ' 守' + L[pos] + '，' + this.name(slots[h.i].pid) + (cur ? ' 改守' + L[cur] : ' 守位待排');
+    }
+    this.setState({ slots: slots, sel: null, msg: '', log: [{ text: '守位：' + text }].concat(s.log) });
+  }
+
+  renderVals() {
+    if (!this.state || !this.state.slots) this.state = this.init('dh');
+    const s = this.state;
+    const self = this;
+    const P = this.P(), L = this.L();
+    const dhOn = s.dh && !s.dhCancelled;
+
+    const modeItems = [['normal', '一般（投手打擊）'], ['dh', 'DH 制']].map(m => ({
+      label: m[1],
+      style: 'height: 32px; padding: 0 12px; border-radius: 16px; font-size: 13px; ' + (s.mode === m[0] ? 'border: none; background: #E0A526; color: #1B2430; font-weight: 700' : 'border: 1px solid #4A5563; background: transparent; color: #F6F3EC'),
+      pick: () => self.setState(self.init(m[0]))
+    }));
+
+    const ruleText = !s.dh ? '一般：投手在打序' : (s.dhCancelled ? 'DH 已取消' : 'DH 有效');
+    const ruleStyle = 'font-size: 12px; padding: 3px 10px; border-radius: 12px; font-weight: 700; ' + (s.dhCancelled ? 'background: #9E3B1B; color: #FFFFFF' : 'background: #33404F; color: #F6F3EC');
+    const onStep = 'font-size: 13px; font-weight: 700; padding: 4px 10px; border-radius: 12px; background: #F6F3EC; color: #1B2430';
+    const offStep = 'font-size: 13px; padding: 4px 10px; border-radius: 12px; border: 1px solid #4A5563; color: #B9C1CC';
+
+    const rows = s.slots.map((x, i) => {
+      const noPos = !x.pos;
+      return {
+        slotNo: i + 1, num: P[x.pid].num, name: P[x.pid].name,
+        posLabel: noPos ? '守位未定' : L[x.pos], hasTag: !!x.tag, tag: x.tag,
+        posStyle: 'font-size: 14px; font-weight: 700; flex-shrink: 0; ' + (noPos ? 'color: #9E3B1B' : 'color: #1B2430'),
+        rowStyle: 'display: flex; align-items: center; gap: 10px; width: 100%; min-height: 52px; padding: 6px 12px; border-radius: 12px; text-align: left; color: #1B2430; background: #FFFFFF; ' + (noPos ? 'border: 2px solid #9E3B1B' : 'border: 1px solid #DDD5C4'),
+        pick: () => self.setState({ sheet: i, kind: s.half === 'off' ? '代打' : '換人', msg: '' })
+      };
+    });
+
+    const c = this.check(s);
+    const sheetOpen = s.sheet !== null && s.sheet !== undefined;
+    let sheetTitle = '', kinds = [], sheetHint = '';
+    if (sheetOpen) {
+      if (s.sheet === 'P') {
+        sheetTitle = '投手 ' + self.name(s.pitcher) + '：換投';
+        kinds = ['換投'];
+        sheetHint = 'DH 制下換投只換投手，打序不動。';
+      } else {
+        const x = s.slots[s.sheet];
+        sheetTitle = '第 ' + (s.sheet + 1) + ' 棒 ' + self.name(x.pid);
+        if (s.half === 'off') { kinds = ['代打', '代跑']; sheetHint = x.pos === 'DH' ? '替 DH 代打或代跑，新球員接任 DH，不會取消 DH。' : '進攻中換人：新球員先不排守位，換局前再排。'; }
+        else { kinds = !dhOn && x.pos === '投' ? ['換投', '換人'] : ['換人']; sheetHint = '守備中換人：新球員預設接原守位，接著立刻確認守位。'; }
+      }
+    }
+    const kindItems = kinds.map(k => ({
+      label: k,
+      style: 'flex-grow: 1; height: 44px; border-radius: 10px; font-size: 15px; font-weight: 700; ' + (s.kind === k ? 'border: none; background: #1B2430; color: #FFFFFF' : 'border: 1px solid #CFC6B3; background: #FFFFFF; color: #1B2430'),
+      pick: () => self.setState({ kind: k })
+    }));
+    const benchItems = s.bench.map(b => ({ num: P[b].num, name: P[b].name, note: P[b].pitcher ? '投手' : '', pick: () => self.doSub(b) }));
+
+    const posButtons = this.FIELD().map(f => {
+      const h = self.holderOf(s, f.p);
+      let nm = '（空）', selected = false;
+      if (h) {
+        nm = h.type === 'pitcher' ? self.name(s.pitcher) : self.name(s.slots[h.i].pid);
+        selected = h.type === 'pitcher' ? s.sel === 'P' : s.sel === h.i;
+      }
+      const empty = !h;
+      let look = 'border: 1px solid #1B2430; background: #FFFFFF; color: #1B2430';
+      if (empty) look = 'border: 2px dashed #9E3B1B; background: #FFF3EE; color: #9E3B1B';
+      if (selected) look = 'border: none; background: #1B2430; color: #FFFFFF';
+      if (s.sel !== null && !selected && !empty) look = 'border: 2px solid #E0A526; background: #FFFFFF; color: #1B2430';
+      return {
+        label: L[f.p], name: nm,
+        style: 'position: absolute; left: ' + (f.x - 40) + 'px; top: ' + (f.y - 24) + 'px; width: 80px; height: 48px; border-radius: 10px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 0; padding: 0; ' + look,
+        pick: () => self.tapPos(f.p)
+      };
+    });
+
+    const unassigned = s.slots.map((x, i) => ({ x: x, i: i })).filter(o => !o.x.pos).map(o => ({
+      label: '第 ' + (o.i + 1) + ' 棒 ' + self.name(o.x.pid),
+      style: 'height: 44px; padding: 0 12px; border-radius: 10px; font-size: 14px; font-weight: 700; ' + (s.sel === o.i ? 'border: none; background: #1B2430; color: #FFFFFF' : 'border: 2px solid #9E3B1B; background: #FFFFFF; color: #9E3B1B'),
+      pick: () => self.setState({ sel: s.sel === o.i ? null : o.i, msg: '' })
+    }));
+
+    const dhIdx = s.slots.findIndex(x => x.pos === 'DH');
+    const showDH = dhOn && dhIdx >= 0;
+    const dhSelected = showDH && s.sel === dhIdx;
+    const dhStyle = 'align-self: center; width: 200px; height: 52px; border-radius: 10px; display: flex; flex-direction: column; align-items: center; justify-content: center; ' + (dhSelected ? 'border: none; background: #1B2430; color: #FFFFFF' : 'border: 1px solid #1B2430; background: #FFFFFF; color: #1B2430');
+
+    let checkText, checkStyle;
+    if (c.ok) { checkText = '守位檢查通過：九個守位齊全、沒有重複'; checkStyle = 'padding: 10px 12px; border-radius: 10px; background: #DDEBE2; color: #1F4D37; font-size: 14px; font-weight: 700'; }
+    else {
+      const parts = [];
+      if (c.dup.length) parts.push('守位重複：' + c.dup.join('、'));
+      if (c.missing.length) parts.push('尚缺守位：' + c.missing.join('、'));
+      if (c.un.length) parts.push('尚未排守位：' + c.un.join('、'));
+      checkText = parts.join('\n');
+      checkStyle = 'padding: 10px 12px; border-radius: 10px; background: #FFF8E8; border: 1px solid #E8D9B0; color: #7A4A00; font-size: 14px; white-space: pre-line';
+    }
+
+    let modalText = '';
+    if (s.modal) {
+      const A = s.slots[s.modal.from], B = s.slots[s.modal.to];
+      modalText = 'DH ' + self.name(A.pid) + ' 改守' + L[s.modal.pos] + '。\n原' + L[s.modal.pos] + ' ' + self.name(B.pid) + ' 退場。\n投手 ' + self.name(s.pitcher) + ' 接第 ' + (s.modal.to + 1) + ' 棒。';
+    }
+
+    const isLineup = s.step === 'lineup', isAssign = s.step === 'assign';
+    const lineupHint = s.half === 'off' ? '點打序中的球員做代打、代跑。守位先不用管，換局前一次排好。' : '守備中：點球員換人，換完會立刻進入守位確認。';
+
+    return {
+      modeItems: modeItems,
+      headerText: '第 ' + s.inning + ' 局' + (s.half === 'off' ? '上・我方進攻' : '下・我方守備'),
+      ruleText: ruleText, ruleStyle: ruleStyle,
+      step1Style: isLineup ? onStep : offStep, step2Style: isAssign ? onStep : offStep,
+      isLineup: isLineup, isAssign: isAssign, lineupHint: lineupHint,
+      rows: rows,
+      showPitcherRow: dhOn,
+      pitcherNum: s.pitcher ? P[s.pitcher].num : '', pitcherName: s.pitcher ? P[s.pitcher].name : '',
+      pitcherHasTag: !!s.pitcherTag, pitcherTag: s.pitcherTag || '',
+      pickPitcher: () => self.setState({ sheet: 'P', kind: '換投', msg: '' }),
+      logs: s.log, noLog: s.log.length === 0,
+      hasOut: s.out.length > 0, outText: s.out.map(p => self.name(p)).join('、'),
+      bottomLabel: s.half === 'off' ? '三出局，換局：排守位' : '三出局，換局：我方進攻',
+      bottomAction: () => {
+        const st = self.state;
+        if (st.half === 'off') self.setState({ step: 'assign', sel: null, msg: '' });
+        else self.setState({ half: 'off', inning: st.inning + 1, step: 'lineup' });
+      },
+      sheetOpen: sheetOpen, sheetTitle: sheetTitle, kindItems: kindItems, sheetHint: sheetHint, benchItems: benchItems,
+      closeSheet: () => self.setState({ sheet: null, kind: null }),
+      assignHint: '先點一位球員（變黑色），再點要去的守位。兩人會互換守位。',
+      hasUnassigned: unassigned.length > 0, unassigned: unassigned,
+      posButtons: posButtons,
+      showDH: showDH, dhName: showDH ? self.name(s.slots[dhIdx].pid) : '', dhStyle: dhStyle,
+      dhPick: () => { if (showDH) self.setState({ sel: s.sel === dhIdx ? null : dhIdx, msg: '' }); },
+      msg: s.msg, checkText: checkText, checkStyle: checkStyle,
+      notValid: !c.ok,
+      canBack: s.half === 'off',
+      backToLineup: () => self.setState({ step: 'lineup', sel: null, msg: '' }),
+      assignLabel: s.half === 'off' ? '確認守位，開始守備' : '確認守位，繼續比賽',
+      confirmAssign: () => {
+        if (!self.check(self.state).ok) return;
+        self.setState({ step: 'lineup', half: 'def', sel: null, msg: '' });
+      },
+      modalOpen: !!s.modal, modalText: modalText,
+      modalCancel: () => self.setState({ modal: null }),
+      modalOk: () => {
+        const st = self.state;
+        const m = st.modal;
+        const A = st.slots[m.from], B = st.slots[m.to];
+        const slots = st.slots.map((x, k) => {
+          if (k === m.from) return Object.assign({}, x, { pos: m.pos, tag: '原 DH，改守' + L[m.pos] });
+          if (k === m.to) return { pid: st.pitcher, pos: '投', tag: '投手進打序（DH 取消）' };
+          return x;
+        });
+        const text = 'DH 取消：' + self.name(A.pid) + ' 改守' + L[m.pos] + '，' + self.name(B.pid) + ' 退場，投手 ' + self.name(st.pitcher) + ' 接第 ' + (m.to + 1) + ' 棒';
+        self.setState({ slots: slots, dhCancelled: true, modal: null, out: st.out.concat([B.pid]), log: [{ text: text }].concat(st.log) });
+      }
+    };
+  }
+}
+</script>
+</body>
+</html>

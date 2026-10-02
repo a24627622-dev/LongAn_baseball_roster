@@ -177,6 +177,7 @@ node tests/test_lineup_logic.js
 node tests/test_scenarios.js
 node tests/test_record_engine.js
 node tests/test_check_data.js
+node tests/test_game_core.js
 node tests/check_data.js
 ```
 

@@ -233,6 +233,21 @@ test('D2 一球超過三個出局 → 不能送出', () => {
   assert.match(errs(s, PA(s, 'GROUND', 6, { moves: { 1: { to: OUT, reason: '封殺' } } })), /三個出局|超過/);
 });
 
+test('【修正】一出局滿壘游擊雙殺（三出局）：二壘跑者上三壘、三壘跑者留壘也能送出，不得分（壘包會清空，不檢查同壘）', () => {
+  const s = at(fresh(), 1, [7, 8, 9]);
+  const ev = PA(s, 'GROUND', 6, { moves: { 1: { to: OUT, reason: '封殺' }, 2: { to: 3 }, 3: { to: 3 } } });
+  assert.deepStrictEqual(GC.validate(s, ev), []);
+  const n = GC.apply(s, ev);
+  assert.deepStrictEqual([n.score.us, n.offense, n.outs], [0, 'opp', 0]);
+});
+
+test('【修正】得分因第三出局（封殺）不算時，打席資料記下被取消的分數，畫面才能提示', () => {
+  const s = at(fresh(), 1, [7, 8, 9]);
+  const n = GC.apply(s, PA(s, 'GROUND', 6, { moves: { 1: { to: OUT, reason: '封殺' } } })); // 預設三壘跑者「得分」
+  const it = n.halves[0].items.slice(-1)[0];
+  assert.deepStrictEqual([it.runs, it.voidedRuns], [0, 1]);
+});
+
 test('第三個出局是封殺時，這一球的得分不算', () => {
   const s = at(fresh(), 2, [7, null, 9]);
   const n = GC.apply(s, PA(s, '1B', 6, { moves: { 0: { to: 1 }, 1: { to: OUT, reason: '封殺' }, 3: { to: 4 } } }));

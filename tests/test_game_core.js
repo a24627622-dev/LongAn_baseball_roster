@@ -468,6 +468,77 @@ test('產出的賽事成績資料通過現有的資料檢查（公開頁畫得�
   assert.strictEqual(game0830.id, '2026-08-30_G4_雨人');
 });
 
+console.log('\nK 雲端備份的表格列（一筆紀錄一列，標準答案：8/30 戰報與手寫的文字規則）');
+
+let rows0830 = null;
+try { rows0830 = GC.sheetRows(g0830.setup, g0830.events); } catch (e) { /* 下面的測試會報錯 */ }
+const halfRows = () => rows0830.filter((r) => r.type === 'half');
+const evRows = () => rows0830.filter((r) => r.type === 'event');
+
+test('8/30：69 筆紀錄＋10 個半局標題列；半局標題、得分和戰報一致，龍安攻／對手攻分開標', () => {
+  assert.strictEqual(rows0830.length, 79);
+  assert.deepStrictEqual(halfRows().map((r) => r.cells), [
+    ['一局上', '龍安攻', '2分', ''], ['一局下', '雨人攻', '0分', ''], ['二局上', '龍安攻', '5分', ''], ['二局下', '雨人攻', '0分', ''],
+    ['三局上', '龍安攻', '0分', ''], ['三局下', '雨人攻', '6分', ''], ['四局上', '龍安攻', '0分', ''], ['四局下', '雨人攻', '0分', ''],
+    ['五局上', '龍安攻', '0分', ''], ['五局下', '雨人攻', '0分', ''],
+  ]);
+  assert.deepStrictEqual(halfRows().map((r) => r.offense).join(','), 'us,opp,us,opp,us,opp,us,opp,us,opp');
+  assert.strictEqual(rows0830[0].type, 'half');
+});
+
+test('龍安的打席列：第N棒｜簡寫｜#背號 姓名｜描述；沒得分沒打點不加括號', () => {
+  assert.deepStrictEqual(rows0830[1].cells, ['第一棒', '二滾', '#56 蘇垣華', '二壘滾地球出局']);
+  assert.deepStrictEqual(rows0830[2].cells, ['第二棒', '四壞', '#17 蘇巽雄', '四壞球保送']);
+});
+
+test('得分與打點：失誤帶回 2 分只寫得分；犧飛寫「（得 1 分，打點 1）」', () => {
+  const e4 = rows0830[6].cells;
+  assert.deepStrictEqual(e4.slice(0, 3), ['第六棒', '二失', '#91 黃宥挺']);
+  assert.ok(e4[3].endsWith('（得 2 分）'), e4[3]);
+  const sf = evRows().find((r) => r.cells[1] === '犧飛').cells;
+  assert.deepStrictEqual(sf.slice(0, 3), ['第五棒', '犧飛', '#19 林廷軒']);
+  assert.ok(sf[3].endsWith('（得 1 分，打點 1）'), sf[3]);
+});
+
+test('對手的打席列：球員欄寫 NA', () => {
+  assert.deepStrictEqual(rows0830[9].cells, ['第一棒', '二滾', 'NA', '二壘滾地球出局']);
+});
+
+test('跑壘事件自己一列：跑壘｜原因｜跑者｜描述', () => {
+  assert.deepStrictEqual(rows0830[11].cells, ['跑壘', '盜壘', 'NA', '一壘跑者 雨人第2棒 盜壘上二壘']);
+  const wp = evRows().find((r) => r.cells[0] === '跑壘' && r.cells[1] === '暴投').cells;
+  assert.deepStrictEqual(wp, ['跑壘', '暴投', '#1、#39', '一壘跑者 張容基 暴投上二壘，二壘跑者 駱家鈞 暴投上三壘']);
+});
+
+test('換人、換守位各自一列，用給裁判看的背號寫法', () => {
+  const subs = evRows().filter((r) => r.cells[0] === '調度').map((r) => r.cells);
+  assert.deepStrictEqual(subs, [
+    ['調度', '代跑', '#21 李浩偉', '#21 代跑 #17'],
+    ['調度', '守位', '', '#21 守 3'],
+    ['調度', '代打', '#49 蘇辰雄', '#49 代打 #1'],
+    ['調度', '守位', '', '#56 守 1、#49 守 5'],
+    ['調度', '守備', '#55 葉展昆', '#55 換 #2，守 7'],
+    ['調度', '守備', '#36 李尊堯', '#36 換 #91，守 9'],
+  ]);
+});
+
+test('備註和比賽結束各自一列；比賽結束寫最後比分', () => {
+  assert.deepStrictEqual(evRows().find((r) => r.cells[0] === '備註').cells, ['備註', '', '', '雨人更換投手（低肩側投）']);
+  assert.deepStrictEqual(rows0830[rows0830.length - 1].cells, ['比賽結束', '', '', '龍安 7：6 雨人']);
+});
+
+test('每一筆紀錄列帶著原本那一筆（依序和紀錄一字不差）；半局標題列沒有', () => {
+  assert.deepStrictEqual(evRows().map((r) => JSON.stringify(r.ev)), g0830.events.map((e) => JSON.stringify(e)));
+  assert.ok(halfRows().every((r) => !('ev' in r)));
+  assert.ok(rows0830.every((r) => r.cells.length === 4 && r.cells.every((c) => typeof c === 'string')));
+});
+
+test('還沒有任何紀錄：沒有任何列；換人發生在半局開始前，標題列先出現', () => {
+  assert.deepStrictEqual(GC.sheetRows(SETUP, []), []);
+  const r = GC.sheetRows(SETUP, [{ t: 'sub', kind: 'PH', in: { number: '21', name: '板凳21' } }]);
+  assert.deepStrictEqual(r.map((x) => x.cells), [['一局上', '龍安攻', '0分', ''], ['調度', '代打', '#21 板凳21', '#21 代打 #11']]);
+});
+
 console.log('\n不變條件（8/30 整場每一筆都檢查）');
 
 test('出局數 0～3、壘包不重複、比分＝各半局得分總和、重算兩次結果相同', () => {

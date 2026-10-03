@@ -74,6 +74,9 @@
     .reasons .btn { min-height: 34px; border-radius: 17px; font-size: .8rem; padding: 0 10px; }
     .tags { font-weight: 800; color: var(--primary-color); }
 
+    .cloud { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin: 6px 0 0; font-size: .8rem; color: var(--text-muted); }
+    .cloud.bad { color: #b91c1c; font-weight: 700; }
+    .cloud .btn { min-height: 32px; font-size: .8rem; padding: 0 10px; flex: none; }
     .halfend { border: 2px solid var(--dark-color); }
     .halfend .runs { font-size: 1.6rem; font-weight: 900; margin: 4px 0; }
 
@@ -166,7 +169,50 @@
       if (before.inning !== st.inning || before.top !== st.top) {
         const h = st.halves.filter((x) => x.inning === before.inning && x.top === before.top)[0];
         ui.halfEnd = { label: h ? h.label : '', runs: h ? h.runs : 0, offense: before.offense };
+        cloudBackup();   // 每個半局結束自動上傳雲端備份
+      } else if (ev.t === 'end') {
+        cloudBackup();   // 比賽完成也上傳一次
       }
+    }
+
+    /* ---------- 雲端備份（GAS「紀錄備份」分頁，一場一列）----------
+       失敗不擋記錄：手機上照常存檔，下次半局結束或按「立即備份」再傳 */
+    const CLOUD_KEY = SAVE_KEY + ':cloud';
+    function cloudInfo() {
+      try { return JSON.parse(store.get(CLOUD_KEY) || 'null') || {}; } catch (e) { return {}; }
+    }
+    async function cloudBackup() {
+      if (!game || ui.cloudBusy) return;
+      const n = game.events.length;
+      ui.cloudBusy = true; ui.cloudMsg = '雲端備份中…'; render();
+      try {
+        // 試算表「賽事紀錄_比賽ID」分頁：一筆紀錄一列（每一列的字由 GameCore.sheetRows 算好）
+        const r = await post({ action: 'saveRecordBackup', gameId: game.setup.id, setup: game.setup, rows: GC.sheetRows(game.setup, game.events) });
+        if (r && r.success) {
+          store.set(CLOUD_KEY, JSON.stringify({ id: game.setup.id, events: n, at: new Date().toISOString() }));
+          ui.cloudMsg = '';
+        } else if (r && r.code === 'AUTH_REQUIRED') {
+          ui.cloudMsg = '雲端備份需要隊務登入（登入可能過期），請到陣容調度工具重新登入後按「立即備份」';
+        } else {
+          ui.cloudMsg = '雲端備份失敗：' + ((r && r.message) || '未知原因');
+        }
+      } catch (e) {
+        ui.cloudMsg = '雲端備份失敗（沒有網路？），紀錄已存在這台手機，有訊號時按「立即備份」';
+      }
+      ui.cloudBusy = false;
+      render();
+    }
+    function cloudHTML() {
+      const c = cloudInfo();
+      const synced = c.id === game.setup.id ? c.events : 0;
+      const behind = game.events.length - synced;
+      const when = c.id === game.setup.id && c.at ? new Date(c.at).toTimeString().slice(0, 5) : '';
+      const text = ui.cloudBusy ? '☁ 雲端備份中…'
+        : ui.cloudMsg ? `⚠️ ${ui.cloudMsg}`
+        : synced ? `☁ 雲端已備份 ${synced} 筆（${when}）${behind > 0 ? `，之後還有 ${behind} 筆在這台手機` : ''}`
+        : '☁ 還沒有雲端備份（每個半局結束會自動上傳）';
+      return `<div class="cloud ${ui.cloudMsg ? 'bad' : ''}"><span>${esc(text)}</span>
+        ${!ui.cloudBusy && behind > 0 ? '<button class="btn" data-act="cloud-now">立即備份</button>' : ''}</div>`;
     }
     function undo() {
       if (!game.events.length) return;
@@ -194,7 +240,7 @@
       if (ui.screen === 'setup') app.innerHTML = setupHTML();
       else if (ui.screen === 'lineup') app.innerHTML = boardHTML() + lineupHTML();
       else if (ui.screen === 'done') app.innerHTML = doneHTML();
-      else app.innerHTML = boardHTML() + mainHTML() + timelineHTML() + footHTML();
+      else app.innerHTML = boardHTML() + cloudHTML() + mainHTML() + timelineHTML() + footHTML();
     }
 
     function boardHTML() {
@@ -262,6 +308,9 @@
           <div class="${pre.msgOk ? 'ok' : 'err'}" style="margin-top:6px">${esc(pre.msg || '')}</div>
         </div>
         ${luHTML}
+        <div class="gr-card"><b>從雲端備份接著記</b><div class="hint">換手機或這台的紀錄不見時：上面選好比賽（日期、場次、對手），再按這裡，從最後一次雲端備份接著記。</div>
+          <button class="btn wide" style="margin-top:8px" data-act="cloud-load">從雲端備份載入</button>
+          <div class="${pre.cloudOk ? 'ok' : 'err'}" style="margin-top:6px">${esc(pre.cloudMsg || '')}</div></div>
         <div class="gr-card"><b>從備份檔還原</b><div class="hint">換手機或資料不見時，選「下載備份檔」存下來的檔案。</div>
           <input type="file" id="restore-file" accept=".json,application/json"></div>`;
     }
@@ -335,25 +384,13 @@
           <div class="grid3" style="margin-top:6px">${others.map(btn).join('')}</div></details>` : ''}`;
     }
     const allPlayers = () => players.map((p) => ({ number: String(p.number), name: p.name }));
-    /* 調度紀錄，給裁判看的寫法：只有背號和守位號碼（例：#21 代打 #17、#12 守 1）。
-       每一筆用「換人前」的狀態判斷換下誰 */
+    /* 調度紀錄，給裁判看的寫法（GameCore.umpireText）：只有背號和守位號碼 */
     function umpireLog() {
       const out = [];
       let s = GC.newGame(game.setup);
-      const num = (c) => POS_NUM[c] || c;
       game.events.forEach((ev) => {
-        const label = `${s.inning}局${s.top ? '上' : '下'}`;
-        if (ev.t === 'sub') {
-          const n = `#${ev.in.number}`;
-          if (ev.kind === 'PH') out.push({ label, text: `${n} 代打 #${s.lineup[s.usNext].number}` });
-          else if (ev.kind === 'PR') out.push({ label, text: `${n} 代跑 #${s.bases[ev.base - 1].number}` });
-          else if (ev.kind === 'P') { const p = GC.currentPitcher(s); out.push({ label, text: `${n} 換 #${p ? p.number : '?'}，守 1` }); }
-          else { const old = s.lineup[ev.slot - 1]; out.push({ label, text: `${n} 換 #${old.number}，守 ${num(ev.pos || old.pos)}` }); }
-        } else if (ev.t === 'pos') {
-          out.push({ label, text: ev.changes.map((c) => `#${s.lineup[c.slot - 1].number} 守 ${num(c.pos)}`).join('、') });
-        } else if (ev.t === 'dhOff') {
-          out.push({ label, text: `DH 取消：#${s.pitcher.number} 打第 ${ev.slot} 棒、守 1，#${s.lineup[ev.slot - 1].number} 退場` });
-        }
+        const text = GC.umpireText(s, ev);
+        if (text) out.push({ label: `${s.inning}局${s.top ? '上' : '下'}`, text });
         s = GC.apply(s, ev);
       });
       return out;
@@ -567,7 +604,7 @@
           <div class="row" style="margin-top:8px"><button class="btn dark" data-act="copy">複製全部內容</button>
           <a class="btn" target="_blank" rel="noopener" href="https://github.com/${REPO}/new/main/data/games?filename=${encodeURIComponent(file)}">開啟 GitHub 新增檔案頁 ↗</a></div>
           <div id="copy-msg" class="ok"></div>
-          <div class="hint" style="margin-top:6px">雲端備份上傳（PR③）完成前，請也按「下載備份檔」留一份原始紀錄。</div>
+          <div style="margin-top:6px">${cloudHTML()}</div>
           <div class="row" style="margin-top:8px"><button class="btn" data-act="backup">下載備份檔</button><button class="btn" data-act="back-main">回到紀錄畫面</button></div></div>
         <div class="gr-card"><b>結束</b>
           <div class="hint">確認已經發布到 GitHub，或已經下載備份檔，再清除這台裝置上的紀錄。清除後就能記下一場。</div>
@@ -615,6 +652,25 @@
         pre.lineupData = { lineup: starters, dh, pitcher, bench, benchFromAttendance: !!att };
         pre.msg = `已讀取 ${gameId(g)} 的先發。`; pre.msgOk = true; pre.needLogin = false;
       } catch (e) { pre.msg = '讀取失敗：' + e.message; pre.msgOk = false; }
+      render();
+    }
+
+    async function cloudLoad() {
+      const g = gameInfo();
+      Object.assign(pre, g);
+      if (!g.date || !g.opponent) { pre.cloudMsg = '請先選比賽或填日期、場次、對手。'; pre.cloudOk = false; render(); return; }
+      if (store.get(SAVE_KEY) && !confirm('這台裝置有記到一半的比賽，載入雲端備份會取代它。確定？')) return;
+      pre.cloudMsg = '讀取中…'; pre.cloudOk = true; render();
+      try {
+        const r = await post({ action: 'loadRecordBackup', gameId: gameId(g) });
+        if (r && r.code === 'AUTH_REQUIRED') { pre.needLogin = true; pre.cloudMsg = '需要隊務登入（上方輸入密碼）。'; pre.cloudOk = false; render(); return; }
+        if (!r || !r.success) { pre.cloudMsg = (r && r.message) || '讀取失敗'; pre.cloudOk = false; render(); return; }
+        GC.replay(r.record.setup, r.record.events);   // 確認備份能重算
+        game = r.record; recompute(); save();
+        store.set(CLOUD_KEY, JSON.stringify({ id: game.setup.id, events: game.events.length, at: new Date().toISOString() }));
+        ui = { screen: 'main' }; resetPA();
+        pre.cloudMsg = '';
+      } catch (e) { pre.cloudMsg = '讀取失敗：' + e.message; pre.cloudOk = false; }
       render();
     }
 
@@ -671,7 +727,7 @@
         case 'first': pre.usBatFirst = d.v === '1'; break;
         case 'start': startGame(); return;
         case 'resume': game = JSON.parse(store.get(SAVE_KEY)); recompute(); resetPA(); ui.screen = 'main'; break;
-        case 'discard': if (confirm('確定捨棄這台裝置上記到一半的比賽？（建議先下載備份檔）')) store.del(SAVE_KEY); break;
+        case 'discard': if (confirm('確定捨棄這台裝置上記到一半的比賽？（建議先下載備份檔）')) { store.del(SAVE_KEY); store.del(CLOUD_KEY); } break;
         case 'open-lineup': openLineup(null, null); resetPA(); break;
         case 'close-lineup': ui.screen = 'main'; ui.selSlot = null; ui.subKind = null; break;
         case 'pick-slot': ui.selSlot = ui.selSlot === Number(d.slot) ? null : Number(d.slot); ui.subKind = null; ui.lineupErr = ''; break;
@@ -752,6 +808,8 @@
           break;
         }
         case 'undo': if (confirm('復原上一筆？')) { undo(); return; } break;
+        case 'cloud-now': cloudBackup(); return;
+        case 'cloud-load': cloudLoad(); return;
         case 'backup': download(`${game.setup.id}_紀錄備份.json`, JSON.stringify(game, null, 1)); break;
         case 'finish':
           if (!confirm('比賽完成？之後就不能再記（可以用「復原上一筆」取消）。')) break;
@@ -760,7 +818,7 @@
         case 'back-main': ui.screen = 'main'; break;
         case 'clear-exit':
           if (!confirm('確定清除這台裝置上這場的紀錄？\n清除前請確認已經發布到 GitHub，或已經按「下載備份檔」。')) break;
-          store.del(SAVE_KEY); game = null; st = null; resetPA();
+          store.del(SAVE_KEY); store.del(CLOUD_KEY); game = null; st = null; resetPA();
           ui = { screen: 'setup' }; pre.lineupData = null; pre.msg = '';
           break;
         case 'copy': {
@@ -798,6 +856,11 @@
         };
         fr.readAsText(t.files[0]);
       }
+    });
+
+    // 網路恢復時，有還沒上傳的紀錄就自動補傳
+    window.addEventListener('online', () => {
+      if (game && ui.screen !== 'setup' && game.events.length > ((cloudInfo().id === game.setup.id && cloudInfo().events) || 0)) cloudBackup();
     });
 
     (async function init() {

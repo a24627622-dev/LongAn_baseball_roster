@@ -25,7 +25,7 @@ const DATA_DIR = path.join(__dirname, 'data');
 const DATA_FILE = path.join(DATA_DIR, 'sheets.json');
 const CONFIG_FILE = path.join(__dirname, 'config.json');
 const ROSTER_FILE = path.join(__dirname, 'roster.json');
-const GAS_FILES = ['gas/Code.gs', 'gas/Auth.gs', 'gas/Pitchers.gs'];
+const GAS_FILES = ['gas/Code.gs', 'gas/Auth.gs', 'gas/Pitchers.gs', 'gas/Backup.gs'];
 
 const MIME = {
   '.html': 'text/html; charset=utf-8', '.css': 'text/css; charset=utf-8', '.js': 'text/javascript; charset=utf-8',

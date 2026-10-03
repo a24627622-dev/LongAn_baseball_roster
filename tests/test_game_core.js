@@ -539,6 +539,94 @@ test('還沒有任何紀錄：沒有任何列；換人發生在半局開始前�
   assert.deepStrictEqual(r.map((x) => x.cells), [['一局上', '龍安攻', '0分', ''], ['調度', '代打', '#21 板凳21', '#21 代打 #11']]);
 });
 
+console.log('\nL 比賽完成寫進比賽分頁（最終名單、成績、逐局比分；標準答案：8/30 戰報）');
+
+let fin0830 = null;
+try { fin0830 = GC.sheetFinal(g0830.setup, g0830.events); } catch (e) { /* 下面的測試會報錯 */ }
+const brief = (p) => `#${p.number} ${p.name} ${p.posLabel}`;
+
+test('8/30 最終名單：每一棒先發＋依序的替補；代跑、代打、守備換人、換守位另起一列（守位寫法和陣容調度相同）', () => {
+  assert.deepStrictEqual(fin0830.activeLineup.map((s) => [brief(s.starter), ...s.substitutes.map(brief)]), [
+    ['#56 蘇垣華 3B (5)', '#56 蘇垣華 P (1)'],
+    ['#17 蘇巽雄 1B (3)', '#21 李浩偉 PR (代跑)', '#21 李浩偉 1B (3)'],
+    ['#6 黃宥憬 C (2)'],
+    ['#2 梁佑丞 LF (7)', '#55 葉展昆 LF (7)'],
+    ['#19 林廷軒 SS (6)'],
+    ['#91 黃宥挺 RF (9)', '#36 李尊堯 RF (9)'],
+    ['#12 陳佳瑋 2B (4)'],
+    ['#39 駱家鈞 CF (8)'],
+    ['#1 張容基 P (1)', '#49 蘇辰雄 PH (代打)', '#49 蘇辰雄 3B (5)'],
+  ]);
+  assert.deepStrictEqual(fin0830.activeLineup[1].substitutes[0].pos, 'PR');
+});
+
+test('8/30 投手：#1 張容基 → #56 蘇垣華；IP 2.0、3.0，R、H、BB、SO、HR、HBP、WP 和戰報一致', () => {
+  assert.deepStrictEqual(fin0830.pitchers.map(brief), ['#1 張容基 P (1)', '#56 蘇垣華 P (1)']);
+  assert.deepStrictEqual(fin0830.stats.pitching.map((p) => [p.number, p.IP, p.R, p.H, p.BB, p.SO, p.HR, p.HBP, p.WP]),
+    [['1', '2.0', 0, 1, 1, 1, 0, 1, 0], ['56', '3.0', 6, 7, 1, 7, 0, 0, 0]]);
+});
+
+test('8/30 打者成績：AB、R、H、2B、3B、HR、RBI、BB、K、SB 每一位都和戰報一致', () => {
+  const row = (n, AB, R, H, RBI, BB, K, d2 = 0, SB = 0) => [n, AB, R, H, d2, 0, 0, RBI, BB, K, SB];
+  assert.deepStrictEqual(fin0830.stats.batting.map((b) => [b.number, b.AB, b.R, b.H, b['2B'], b['3B'], b.HR, b.RBI, b.BB, b.K, b.SB]), [
+    row('56', 3, 1, 1, 2, 0, 0, 1), row('17', 0, 1, 0, 0, 2, 0, 0, 1), row('21', 1, 1, 0, 0, 0, 0),
+    row('6', 3, 2, 1, 0, 0, 1), row('2', 0, 0, 0, 0, 1, 0), row('55', 1, 0, 0, 0, 0, 1),
+    row('19', 1, 0, 0, 1, 1, 1), row('91', 2, 0, 0, 0, 0, 0), row('36', 1, 0, 0, 0, 0, 1),
+    row('12', 3, 0, 0, 0, 0, 2), row('39', 2, 1, 0, 0, 1, 2, 0, 1), row('1', 0, 1, 0, 0, 1, 0),
+    row('49', 1, 0, 0, 0, 0, 0),
+  ]);
+});
+
+test('8/30 逐局比分：龍安 2、5、0、0、0（R7 H2 E2）；雨人 0、0、6、0、0（R6 H8 E2，我方打者失誤上壘 2 次）', () => {
+  assert.deepStrictEqual(fin0830.linescore, {
+    us: [2, 5, 0, 0, 0], opp: [0, 0, 6, 0, 0], usRHE: [7, 2, 2], oppRHE: [6, 8, 2], overflow: false,
+  });
+});
+
+test('代跑後盜壘、沒有打擊：代跑者有一列，AB 等都是 0，SB 1', () => {
+  const evs = [
+    { t: 'pa', result: '1B', pos: 8, runners: [{ from: 0, to: 1 }] },
+    { t: 'sub', kind: 'PR', base: 1, in: { number: '21', name: '板凳21' } },
+    { t: 'run', runners: [{ from: 1, to: 2, reason: '盜壘' }] },
+  ];
+  const f = GC.sheetFinal(SETUP, evs);
+  assert.deepStrictEqual(f.activeLineup[0].substitutes.map(brief), ['#21 板凳21 PR (代跑)']);
+  const pr = f.stats.batting.find((b) => b.number === '21');
+  assert.deepStrictEqual([pr.AB, pr.R, pr.H, pr.RBI, pr.BB, pr.K, pr.SB], [0, 0, 0, 0, 0, 0, 1]);
+});
+
+test('沒打的半局留空白（不是 0）：龍安後攻，一局下打一支全壘打就結束', () => {
+  const setup = { ...SETUP, usBatFirst: false };
+  const evs = [...threeOuts, { t: 'pa', result: 'HR', pos: 7, runners: [{ from: 0, to: 4 }] }, { t: 'end' }];
+  const f = GC.sheetFinal(setup, evs);
+  assert.deepStrictEqual([f.linescore.us, f.linescore.opp], [[1, '', '', '', ''], [0, '', '', '', '']]);
+  assert.deepStrictEqual([f.linescore.usRHE, f.linescore.oppRHE], [[1, 1, 0], [0, 0, 0]]);
+});
+
+test('超過 5 局：只回傳前 5 局，R 照樣是總分，標示要提示手動補', () => {
+  const evs = [];
+  for (let i = 0; i < 10; i++) evs.push(...threeOuts);
+  evs.push({ t: 'pa', result: 'HR', pos: 7, runners: [{ from: 0, to: 4 }] }, { t: 'end' });
+  const f = GC.sheetFinal(SETUP, evs);
+  assert.deepStrictEqual(f.linescore.us, [0, 0, 0, 0, 0]);
+  assert.deepStrictEqual(f.linescore.usRHE, [1, 1, 0]);
+  assert.strictEqual(f.linescore.overflow, true);
+});
+
+test('DH 制：投手不在打序，但列在投手表；DH 那一棒寫 DH (10)', () => {
+  const f = GC.sheetFinal(SETUP_DH, [...threeOuts, ...threeOuts]);
+  assert.strictEqual(f.activeLineup[3].starter.posLabel, 'DH (10)');
+  assert.ok(f.activeLineup.every((s) => s.starter.number !== '1'));
+  assert.deepStrictEqual(f.pitchers.map(brief), ['#1 投手一 P (1)']);
+  assert.deepStrictEqual(f.stats.pitching.map((p) => [p.number, p.IP, p.SO]), [['1', '1.0', 3]]);
+});
+
+test('先發投手還沒投球就被換下：投手表照樣列出兩位，沒投的那位成績都是 0', () => {
+  const f = GC.sheetFinal(SETUP, [...threeOuts, { t: 'sub', kind: 'P', in: { number: '22', name: '板凳22' } }, ...threeOuts]);
+  assert.deepStrictEqual(f.pitchers.map(brief), ['#19 球員19 P (1)', '#22 板凳22 P (1)']);
+  assert.deepStrictEqual(f.stats.pitching.map((p) => [p.number, p.IP, p.SO]), [['19', '0.0', 0], ['22', '1.0', 3]]);
+});
+
 console.log('\n不變條件（8/30 整場每一筆都檢查）');
 
 test('出局數 0～3、壘包不重複、比分＝各半局得分總和、重算兩次結果相同', () => {

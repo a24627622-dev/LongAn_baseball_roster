@@ -631,6 +631,75 @@
     return rows;
   }
 
+  /* ---------- 比賽完成：寫進試算表比賽分頁的資料（GAS finishGame）----------
+     activeLineup／pitchers 和陣容調度送的格式相同（每一棒 starter＋依序的 substitutes；換守位＝同一人再出現一次）；
+     stats：打者 AB～SB、投手 IP～WP（ER 不算，留給記錄員手填）；linescore：雙方前 5 局得分與 R、H、E */
+  const SHEET_INNINGS = 5;
+  function sheetPosLabel(code) {
+    if (code === 'PH') return 'PH (代打)';
+    if (code === 'PR') return 'PR (代跑)';
+    if (code === 'DH') return 'DH (10)';
+    return POS_NUM[code] ? `${code} (${POS_NUM[code]})` : (code || '');
+  }
+  function sheetFinal(setup, events) {
+    let s = newGame(setup);
+    const entry = (p, pos) => ({ number: String(p.number), name: p.name || '', pos: pos || '', posLabel: sheetPosLabel(pos) });
+    const slots = s.lineup.map((p) => ({ starter: entry(p, p.pos), substitutes: [] }));
+    const pitchers = [];
+    const addPitcher = (p) => { if (p && !pitchers.some((x) => x.number === String(p.number))) pitchers.push(entry(p, 'P')); };
+    addPitcher(currentPitcher(s));
+    (events || []).forEach((ev, i) => {
+      if (ev.t === 'sub') {
+        if (ev.kind === 'PH') slots[s.usNext].substitutes.push(entry(ev.in, 'PH'));
+        else if (ev.kind === 'PR') slots[s.bases[ev.base - 1].slot - 1].substitutes.push(entry(ev.in, 'PR'));
+        else if (ev.kind === 'P') {
+          if (!s.dh) slots[s.lineup.findIndex((x) => x.pos === 'P')].substitutes.push(entry(ev.in, 'P'));
+          addPitcher(ev.in);
+        } else {
+          const pos = ev.pos || s.lineup[ev.slot - 1].pos;
+          slots[ev.slot - 1].substitutes.push(entry(ev.in, pos));
+          if (pos === 'P') addPitcher(ev.in);
+        }
+      } else if (ev.t === 'pos') {
+        ev.changes.forEach((c) => {
+          const p = s.lineup[c.slot - 1];
+          slots[c.slot - 1].substitutes.push(entry(p, c.pos));
+          if (c.pos === 'P') addPitcher(p);
+        });
+      } else if (ev.t === 'dhOff') {
+        slots[ev.slot - 1].substitutes.push(entry(s.pitcher, 'P'));
+      }
+      try { s = apply(s, ev); } catch (e) { throw new Error(`第 ${i + 1} 筆紀錄：${e.message}`); }
+    });
+
+    const game = toGame(setup, events, { generatedAt: '' });
+    const KEYS = ['AB', 'R', 'H', '2B', '3B', 'HR', 'RBI', 'BB', 'K', 'SB'];
+    const batting = game.batting.map((b) => {
+      const row = { number: b.number, name: b.name };
+      KEYS.forEach((k) => { row[k] = b[k] || 0; });
+      return row;
+    });
+    const pitching = pitchers.map((p) => {
+      const st = s.stats.pitching[p.number] || { outs: 0, R: 0, H: 0, BB: 0, SO: 0, HR: 0, HBP: 0, WP: 0 };
+      return { number: p.number, name: p.name, IP: `${Math.floor(st.outs / 3)}.${st.outs % 3}`, R: st.R, H: st.H, BB: st.BB, SO: st.SO, HR: st.HR, HBP: st.HBP, WP: st.WP };
+    });
+
+    const paItems = (side) => s.halves.filter((h) => h.offense === side).flatMap((h) => h.items).filter((it) => it.type === 'pa');
+    const hits = (side) => paItems(side).filter((it) => HITS[it.kind]).length;
+    const reachedOnError = (side) => paItems(side).filter((it) => it.kind === 'E' || it.kind === 'CI').length;
+    const innings = (side) => Array.from({ length: SHEET_INNINGS }, (_, i) => {
+      const h = s.halves.find((x) => x.offense === side && x.inning === i + 1);
+      return h ? h.runs : '';
+    });
+    const linescore = {
+      us: innings('us'), opp: innings('opp'),
+      usRHE: [s.score.us, hits('us'), reachedOnError('opp')],
+      oppRHE: [s.score.opp, hits('opp'), reachedOnError('us')],
+      overflow: s.halves.some((h) => h.inning > SHEET_INNINGS),
+    };
+    return { activeLineup: slots, pitchers, stats: { batting, pitching }, linescore };
+  }
+
   /* ---------- 產出賽事成績資料（data/games/<比賽ID>.json）---------- */
   function toGame(setup, events, opts = {}) {
     const s = replay(setup, events);
@@ -664,7 +733,7 @@
   }
 
   const api = {
-    newGame, apply, validate, replay, defaults, buildPA, fieldingProblems, currentPitcher, toGame, displayOf, umpireText, sheetRows,
+    newGame, apply, validate, replay, defaults, buildPA, fieldingProblems, currentPitcher, toGame, displayOf, umpireText, sheetRows, sheetFinal,
     FIELD, POS_LABEL, ON_RESULTS, OUT_RESULTS,
   };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;

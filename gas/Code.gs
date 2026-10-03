@@ -115,6 +115,11 @@ function doPost(e) {
       });
     }
 
+    // 實況賽事紀錄的比賽完成（requireSheet）：比賽分頁要先由陣容調度上傳先發建立，這裡不自動建立
+    if (action === 'finishGame' && data.requireSheet && !(gameIdStr && gameIdStr !== "__" && ss.getSheetByName(gameIdStr))) {
+      return jsonOut({ success: false, code: 'NO_GAME_SHEET', message: "找不到這場比賽的分頁（" + gameIdStr + "），請先用陣容調度上傳先發" });
+    }
+
     // 歷史紀錄備份 (流水簿)
     var logSheet = ss.getSheetByName("調度紀錄");
     if (!logSheet) {
@@ -158,17 +163,21 @@ function doPost(e) {
       // 再於基本資料區蓋上「比賽結束時間」代表本場已收尾。
       // （前端收到 success 才會清除本機暫存，同步失敗時草稿會保留）
       else if (action === 'finishGame') {
+        // 實況賽事紀錄會一併送成績與逐局比分（stats、linescore）；格式不對時只寫名單、回傳警告
+        var gameStats = parseGameStats_(data);
         if (data.activeLineup && data.activeLineup.length > 0) {
-          writeBatterBlock(gameSheet, data.activeLineup, timeFormatted);
-          writePitcherBlock(gameSheet, data, timeFormatted);
+          writeBatterBlock(gameSheet, data.activeLineup, timeFormatted, gameStats.batting);
+          writePitcherBlock(gameSheet, data, timeFormatted, gameStats.pitching);
         }
+        if (gameStats.linescore) writeLinescore_(gameSheet, gameStats.linescore);
         gameSheet.getRange(3, 3, 1, 2).setValues([["比賽結束時間", timeFormatted]]);
         gameSheet.getRange(3, 3).setFontWeight("bold");
 
         return jsonOut({
           success: true,
           message: "本場比賽已結案，結束時間：" + timeFormatted,
-          finishedAt: timeFormatted
+          finishedAt: timeFormatted,
+          warning: gameStats.warning
         });
       }
     }
@@ -270,7 +279,9 @@ function buildStatFormulas(r) {
 // 把完整的 activeLineup（每個打序的 starter + substitutes[]）整段寫入試算表。
 // 資料列數量變動時用插入/刪除列處理，讓下面的成績合計列、投手表都正確跟著位移。
 // AB~SB 手動填的成績、以及「成績上傳時間」欄位，依「打順+姓名+角色」比對保留，不會被清空。
-function writeBatterBlock(sheet, activeLineupArr, timeFormatted) {
+// statsByPlayer（可省略）：{ "背號|姓名": [AB, R, H, 2B, 3B, HR, RBI, BB, K, SB] }，有給的球員寫入成績並蓋上成績上傳時間；
+// 沒給的照舊保留表上原本的成績
+function writeBatterBlock(sheet, activeLineupArr, timeFormatted, statsByPlayer) {
   var headerRow = findHeaderRowByLabel(sheet, "打順", 30);
   if (headerRow === -1) return;
 
@@ -313,7 +324,7 @@ function writeBatterBlock(sheet, activeLineupArr, timeFormatted) {
       seenInSlot[ident] = true;
       flatRows.push({
         order: order, pos: p.posLabel || p.pos || "", number: p.number || "",
-        name: isStarter ? (p.name || "") : ("↳ " + (p.name || "")),
+        name: isStarter ? (p.name || "") : ("↳ " + (p.name || "")), plainName: p.name || "",
         role: isStarter ? "先發" : "替補", isStarter: isStarter,
         isPositionChange: isPositionChange
       });
@@ -352,8 +363,9 @@ function writeBatterBlock(sheet, activeLineupArr, timeFormatted) {
         seenWriteCount[baseKey] = (seenWriteCount[baseKey] || 0) + 1;
         var key = baseKey + "|" + seenWriteCount[baseKey];
         var saved = savedStats[key];
-        stats = saved ? saved.stats : ["", "", "", "", "", "", "", "", "", ""];
-        statTime = saved ? saved.statTime : "";
+        var given = statsByPlayer && statsByPlayer[row.number + "|" + row.plainName];
+        stats = given ? given : saved ? saved.stats : ["", "", "", "", "", "", "", "", "", ""];
+        statTime = given ? (timeFormatted || "") : saved ? saved.statTime : "";
         formulas = buildStatFormulas(r);
       }
       outValues.push([row.order, row.pos, row.number, row.name, row.role].concat(stats).concat(formulas).concat([timeFormatted || "", statTime]));
@@ -382,6 +394,48 @@ function writeBatterBlock(sheet, activeLineupArr, timeFormatted) {
   sheet.getRange(HOME_TEAM_ROW, 3 + INNINGS_COUNT).setFormula("=H" + totalsRow);
 
   return totalsRow;
+}
+
+// ==========================================
+// 實況賽事紀錄送來的成績與逐局比分（finishGame 的 stats、linescore）
+// ==========================================
+var BATTER_STAT_KEYS = ["AB", "R", "H", "2B", "3B", "HR", "RBI", "BB", "K", "SB"];
+var PITCHER_STAT_KEYS = ["R", "H", "BB", "SO", "HR", "HBP", "WP"];
+
+function isCount_(v) { return typeof v === "number" && v >= 0 && Math.floor(v) === v; }
+function isInningRuns_(a) {
+  return a instanceof Array && a.length === INNINGS_COUNT && a.every(function (v) { return v === "" || isCount_(v); });
+}
+function isRHE_(a) { return a instanceof Array && a.length === 3 && a.every(isCount_); }
+
+// 檢查格式並轉成寫入用的對照表；任何一處不對就全部不寫（只寫名單），回傳警告
+function parseGameStats_(data) {
+  var none = { batting: null, pitching: null, linescore: null, warning: "" };
+  if (!data.stats && !data.linescore) return none;
+  var bad = { batting: null, pitching: null, linescore: null, warning: "成績資料格式不對，這次只寫入名單（成績與逐局比分沒有寫入）" };
+  var st = data.stats || {};
+  var ls = data.linescore;
+  if (!(st.batting instanceof Array) || !(st.pitching instanceof Array)) return bad;
+  if (!ls || !isInningRuns_(ls.us) || !isInningRuns_(ls.opp) || !isRHE_(ls.usRHE) || !isRHE_(ls.oppRHE)) return bad;
+  var batting = {}, pitching = {};
+  for (var i = 0; i < st.batting.length; i++) {
+    var b = st.batting[i] || {};
+    if (!BATTER_STAT_KEYS.every(function (k) { return isCount_(b[k]); })) return bad;
+    batting[String(b.number) + "|" + String(b.name || "")] = BATTER_STAT_KEYS.map(function (k) { return b[k]; });
+  }
+  for (var j = 0; j < st.pitching.length; j++) {
+    var p = st.pitching[j] || {};
+    if (!/^\d+\.[0-2]$/.test(String(p.IP)) || !PITCHER_STAT_KEYS.every(function (k) { return isCount_(p[k]); })) return bad;
+    pitching[String(p.number) + "|" + String(p.name || "")] = p;
+  }
+  return { batting: batting, pitching: pitching, linescore: ls, warning: "" };
+}
+
+// 逐局比分表：龍安（第 6 列）寫每局得分與 E；R、H 維持接打者合計列的公式。對手（第 7 列）寫每局得分與 R、H、E
+function writeLinescore_(sheet, ls) {
+  sheet.getRange(HOME_TEAM_ROW, 2, 1, INNINGS_COUNT).setValues([ls.us]);
+  sheet.getRange(HOME_TEAM_ROW, 4 + INNINGS_COUNT).setValue(ls.usRHE[2]);
+  sheet.getRange(AWAY_TEAM_ROW, 2, 1, INNINGS_COUNT + 3).setValues([ls.opp.concat(ls.oppRHE)]);
 }
 
 function writeTeamTotalsRow(sheet, startRow, playerRowCount) {
@@ -448,7 +502,8 @@ function ensurePitcherRateHeader(sheet, headerRow) {
 // 每位投手只會出現一列（依上場順序）。
 // IP/R/H/ER/BB/SO/HR/HBP/WP 這些數據欄位是手動填的，依「背號+姓名」比對保留，不會被清空。
 // payload：{ activeLineup: [...], pitchers: [...] }（為了相容，直接傳 activeLineup 陣列也可以）
-function writePitcherBlock(sheet, payload, timeFormatted) {
+// statsByPitcher（可省略）：{ "背號|姓名": { IP, R, H, BB, SO, HR, HBP, WP } }，ER（自責分）一律保留表上手填的值
+function writePitcherBlock(sheet, payload, timeFormatted, statsByPitcher) {
   if (Array.isArray(payload)) payload = { activeLineup: payload };
   var headerRow = findHeaderRowByLabel(sheet, "順序", 300);
   if (headerRow === -1) return;
@@ -493,6 +548,8 @@ function writePitcherBlock(sheet, payload, timeFormatted) {
     var r = startRow + i;
     var key = p.number + "|" + p.name;
     var stats = savedStats[key] || ["", "", "", "", "", "", "", "", ""];
+    var given = statsByPitcher && statsByPitcher[key];
+    if (given) stats = [given.IP, given.R, given.H, stats[3], given.BB, given.SO, given.HR, given.HBP, given.WP];
     var row = [(i + 1).toString(), p.posLabel, p.number, p.name, i === 0 ? "先發投手" : "後援投手"].concat(stats);
     outValues.push(row);
   });

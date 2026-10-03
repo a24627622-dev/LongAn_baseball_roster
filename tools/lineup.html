@@ -17,13 +17,14 @@
     <div class="mobile-container">
     <div id="app" v-cloak class="max-w-4xl mx-auto px-4 py-6">
         
-     <header class="app-header">
+     <!-- 頁首分兩列（手機版按鈕太多會把標題擠成直排）：第一列 logo＋標題，第二列按鈕 -->
+     <header class="app-header" style="flex-direction: column; align-items: stretch; gap: 8px;">
       <div class="header-brand">
         <img src="../logo.png" alt="龍安隊徽" class="team-logo" onerror="this.style.display='none'">
-        <h1 style="font-size: 1rem;">龍安點名與陣容助手</h1>
+        <h1 style="font-size: 1rem; white-space: nowrap;">龍安點名與陣容助手</h1>
       </div>
 
-      <div style="display: flex; align-items: center; gap: 8px;">
+      <div style="display: flex; align-items: center; justify-content: flex-end; flex-wrap: wrap; gap: 8px;">
         <span v-if="apiModeLabel" :title="'後端：' + (apiModeLabel.includes('正式') ? '正式 Google 試算表' : '測試環境')"
               :style="{ background: apiModeLabel.includes('正式') ? '#dc2626' : '#7c3aed', color: 'white', padding: '4px 8px', borderRadius: '8px', fontSize: '0.75rem', whiteSpace: 'nowrap' }">
           {{ apiModeLabel }}

@@ -291,4 +291,131 @@ console.log('\nBackup.gs（實況賽事紀錄的雲端備份：一場一頁「�
   });
 }
 
+console.log('\nCode.gs finishGame 帶成績（實況賽事紀錄比賽完成：最終名單、成績、逐局比分寫進比賽分頁）');
+{
+  const files = ['gas/Code.gs', 'gas/Auth.gs', 'gas/Pitchers.gs', 'gas/Backup.gs'];
+  const GC = require('../game-core');
+  const g = JSON.parse(fs.readFileSync(path.join(__dirname, 'fixtures', '2026-08-30_G4_雨人.events.json'), 'utf8'));
+  const gameInfo = { date: '2026-08-30', gameNum: 'G4', opponent: '雨人' };
+  const SHEET = '2026-08-30_G4_雨人';
+  const fin = GC.sheetFinal(g.setup, g.events);
+  const make = () => { const ss = new MockSpreadsheet(); const c = createGasContext({ files, spreadsheet: ss }); return { ss, ...c }; };
+  const post = (ctx, data) => out(ctx.doPost({ postData: { contents: JSON.stringify(data) } }));
+  // 陣容調度先上傳先發，比賽分頁才存在
+  const starters = (ctx) => post(ctx, { action: 'saveStarters', gameInfo, lineup: fin.activeLineup.map((x) => x.starter), pitchers: [fin.pitchers[0]] });
+  const finish = (ctx, extra = {}) => post(ctx, { action: 'finishGame', gameInfo, requireSheet: true, ...fin, ...extra });
+  const sheetOf = (ss) => ss.getSheetByName(SHEET);
+  const values = (ss) => sheetOf(ss).getDataRange().getValues();
+  const rowIdx = (ss, header, test) => { const v = values(ss); const h = v.findIndex((r) => r[0] === header); for (let i = h + 1; i < v.length; i++) if (test(v[i])) return i; return -1; };
+  const batterRow = (ss, name, nth = 0) => { const v = values(ss); const h = v.findIndex((r) => r[0] === '打順'); return v.slice(h + 1).filter((r) => String(r[3]).replace(/^↳\s*/, '') === name)[nth]; };
+  const pitcherRow = (ss, num) => values(ss)[rowIdx(ss, '順序', (r) => String(r[2]) === num)];
+
+  test('帶成績：打者第一列寫 AB～SB 與成績上傳時間，換守位那一列維持「-」', () => {
+    const { ss, ctx } = make();
+    starters(ctx);
+    const r = finish(ctx);
+    assert.strictEqual(r.success, true, r.message);
+    assert.deepStrictEqual(batterRow(ss, '蘇垣華').slice(5, 15), [3, 1, 1, 1, 0, 0, 2, 0, 0, 0]);
+    assert.ok(batterRow(ss, '蘇垣華')[20], '成績上傳時間沒寫');
+    assert.deepStrictEqual(batterRow(ss, '蘇垣華', 1).slice(5, 15), Array(10).fill('-'));
+    assert.deepStrictEqual(batterRow(ss, '駱家鈞').slice(5, 15), [2, 1, 0, 0, 0, 0, 0, 1, 2, 1]);
+  });
+
+  test('手填的打者成績被工具的值覆蓋', () => {
+    const { ss, ctx } = make();
+    starters(ctx);
+    const sh = sheetOf(ss);
+    const v = values(ss);
+    const r = v.findIndex((x) => x[3] === '蘇垣華') + 1;
+    sh.getRange(r, 6).setValue(9);
+    finish(ctx);
+    assert.strictEqual(batterRow(ss, '蘇垣華')[5], 3);
+  });
+
+  test('投手表：IP～WP 寫入，ER 保留手填的值', () => {
+    const { ss, ctx } = make();
+    starters(ctx);
+    finish(ctx);
+    const r = rowIdx(ss, '順序', (x) => String(x[2]) === '56') + 1;
+    sheetOf(ss).getRange(r, 9).setValue(4);
+    finish(ctx);
+    assert.deepStrictEqual(pitcherRow(ss, '1').slice(5, 14), ['2.0', 0, 1, '', 1, 1, 0, 1, 0]);
+    assert.deepStrictEqual(pitcherRow(ss, '56').slice(5, 14), ['3.0', 6, 7, 4, 1, 7, 0, 0, 0]);
+  });
+
+  test('逐局比分：第 6、7 列寫雙方每局得分與 R、H、E；龍安的 R、H 維持接打者合計的公式', () => {
+    const { ss, ctx } = make();
+    starters(ctx);
+    finish(ctx);
+    const v = values(ss);
+    assert.deepStrictEqual(v[5].slice(0, 6), ['龍安', 2, 5, 0, 0, 0]);
+    assert.match(String(v[5][6]), /^=G\d+$/);
+    assert.match(String(v[5][7]), /^=H\d+$/);
+    assert.strictEqual(v[5][8], 2);
+    assert.deepStrictEqual(v[6].slice(0, 9), ['雨人', 0, 0, 6, 0, 0, 6, 8, 2]);
+  });
+
+  test('沒打的半局寫空白', () => {
+    const { ss, ctx } = make();
+    starters(ctx);
+    const ls = { us: [1, '', '', '', ''], opp: [0, '', '', '', ''], usRHE: [1, 1, 0], oppRHE: [0, 0, 0], overflow: false };
+    finish(ctx, { linescore: ls });
+    const v = values(ss);
+    assert.deepStrictEqual(v[5].slice(1, 6), [1, '', '', '', '']);
+    assert.deepStrictEqual(v[6].slice(1, 9), [0, '', '', '', '', 0, 0, 0]);
+  });
+
+  test('不帶成績（陣容調度的比賽結案）：行為不變，手填成績與逐局比分都保留', () => {
+    const { ss, ctx } = make();
+    starters(ctx);
+    const sh = sheetOf(ss);
+    const r = values(ss).findIndex((x) => x[3] === '蘇垣華') + 1;
+    sh.getRange(r, 6).setValue(9);
+    sh.getRange(7, 2).setValue(3);
+    const res = post(ctx, { action: 'finishGame', gameInfo, activeLineup: fin.activeLineup, pitchers: fin.pitchers });
+    assert.strictEqual(res.success, true);
+    assert.strictEqual(batterRow(ss, '蘇垣華')[5], 9);
+    assert.strictEqual(values(ss)[6][1], 3);
+    assert.strictEqual(batterRow(ss, '蘇垣華')[20], '');
+  });
+
+  test('寫完用 getGameLineup 回讀：每一棒的名單和工具送出的一致（陣容調度能回讀）', () => {
+    const { ctx } = make();
+    starters(ctx);
+    finish(ctx);
+    const r = post(ctx, { action: 'getGameLineup', gameInfo });
+    const brief = (p) => `${p.number}|${p.name}|${p.posLabel}`;
+    assert.deepStrictEqual(r.data.activeLineup.map((x) => [x.starter, ...x.substitutes].map(brief)),
+      fin.activeLineup.map((x) => [x.starter, ...x.substitutes].map(brief)));
+    assert.deepStrictEqual(r.data.pitchers.map((p) => p.number), ['1', '56']);
+  });
+
+  test('成績資料格式不對：只寫名單、不動成績與逐局比分，回傳警告', () => {
+    const { ss, ctx } = make();
+    starters(ctx);
+    const bad = [
+      { stats: { batting: 'x', pitching: [] } },
+      { stats: { ...fin.stats, batting: [{ ...fin.stats.batting[0], AB: '三' }] } },
+      { stats: { ...fin.stats, pitching: [{ ...fin.stats.pitching[0], IP: '2.5' }] } },
+      { linescore: { ...fin.linescore, us: [1, 2] } },
+    ];
+    bad.forEach((extra) => {
+      const r = finish(ctx, extra);
+      assert.strictEqual(r.success, true);
+      assert.match(r.warning || '', /成績/);
+    });
+    assert.deepStrictEqual(batterRow(ss, '蘇垣華').slice(5, 15), Array(10).fill(''));
+    assert.deepStrictEqual(batterRow(ss, '李浩偉').slice(0, 5), ['2', 'PR (代跑)', '21', '↳ 李浩偉', '替補']);
+    assert.deepStrictEqual(values(ss)[6].slice(1, 6), ['', '', '', '', '']);
+  });
+
+  test('比賽分頁不存在（陣容調度沒上傳先發）：回傳提醒，不建立分頁', () => {
+    const { ss, ctx } = make();
+    const r = finish(ctx);
+    assert.strictEqual(r.success, false);
+    assert.match(r.message, /請先用陣容調度上傳先發/);
+    assert.ok(!ss.getSheetByName(SHEET));
+  });
+}
+
 console.log(`\n共 ${passed} 項通過` + (process.exitCode ? '（有失敗）' : ''));

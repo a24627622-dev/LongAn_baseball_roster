@@ -19,17 +19,18 @@ node tests/check_data.js                   # 檢查 data/*.json
   後端實際執行 `gas/Code.gs` + `Auth.gs` + `Pitchers.gs`，試算表用模擬物件。
   `test_lineup_logic.js` 與 `test_scenarios.js` 共用它。
 - `gas_mock.js`：Google Apps Script 執行環境模擬（試算表、指令碼屬性、快取、HMAC 等）。
-- `test_gas_modules.js`（31 項）：Auth.gs、Pitchers.gs 的單元測試，以及 Backup.gs（實況賽事紀錄的雲端備份：一場一頁「賽事紀錄_比賽ID」、整頁重寫、建立時間保留、8/30 整場來回一致、E 欄改壞指出列號、異常輸入、登入保護、不碰其他分頁）。
+- `test_gas_modules.js`（40 項）：Auth.gs、Pitchers.gs 的單元測試，以及 Backup.gs（實況賽事紀錄的雲端備份：一場一頁「賽事紀錄_比賽ID」、整頁重寫、建立時間保留、8/30 整場來回一致、E 欄改壞指出列號、異常輸入、登入保護、不碰其他分頁），以及 `Code.gs` 的 `finishGame` 帶成績（實況賽事紀錄比賽完成：成績寫入與覆蓋、ER 保留、逐局比分、不帶成績時行為不變、回讀一致、格式不對只寫名單、分頁不存在不建立）。
 - `test_lineup_logic.js`（28 項）：完整流程——點名 → 先發 → 調度 → 上傳 → 回讀 → 結案，含登入流程。
 - `test_record_engine.js`（39 項）：比賽文字紀錄轉換引擎（根目錄 `record-engine.js`）。
   標準答案是 2026-08-30 G4 對雨人的賽事戰報：每位打者的 AB、R、H、RBI、BB、K，兩位投手的局數、被安打、失分、四壞、三振都要一致；
   另外測原始（未補正）紀錄要抓得出問題、打點與得分規則、各種 ⚠️ 偵測、對手半局算投手成績。
   測試資料在 `fixtures/`；字典文件第 6 節的範例必須和 `fixtures/2026-08-30_G4_雨人.txt` 一字不差
-- `test_game_core.js`（62 項）：實況賽事紀錄的計算核心（根目錄 `game-core.js`）。依 `docs/賽事紀錄工具_規則漏洞清單.md` 逐條寫成：
+- `test_game_core.js`（71 項）：實況賽事紀錄的計算核心（根目錄 `game-core.js`）。依 `docs/賽事紀錄工具_規則漏洞清單.md` 逐條寫成：
   死球只推被擠跑者、四壞多跑要選原因、犧飛／犧觸判斷、打點例外、滾地出局被擠跑者預設、全壘打、跑者不能超前、第三出局得分算不算、
   代打／代跑／換投／守位調整／DH 取消、不死三振條件、防守半局（對手棒次、投手成績、失誤記到野手）、復原、比賽結束。
   驗收：`fixtures/2026-08-30_G4_雨人.events.json`（8/30 整場改寫成事件）算出的打者、投手成績要和賽事戰報完全一致，產出的資料要通過 `checkGame`。
-  雲端備份的表格列（`sheetRows`）：半局標題與得分、打席列、得分打點括號、對手 NA、跑壘、調度背號寫法、每一列帶原本那一筆
+  雲端備份的表格列（`sheetRows`）：半局標題與得分、打席列、得分打點括號、對手 NA、跑壘、調度背號寫法、每一列帶原本那一筆。
+  比賽分頁的資料（`sheetFinal`）：8/30 最終名單、投手、打者成績、逐局比分和戰報一致，代跑盜壘、空白半局、超過 5 局、DH、沒投球就換下的投手
 - `test_check_data.js`（44 項）：資料檔檢查規則（根目錄 `data-check.js`）的測試，含 2026-09-21 兩次貼錯事故的重現、球員名單的背號檢查、
   比賽資料檔（`data/games/*.json`）的格式與檔名檢查、時程 `resultUrl` 格式、公告 `link`（只接受比賽與三個站內頁，錯了只警告）、比賽資料的我方背號要對得上 `data/players.json`（`checkGameRoster`，2026-10-01）。
 - `check_data.js`：不是測試，是檢查 `data/schedule.json`、`data/announcements.json` 的指令；

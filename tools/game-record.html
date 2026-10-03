@@ -171,11 +171,12 @@
         ui.halfEnd = { label: h ? h.label : '', runs: h ? h.runs : 0, offense: before.offense };
         cloudBackup();   // 每個半局結束自動上傳雲端備份
       } else if (ev.t === 'end') {
-        cloudBackup();   // 比賽完成也上傳一次
+        cloudBackup();     // 比賽完成也上傳一次
+        writeGameSheet();  // 最終名單、成績、逐局比分寫進比賽分頁
       }
     }
 
-    /* ---------- 雲端備份（GAS「紀錄備份」分頁，一場一列）----------
+    /* ---------- 雲端備份（試算表「賽事紀錄_比賽ID」分頁，一筆紀錄一列）----------
        失敗不擋記錄：手機上照常存檔，下次半局結束或按「立即備份」再傳 */
     const CLOUD_KEY = SAVE_KEY + ':cloud';
     function cloudInfo() {
@@ -213,6 +214,50 @@
         : '☁ 還沒有雲端備份（每個半局結束會自動上傳）';
       return `<div class="cloud ${ui.cloudMsg ? 'bad' : ''}"><span>${esc(text)}</span>
         ${!ui.cloudBusy && behind > 0 ? '<button class="btn" data-act="cloud-now">立即備份</button>' : ''}</div>`;
+    }
+    /* ---------- 比賽完成：最終名單、成績、逐局比分寫進比賽分頁（GAS finishGame，GameCore.sheetFinal 算好）----------
+       比賽分頁要先由陣容調度上傳先發建立；失敗不影響紀錄，按「重新寫入比賽分頁」再試 */
+    const SHEET_KEY = SAVE_KEY + ':sheet';
+    function sheetInfo() {
+      try { return JSON.parse(store.get(SHEET_KEY) || 'null') || {}; } catch (e) { return {}; }
+    }
+    async function writeGameSheet() {
+      if (!game || ui.sheetBusy) return;
+      const n = game.events.length;
+      ui.sheetBusy = true; ui.sheetMsg = ''; render();
+      try {
+        const fin = GC.sheetFinal(game.setup, game.events);
+        const g = game.setup;
+        const r = await post({ action: 'finishGame', requireSheet: true, gameInfo: { date: g.date, gameNum: g.gameNum, opponent: g.opponent }, ...fin });
+        if (r && r.success) {
+          store.set(SHEET_KEY, JSON.stringify({ id: g.id, events: n, at: new Date().toISOString(), warning: r.warning || '', overflow: fin.linescore.overflow }));
+        } else if (r && r.code === 'AUTH_REQUIRED') {
+          ui.sheetMsg = '寫入比賽分頁需要隊務登入（登入可能過期），請到陣容調度工具重新登入後按「重新寫入比賽分頁」';
+        } else {
+          ui.sheetMsg = '寫入比賽分頁失敗：' + ((r && r.message) || '未知原因');
+        }
+      } catch (e) {
+        ui.sheetMsg = '寫入比賽分頁失敗（沒有網路？），有訊號時按「重新寫入比賽分頁」';
+      }
+      ui.sheetBusy = false;
+      render();
+    }
+    function sheetHTML() {
+      const c = sheetInfo();
+      const done = c.id === game.setup.id && c.events === game.events.length;
+      const when = done && c.at ? new Date(c.at).toTimeString().slice(0, 5) : '';
+      const lines = [];
+      if (ui.sheetBusy) lines.push('📋 寫入比賽分頁中…');
+      else if (ui.sheetMsg) lines.push(`⚠️ ${ui.sheetMsg}`);
+      else if (done) {
+        lines.push(`📋 比賽分頁已寫入最終名單、成績、逐局比分（${when}）`);
+        if (c.warning) lines.push(`⚠️ ${c.warning}`);
+        if (c.overflow) lines.push('⚠️ 比賽超過 5 局：第 6 局以後的逐局比分請到試算表手動補（R、H、E 總數已經正確）');
+        lines.push('自責分（ER）工具不算，請到比賽分頁的投手表手填');
+      } else lines.push('📋 還沒寫入比賽分頁');
+      const bad = !ui.sheetBusy && (ui.sheetMsg || (done && c.warning));
+      return `<div class="cloud ${bad ? 'bad' : ''}"><span>${lines.map(esc).join('<br>')}</span>
+        ${!ui.sheetBusy && !done ? '<button class="btn" data-act="sheet-now">重新寫入比賽分頁</button>' : ''}</div>`;
     }
     function undo() {
       if (!game.events.length) return;
@@ -598,13 +643,13 @@
       const file = `${game.setup.id}.json`;
       return `<h2>比賽完成：產出賽事成績</h2>
         ${r.errors.length ? `<div class="errbox">${r.errors.map((e) => esc(e.msg)).join('<br>')}</div>` : '<div class="ok">✅ 資料格式檢查通過</div>'}
+        <div class="gr-card"><b>試算表</b>${cloudHTML()}${sheetHTML()}</div>
         <div class="gr-card"><b>發布到官網（和文字紀錄轉換頁相同）</b>
           <ol class="hint" style="padding-left:18px"><li>按「複製全部內容」</li><li>按「開啟 GitHub 新增檔案頁」（檔名已填好）→ 貼上 → Commit changes</li><li>到時程編輯器把這場的「文字轉播」欄填上比賽 ID：<b>${esc(game.setup.id)}</b></li></ol>
           <textarea class="out" id="out-json" readonly>${esc(json)}</textarea>
           <div class="row" style="margin-top:8px"><button class="btn dark" data-act="copy">複製全部內容</button>
           <a class="btn" target="_blank" rel="noopener" href="https://github.com/${REPO}/new/main/data/games?filename=${encodeURIComponent(file)}">開啟 GitHub 新增檔案頁 ↗</a></div>
           <div id="copy-msg" class="ok"></div>
-          <div style="margin-top:6px">${cloudHTML()}</div>
           <div class="row" style="margin-top:8px"><button class="btn" data-act="backup">下載備份檔</button><button class="btn" data-act="back-main">回到紀錄畫面</button></div></div>
         <div class="gr-card"><b>結束</b>
           <div class="hint">確認已經發布到 GitHub，或已經下載備份檔，再清除這台裝置上的紀錄。清除後就能記下一場。</div>
@@ -727,7 +772,7 @@
         case 'first': pre.usBatFirst = d.v === '1'; break;
         case 'start': startGame(); return;
         case 'resume': game = JSON.parse(store.get(SAVE_KEY)); recompute(); resetPA(); ui.screen = 'main'; break;
-        case 'discard': if (confirm('確定捨棄這台裝置上記到一半的比賽？（建議先下載備份檔）')) { store.del(SAVE_KEY); store.del(CLOUD_KEY); } break;
+        case 'discard': if (confirm('確定捨棄這台裝置上記到一半的比賽？（建議先下載備份檔）')) { store.del(SAVE_KEY); store.del(CLOUD_KEY); store.del(SHEET_KEY); } break;
         case 'open-lineup': openLineup(null, null); resetPA(); break;
         case 'close-lineup': ui.screen = 'main'; ui.selSlot = null; ui.subKind = null; break;
         case 'pick-slot': ui.selSlot = ui.selSlot === Number(d.slot) ? null : Number(d.slot); ui.subKind = null; ui.lineupErr = ''; break;
@@ -809,6 +854,7 @@
         }
         case 'undo': if (confirm('復原上一筆？')) { undo(); return; } break;
         case 'cloud-now': cloudBackup(); return;
+        case 'sheet-now': writeGameSheet(); return;
         case 'cloud-load': cloudLoad(); return;
         case 'backup': download(`${game.setup.id}_紀錄備份.json`, JSON.stringify(game, null, 1)); break;
         case 'finish':
@@ -818,7 +864,7 @@
         case 'back-main': ui.screen = 'main'; break;
         case 'clear-exit':
           if (!confirm('確定清除這台裝置上這場的紀錄？\n清除前請確認已經發布到 GitHub，或已經按「下載備份檔」。')) break;
-          store.del(SAVE_KEY); store.del(CLOUD_KEY); game = null; st = null; resetPA();
+          store.del(SAVE_KEY); store.del(CLOUD_KEY); store.del(SHEET_KEY); game = null; st = null; resetPA();
           ui = { screen: 'setup' }; pre.lineupData = null; pre.msg = '';
           break;
         case 'copy': {

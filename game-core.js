@@ -556,6 +556,81 @@
     return s;
   }
 
+  /* ---------- 調度紀錄，給裁判看的寫法：只有背號和守位號碼（例：#21 代打 #17、#12 守 1）----------
+     s 是這一筆「套用前」的狀態（用來判斷換下誰）；不是調度的紀錄回傳 null */
+  const POS_NUM = Object.fromEntries(Object.entries(NUM_POS).map(([n, c]) => [c, n]));
+  function umpireText(s, ev) {
+    const num = (c) => POS_NUM[c] || c;
+    if (ev.t === 'sub') {
+      const n = `#${ev.in.number}`;
+      if (ev.kind === 'PH') return `${n} 代打 #${s.lineup[s.usNext].number}`;
+      if (ev.kind === 'PR') return `${n} 代跑 #${s.bases[ev.base - 1].number}`;
+      if (ev.kind === 'P') { const p = currentPitcher(s); return `${n} 換 #${p ? p.number : '?'}，守 1`; }
+      const old = s.lineup[ev.slot - 1];
+      return `${n} 換 #${old.number}，守 ${num(ev.pos || old.pos)}`;
+    }
+    if (ev.t === 'pos') return ev.changes.map((c) => `#${s.lineup[c.slot - 1].number} 守 ${num(c.pos)}`).join('、');
+    if (ev.t === 'dhOff') return `DH 取消：#${s.pitcher.number} 打第 ${ev.slot} 棒、守 1，#${s.lineup[ev.slot - 1].number} 退場`;
+    return null;
+  }
+
+  /* ---------- 雲端備份的表格列（試算表「賽事紀錄_比賽ID」分頁，一筆紀錄一列）----------
+     半局標題列：{ type:'half', offense, cells:['一局上','龍安攻','2分',''] }
+     紀錄列：    { type:'event', cells:[A,B,C,D], ev }（ev 是原本那一筆，讀回來就能接著記） */
+  const SUB_KIND = { PH: '代打', PR: '代跑', P: '換投', DEF: '守備' };
+  function scoreNote(runs, rbi) {
+    const parts = [];
+    if (runs) parts.push(`得 ${runs} 分`);
+    if (rbi) parts.push(`打點 ${rbi}`);
+    return parts.length ? `（${parts.join('，')}）` : '';
+  }
+  function eventCells(s, n, ev) {
+    const isUs = s.offense === 'us';
+    const lastItem = () => { const h = n.halves[n.halves.length - 1]; return h.items[h.items.length - 1]; };
+    switch (ev.t) {
+      case 'pa': {
+        const it = lastItem();
+        return [`第${HALF_CN[it.slot]}棒`, it.display, isUs ? `#${it.number} ${it.name}` : 'NA', it.desc + scoreNote(it.runs, it.rbi)];
+      }
+      case 'run': {
+        const reasons = [...new Set(ev.runners.map((r) => r.reason).filter(Boolean))].join('、') || '跑壘';
+        const who = ev.runners.map((r) => s.bases[r.from - 1]);
+        const runner = !isUs ? 'NA' : who.length === 1 ? `#${who[0].number} ${who[0].name}` : who.map((r) => `#${r.number}`).join('、');
+        return ['跑壘', reasons, runner, lastItem().text];
+      }
+      case 'sub': return ['調度', SUB_KIND[ev.kind], `#${ev.in.number} ${ev.in.name || ''}`.trim(), umpireText(s, ev)];
+      case 'pos': return ['調度', '守位', '', umpireText(s, ev)];
+      case 'dhOff': return ['調度', 'DH 取消', '', umpireText(s, ev)];
+      case 'note': return ['備註', '', '', ev.text || ''];
+      case 'end': return ['比賽結束', '', '', `${n.meta.teamName} ${n.score.us}：${n.score.opp} ${n.meta.opponent}`];
+      default: return ['', '', '', ''];
+    }
+  }
+  function sheetRows(setup, events) {
+    const rows = [];
+    const heads = [];
+    let s = newGame(setup);
+    (events || []).forEach((ev, i) => {
+      let n;
+      try { n = apply(s, ev); } catch (e) { throw new Error(`第 ${i + 1} 筆紀錄：${e.message}`); }
+      const last = heads[heads.length - 1];
+      if (ev.t !== 'end' && (!last || last.inning !== s.inning || last.top !== s.top)) {
+        const team = s.offense === 'us' ? s.meta.teamName : s.meta.opponent;
+        const head = { type: 'half', offense: s.offense, cells: [`${HALF_CN[s.inning] || s.inning}局${s.top ? '上' : '下'}`, `${team}攻`, '', ''] };
+        heads.push({ inning: s.inning, top: s.top, row: head });
+        rows.push(head);
+      }
+      rows.push({ type: 'event', cells: eventCells(s, n, ev), ev: clone(ev) });
+      s = n;
+    });
+    // 半局得分要等整串重算完才知道
+    heads.forEach((h) => {
+      const half = s.halves.find((x) => x.inning === h.inning && x.top === h.top);
+      h.row.cells[2] = `${half ? half.runs : 0}分`;
+    });
+    return rows;
+  }
+
   /* ---------- 產出賽事成績資料（data/games/<比賽ID>.json）---------- */
   function toGame(setup, events, opts = {}) {
     const s = replay(setup, events);
@@ -589,7 +664,7 @@
   }
 
   const api = {
-    newGame, apply, validate, replay, defaults, buildPA, fieldingProblems, currentPitcher, toGame, displayOf,
+    newGame, apply, validate, replay, defaults, buildPA, fieldingProblems, currentPitcher, toGame, displayOf, umpireText, sheetRows,
     FIELD, POS_LABEL, ON_RESULTS, OUT_RESULTS,
   };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;

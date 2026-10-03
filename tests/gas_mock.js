@@ -30,12 +30,23 @@ class MockRange {
   }
   setValue(v) { this.sheet.set(this.r, this.c, v); return this; }
   setFormula(f) { this.sheet.set(this.r, this.c, f); return this; }
-  setBackground() { return this; }
-  setFontColor() { return this; }
-  setFontWeight() { return this; }
+  // 格式不影響讀取（getBackgrounds 只讀建表時給的 bg），只記在 fmt 給預覽圖用
+  setBackground(color) { return this.fmtSet('bg', color); }
+  setFontColor(color) { return this.fmtSet('color', color); }
+  setFontWeight(w) { return this.fmtSet('weight', w); }
+  setFontSize(n) { return this.fmtSet('size', n); }
+  fmtSet(k, v) {
+    for (let i = 0; i < this.nr; i++) for (let j = 0; j < this.nc; j++) {
+      const key = `${this.r + i},${this.c + j}`;
+      this.sheet.fmt[key] = Object.assign({}, this.sheet.fmt[key], { [k]: v });
+    }
+    return this;
+  }
 }
 class MockSheet {
-  constructor(name, rows, bg) { this.name = name; this.rows = rows || []; this.bg = bg || []; }
+  constructor(name, rows, bg) { this.name = name; this.rows = rows || []; this.bg = bg || []; this.fmt = {}; this.widths = {}; }
+  clear() { this.rows = []; this.bg = []; this.fmt = {}; return this; }
+  setColumnWidth(c, w) { this.widths[c] = w; return this; }
   set(r, c, v) { while (this.rows.length < r) this.rows.push([]); const row = this.rows[r - 1]; while (row.length < c) row.push(''); row[c - 1] = v; }
   getRange(r, c, nr = 1, nc = 1) {
     if (r < 1 || c < 1 || nr < 1 || nc < 1) throw new Error(`getRange 參數錯誤 ${r},${c},${nr},${nc}`);

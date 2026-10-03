@@ -95,6 +95,10 @@ function doPost(e) {
     var gameIdStr = ((gameInfo.date || "") + "_" + (gameInfo.gameNum || "") + "_" + (gameInfo.opponent || ""))
                     .replace(/[\/\\\?\*\[\]\:]/g, "-");
 
+    // 實況賽事紀錄的雲端備份（Backup.gs）：在寫「調度紀錄」流水簿、建立比賽分頁之前就回應
+    if (action === 'saveRecordBackup') return jsonOut(saveRecordBackup_(ss, data.gameId, data.setup, data.rows));
+    if (action === 'loadRecordBackup') return jsonOut(loadRecordBackup_(ss, data.gameId));
+
     // action = getGameLineup：回讀某場比賽目前已上傳的完整先發＋調度紀錄
     if (action === 'getGameLineup') {
       if (!gameIdStr || gameIdStr === "__") {

@@ -28,7 +28,7 @@ function makeVue(captured) {
 // ---------- GAS 後端：實際執行 Code.gs + Auth.gs + Pitchers.gs，試算表用模擬物件 ----------
 function makeBackend(props) {
   const ss = new MockSpreadsheet();
-  const gas = createGasContext({ files: ['gas/Code.gs', 'gas/Auth.gs', 'gas/Pitchers.gs'], props, spreadsheet: ss });
+  const gas = createGasContext({ files: ['gas/Code.gs', 'gas/Auth.gs', 'gas/Pitchers.gs', 'gas/Backup.gs'], props, spreadsheet: ss });
   const calls = [];
   const handle = (data) => {
     const out = gas.ctx.doPost({ postData: { contents: JSON.stringify(data) } });

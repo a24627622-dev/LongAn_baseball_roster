@@ -29,6 +29,8 @@
     .ok { color: #166534; font-size: .9rem; font-weight: 600; }
     .warnbox { background: #fff7ed; border: 1px solid #fed7aa; border-radius: 10px; padding: 10px; font-size: .9rem; color: #9a3412; margin: 8px 0; }
     .errbox { background: #fef2f2; border: 1px solid #fecaca; border-radius: 10px; padding: 10px; font-size: .9rem; color: #991b1b; margin: 8px 0; }
+    .dn { display: grid; grid-template-columns: minmax(0, 1fr) 96px; gap: 8px; align-items: end; }
+    .dn input, .dn select { min-width: 0; height: 44px; -webkit-appearance: none; appearance: none; }
     .login-box { display: none; gap: 8px; margin-top: 8px; }
     .login-box.show { display: flex; }
 
@@ -221,7 +223,13 @@
             <button class="btn" data-act="discard">捨棄，重新開始</button></div></div>`;
         } catch (e) { /* 壞掉的存檔就不顯示 */ }
       }
-      const opts = pre.schedule.map((x) => `<option value="${esc(x.date)}|${esc(x.opponent || '')}">${esc(fmtDate(x.date))} vs ${esc(x.opponent || '未定')}</option>`).join('');
+      // 選項：① 這台裝置用陣容調度工具剛上傳的那一場（日期／場次／對手和上傳時一模一樣，最不會打錯）② 賽事時程裡的比賽
+      const lu0 = lineupDraftGame();
+      const isSel = (v) => (pre.pick === v ? 'selected' : '');
+      const v0 = lu0 ? `${lu0.date}|${lu0.gameNum}|${lu0.opponent}` : '';
+      const opts = (lu0 ? `<option value="${esc(v0)}" ${isSel(v0)}>陣容調度剛上傳：${esc(lu0.date)} ${esc(lu0.gameNum)} vs ${esc(lu0.opponent)}</option>` : '')
+        + pre.schedule.map((x) => `<option value="${esc(x.date)}||${esc(x.opponent || '')}" ${isSel(`${x.date}||${x.opponent || ''}`)}>${esc(fmtDate(x.date))} vs ${esc(x.opponent || '未定')}（時程）</option>`).join('');
+      const nums = ['G1', 'G2', 'G3', 'G4'].map((g) => `<option ${(pre.gameNum || 'G1') === g ? 'selected' : ''}>${g}</option>`).join('');
       const lu = pre.lineupData;
       let luHTML = '';
       if (lu) {
@@ -241,12 +249,13 @@
         <div class="gr-card">
           <b>1. 選擇比賽，讀取先發名單</b>
           <div class="hint">讀的是陣容調度工具上傳的先發（同一個比賽 ID）。需要隊務登入，已在陣容調度登入過就不用再登。</div>
-          <label>比賽（賽事時程）</label>
+          <label>比賽</label>
           <select id="g-pick"><option value="">— 選擇 —</option>${opts}</select>
-          <div class="row">
-            <div style="flex:1"><label>日期</label><input type="date" id="g-date" value="${esc(pre.date || '')}"></div>
-            <div style="width:90px"><label>場次</label><input id="g-num" value="${esc(pre.gameNum || 'G1')}"></div>
+          <div class="dn">
+            <div><label>日期</label><input type="date" id="g-date" value="${esc(pre.date || '')}"></div>
+            <div><label>場次</label><select id="g-num">${nums}</select></div>
           </div>
+          <div class="hint" style="margin-top:4px">日期、場次、對手要和陣容調度工具上傳時填的<b>完全一樣</b>才讀得到。</div>
           <label>對手</label><input id="g-opp" value="${esc(pre.opponent || '')}" placeholder="例：ZERO">
           <div style="margin-top:10px"><button class="btn dark wide" data-act="load">讀取先發名單</button></div>
           <div class="login-box ${pre.needLogin ? 'show' : ''}"><input type="password" id="passcode" placeholder="隊務密碼"><button class="btn" data-act="login">登入</button></div>
@@ -357,6 +366,14 @@
     function benchList() {
       const seen = new Set((game.setup.bench || []).map((p) => p.number));
       return [...(game.setup.bench || []), ...allPlayers().filter((p) => !seen.has(p.number))];
+    }
+
+    /* 陣容調度工具在這台裝置正在用的比賽（日期、場次、對手），給「選擇比賽」當第一個選項 */
+    function lineupDraftGame() {
+      try {
+        const d = (JSON.parse(store.get('longan_lineup_draft') || 'null') || {}).gameInfo || {};
+        return d.date && d.opponent ? { date: d.date, gameNum: String(d.gameNum || 'G1').trim(), opponent: String(d.opponent).trim() } : null;
+      } catch (e) { return null; }
     }
 
     /* 陣容調度工具在同一台裝置點名的結果（localStorage 同一個網站共用）。
@@ -582,7 +599,10 @@
       try {
         const r = await post({ action: 'getGameLineup', gameInfo: g });
         if (r && r.code === 'AUTH_REQUIRED') { pre.needLogin = true; pre.msg = '需要隊務登入。'; pre.msgOk = false; render(); return; }
-        if (!r || !r.success) { pre.msg = (r && r.message) || '讀取失敗'; pre.msgOk = false; pre.lineupData = null; render(); return; }
+        if (!r || !r.success) {
+          pre.msg = ((r && r.message) || '讀取失敗') + '。請確認陣容調度工具已經按過「上傳先發」，而且日期、場次、對手和上傳時一樣（對手名稱多一個空白也對不上）。';
+          pre.msgOk = false; pre.lineupData = null; render(); return;
+        }
         const conv = (p) => ({ number: String(p.number), name: String(p.name || '').replace(/^↳\s*/, '').split('/')[0].trim(), pos: p.pos || null });
         const starters = (r.data.activeLineup || []).map((s) => conv(s.starter));
         if (starters.length !== 9) { pre.msg = `先發只有 ${starters.length} 人，請先在陣容調度工具上傳完整的先發。`; pre.msgOk = false; pre.lineupData = null; render(); return; }
@@ -761,8 +781,8 @@
     document.addEventListener('change', (e) => {
       const t = e.target;
       if (t.id === 'g-pick' && t.value) {
-        const [date, opp] = t.value.split('|');
-        pre.date = date; pre.opponent = opp; pre.gameNum = $('g-num').value || 'G1';
+        const [date, num, opp] = t.value.split('|');
+        pre.pick = t.value; pre.date = date; pre.opponent = opp; pre.gameNum = num || $('g-num').value || 'G1';
         render();
       } else if (t.dataset.act === 'sf') { if (t.checked) ui.opts.sf = true; else delete ui.opts.sf; render(); }
       else if (t.dataset.act === 'bunt') { if (t.checked) ui.opts.bunt = true; else delete ui.opts.bunt; render(); }

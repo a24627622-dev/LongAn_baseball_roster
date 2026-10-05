@@ -15,7 +15,7 @@
 </head>
 <body class="bg-slate-100 min-h-screen text-slate-800 pb-16">
     <div class="mobile-container">
-    <div id="app" v-cloak class="max-w-4xl mx-auto px-4 py-6">
+    <div id="app" v-cloak class="w-full max-w-4xl mx-auto px-4 py-6">
         
      <!-- 頁首分兩列（手機版按鈕太多會把標題擠成直排）：第一列 logo＋標題，第二列按鈕 -->
      <header class="app-header" style="flex-direction: column; align-items: stretch; gap: 8px;">
@@ -73,7 +73,7 @@
                     </button>
                 </div>
                 
-                <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 p-4 bg-slate-50 rounded-xl border">
+                <div class="grid grid-cols-1 gap-3 p-4 bg-slate-50 rounded-xl border">
                     <div>
                         <label class="block text-xs font-bold text-slate-600 mb-1">比賽日期 *</label>
                         <input type="date" v-model="gameInfo.date" class="w-full px-3 py-1.5 border rounded-lg text-sm focus:ring-2 focus:ring-blue-500">
@@ -103,7 +103,7 @@
 
                 <input type="text" v-model="searchQuery" placeholder="搜尋背號或姓名..." class="w-full px-4 py-2 bg-slate-50 border rounded-xl">
 
-                <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3 max-h-80 overflow-y-auto p-1">
+                <div class="grid grid-cols-1 gap-3 max-h-80 overflow-y-auto p-1">
                     <div v-for="player in filteredPlayers" :key="player.id" 
                          @click="player.isAttended = !player.isAttended"
                          :style="{ backgroundColor: player.isPitcher ? '#ffd966' : (player.isAttended ? '#eff6ff' : '#ffffff') }"
@@ -117,7 +117,7 @@
                             <div>
                                 <div class="font-bold text-slate-800 flex items-center gap-1">
                                     {{ player['球員姓名'] }}
-                                    <span v-if="player.isPitcher" class="text-[10px] bg-amber-800 text-white px-1 py-0.2 rounded font-extrabold">⚾投手</span>
+                                    <span v-if="player.isPitcher" class="text-[10px] bg-amber-800 text-white px-1 py-0.2 rounded font-extrabold">⚾</span>
                                 </div>
                                 <div class="text-xs text-slate-600">{{ getPlayerPositionsText(player) }}</div>
                             </div>
@@ -165,7 +165,7 @@
                     <select v-model="independentPitcherId" class="w-full bg-white border rounded-lg px-3 py-2 text-sm font-semibold text-slate-800">
                         <option value="">-- 請選擇先發投手 (非先發 9 人名單成員) --</option>
                         <option v-for="p in nonStartingBenchCandidates" :key="p.id" :value="p.id">
-                            #{{ p['背號'] || '?' }} {{ p['球員姓名'] }} {{ p.isPitcher ? '⚾[投手]' : '' }} {{ getPlayerPositionsText(p) }}
+                            #{{ p['背號'] || '?' }} {{ p['球員姓名'] }} {{ p.isPitcher ? '⚾' : '' }} {{ getPlayerPositionsText(p) }}
                         </option>
                     </select>
                 </div>
@@ -178,10 +178,10 @@
                         <select v-model="slot.positionCode" class="bg-white border rounded-lg px-2 py-1.5 text-sm font-semibold">
                             <option v-for="pos in positionOptions" :key="pos.code" :value="pos.code">{{ pos.label }}</option>
                         </select>
-                        <select v-model="slot.playerId" class="flex-1 bg-white border rounded-lg px-3 py-1.5 text-sm font-medium">
+                        <select v-model="slot.playerId" class="flex-1 min-w-0 bg-white border rounded-lg px-3 py-1.5 text-sm font-medium">
                             <option value="">-- 請選擇先發球員 --</option>
                             <option v-for="p in attendedPlayers" :key="p.id" :value="p.id" :disabled="isPlayerInLineup(p.id, index)">
-                                #{{ p['背號'] || '?' }} {{ p['球員姓名'] }} {{ p.isPitcher ? '⚾[投手]' : '' }} {{ isPlayerInLineup(p.id, index) ? '(已選)' : '' }}
+                                #{{ p['背號'] || '?' }} {{ p['球員姓名'] }} {{ p.isPitcher ? '⚾' : '' }} {{ isPlayerInLineup(p.id, index) ? '(已選)' : '' }}
                             </option>
                         </select>
                     </div>
@@ -336,7 +336,7 @@
                     <div v-if="benchPlayers.length === 0" class="text-xs text-slate-400 py-3 text-center bg-white rounded-xl border border-dashed">
                         目前板凳無預備球員
                     </div>
-                    <div v-else class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2">
+                    <div v-else class="grid grid-cols-2 gap-2">
                         <div v-for="bp in benchPlayers" :key="bp.id" 
                              :style="{ backgroundColor: bp.isPitcher ? '#ffd966' : '#ffffff' }"
                              class="border rounded-xl p-2 text-xs flex items-center justify-between shadow-sm">
@@ -435,7 +435,7 @@
                         </option>
                         <option disabled>---------------------------------</option>
                         <option v-for="bp in subCandidates" :key="bp.id" :value="bp.id">
-                            {{ bp.isCurrentDHPitcher ? (isDHCancelled ? '⚾ [目前投手進入打序]' : '⚾ [目前投手進入打序 → 取消DH]') : '' }} #{{ bp['背號'] || '?' }} {{ bp['球員姓名'] }} {{ (!bp.isCurrentDHPitcher && bp.isPitcher) ? '⚾[投手]' : '' }} {{ getPlayerPositionsText(bp) }}
+                            {{ bp.isCurrentDHPitcher ? (isDHCancelled ? '⚾ [目前投手進入打序]' : '⚾ [目前投手進入打序 → 取消DH]') : '' }} #{{ bp['背號'] || '?' }} {{ bp['球員姓名'] }} {{ (!bp.isCurrentDHPitcher && bp.isPitcher) ? '⚾' : '' }} {{ getPlayerPositionsText(bp) }}
                         </option>
                     </select>
                 </div>
@@ -488,7 +488,7 @@
                     <select v-model="pitcherModal.selectedPlayerId" class="w-full border rounded-xl p-2.5 text-sm font-medium bg-slate-50">
                         <option value="">-- 請選擇板凳投手 --</option>
                         <option v-for="bp in benchPlayers" :key="bp.id" :value="bp.id">
-                            #{{ bp['背號'] || '?' }} {{ bp['球員姓名'] }} {{ bp.isPitcher ? '⚾[投手]' : '' }} {{ getPlayerPositionsText(bp) }}
+                            #{{ bp['背號'] || '?' }} {{ bp['球員姓名'] }} {{ bp.isPitcher ? '⚾' : '' }} {{ getPlayerPositionsText(bp) }}
                         </option>
                     </select>
                 </div>
@@ -732,23 +732,22 @@
                     if (!draftStr) return;
                     try {
                         const draft = JSON.parse(draftStr);
+                        // 24 小時內的草稿直接回復，不再詢問（V01.12.01：按「取消」會讓點名、先發全部消失，要重來請按「重置」）
                         if (Date.now() - draft.timestamp < 24 * 60 * 60 * 1000) {
-                            if (confirm(`💡 檢測到上次尚未結束的比賽紀錄（對手：${draft.gameInfo.opponent || '未填寫'}），是否回復記錄？`)) {
-                                gameInfo.value = draft.gameInfo || gameInfo.value;
-                                currentStep.value = draft.currentStep || 1;
-                                lineup.value = draft.lineup || lineup.value;
-                                activeLineup.value = draft.activeLineup || [];
-                                currentBatchPending.value = draft.currentBatchPending || [];
-                                uploadedBatches.value = draft.uploadedBatches || [];
-                                independentPitcherId.value = draft.independentPitcherId || '';
-                                extraPitchersHistory.value = draft.extraPitchersHistory || [];
-                                uploadedStarters.value = draft.uploadedStarters || '';
-                                
-                                if (draft.attendedIds && Array.isArray(draft.attendedIds)) {
-                                    players.value.forEach(p => {
-                                        if (draft.attendedIds.includes(p.id)) p.isAttended = true;
-                                    });
-                                }
+                            gameInfo.value = draft.gameInfo || gameInfo.value;
+                            currentStep.value = draft.currentStep || 1;
+                            lineup.value = draft.lineup || lineup.value;
+                            activeLineup.value = draft.activeLineup || [];
+                            currentBatchPending.value = draft.currentBatchPending || [];
+                            uploadedBatches.value = draft.uploadedBatches || [];
+                            independentPitcherId.value = draft.independentPitcherId || '';
+                            extraPitchersHistory.value = draft.extraPitchersHistory || [];
+                            uploadedStarters.value = draft.uploadedStarters || '';
+                            
+                            if (draft.attendedIds && Array.isArray(draft.attendedIds)) {
+                                players.value.forEach(p => {
+                                    if (draft.attendedIds.includes(p.id)) p.isAttended = true;
+                                });
                             }
                         }
                     } catch (e) {

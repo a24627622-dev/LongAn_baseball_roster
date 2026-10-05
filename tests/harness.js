@@ -72,8 +72,10 @@ const ROSTER = [
   ['11', '許投', true], ['12', '鄭投', true], ['13', '謝替'], ['14', '郭替'],
 ].map(([n, name, isPitcher], i) => ({ id: i + 1, '背號': n, '球員姓名': name, isPitcher: !!isPitcher, isAttended: true }));
 
-function boot({ props = {}, draft = null, loginPasscode = null, token = null, roster = ROSTER } = {}) {
+// confirmAnswer：模擬使用者在確認視窗按「確定」(true) 或「取消」(false)；confirms 記下每次跳出的確認訊息
+function boot({ props = {}, draft = null, loginPasscode = null, token = null, roster = ROSTER, confirmAnswer = true } = {}) {
   const captured = { watchers: [] };
+  const confirms = [];
   const backend = makeBackend(props);
   const alerts = [];
   const storage = {
@@ -89,7 +91,7 @@ function boot({ props = {}, draft = null, loginPasscode = null, token = null, ro
     escape: (s) => s.replace(/[^\w@*_+\-./]/g, c => { const h = c.charCodeAt(0).toString(16).toUpperCase(); return c.charCodeAt(0) < 256 ? '%' + h.padStart(2, '0') : '%u' + h.padStart(4, '0'); }),
     decodeURIComponent,
     alert: (m) => alerts.push(String(m)),
-    confirm: () => true,
+    confirm: (m) => { confirms.push(String(m)); return confirmAnswer; },
     localStorage: {
       getItem: k => (k in storage ? storage[k] : null),
       setItem: (k, v) => { storage[k] = String(v); },
@@ -118,7 +120,7 @@ function boot({ props = {}, draft = null, loginPasscode = null, token = null, ro
   app = captured.state;
   captured.mounted(); // onMounted：讀快取名單 → restoreDraft
   const saveDraft = () => captured.watchers[0].cb();
-  return { app, backend, alerts, storage, saveDraft };
+  return { app, backend, alerts, storage, saveDraft, confirms };
 }
 
 const byName = (app, name) => app.players.value.find(p => p['球員姓名'] === name).id;

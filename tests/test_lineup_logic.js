@@ -487,6 +487,31 @@ test('G7 第三步（備援）照樣能進去調度、上傳', async () => {
   assert.ok(batterNames(backend).some(x => x.includes('謝替')));
 });
 
+test('G8 【修正】重新打開陣容調度：草稿直接回復、不再詢問（按取消會讓點名、先發全部消失）', async () => {
+  const first = boot();
+  first.app.selectAll();
+  setStarters(first.app, NINE);
+  await first.app.uploadStartersToGAS(); await tick();
+  first.saveDraft();
+  const attended = first.app.attendedCount.value;
+  const second = boot({ draft: JSON.parse(first.storage.longan_lineup_draft), confirmAnswer: false });
+  assert.deepStrictEqual(second.confirms, []);
+  assert.strictEqual(second.app.attendedCount.value, attended);
+  assert.strictEqual(second.app.currentStep.value, 2);
+  assert.strictEqual(second.app.canStartGame.value, true);
+});
+
+test('G9 回讀雲端紀錄不會減少點名人數（板凳球員留著，第二步下拉選單照樣選得到）', async () => {
+  const { app } = boot();
+  app.selectAll();
+  setStarters(app, NINE);
+  await app.uploadStartersToGAS(); await tick();
+  const attended = app.attendedCount.value;
+  assert.ok(attended > 9);
+  await app.loadFromGAS(); await tick();
+  assert.strictEqual(app.attendedCount.value, attended);
+});
+
 (async () => {
   for (const [name, fn] of tests) {
     try { await fn(); passed++; console.log('  ✅ ' + name); }

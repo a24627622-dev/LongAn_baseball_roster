@@ -73,7 +73,7 @@
                     </button>
                 </div>
                 
-                <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 p-4 bg-slate-50 rounded-xl border">
+                <div class="grid grid-cols-1 gap-3 p-4 bg-slate-50 rounded-xl border">
                     <div>
                         <label class="block text-xs font-bold text-slate-600 mb-1">比賽日期 *</label>
                         <input type="date" v-model="gameInfo.date" class="w-full px-3 py-1.5 border rounded-lg text-sm focus:ring-2 focus:ring-blue-500">
@@ -103,7 +103,7 @@
 
                 <input type="text" v-model="searchQuery" placeholder="搜尋背號或姓名..." class="w-full px-4 py-2 bg-slate-50 border rounded-xl">
 
-                <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3 max-h-80 overflow-y-auto p-1">
+                <div class="grid grid-cols-1 gap-3 max-h-80 overflow-y-auto p-1">
                     <div v-for="player in filteredPlayers" :key="player.id" 
                          @click="player.isAttended = !player.isAttended"
                          :style="{ backgroundColor: player.isPitcher ? '#ffd966' : (player.isAttended ? '#eff6ff' : '#ffffff') }"
@@ -336,7 +336,7 @@
                     <div v-if="benchPlayers.length === 0" class="text-xs text-slate-400 py-3 text-center bg-white rounded-xl border border-dashed">
                         目前板凳無預備球員
                     </div>
-                    <div v-else class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2">
+                    <div v-else class="grid grid-cols-2 gap-2">
                         <div v-for="bp in benchPlayers" :key="bp.id" 
                              :style="{ backgroundColor: bp.isPitcher ? '#ffd966' : '#ffffff' }"
                              class="border rounded-xl p-2 text-xs flex items-center justify-between shadow-sm">

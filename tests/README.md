@@ -20,7 +20,7 @@ node tests/check_data.js                   # 檢查 data/*.json
   `test_lineup_logic.js` 與 `test_scenarios.js` 共用它。
 - `gas_mock.js`：Google Apps Script 執行環境模擬（試算表、指令碼屬性、快取、HMAC 等）。
 - `test_gas_modules.js`（40 項）：Auth.gs、Pitchers.gs 的單元測試，以及 Backup.gs（實況賽事紀錄的雲端備份：一場一頁「賽事紀錄_比賽ID」、整頁重寫、建立時間保留、8/30 整場來回一致、E 欄改壞指出列號、異常輸入、登入保護、不碰其他分頁），以及 `Code.gs` 的 `finishGame` 帶成績（實況賽事紀錄比賽完成：成績寫入與覆蓋、ER 保留、逐局比分、不帶成績時行為不變、回讀一致、格式不對只寫名單、分頁不存在不建立）。
-- `test_lineup_logic.js`（28 項）：完整流程——點名 → 先發 → 調度 → 上傳 → 回讀 → 結案，含登入流程。
+- `test_lineup_logic.js`（35 項）：完整流程——點名 → 先發 → 調度 → 上傳 → 回讀 → 結案，含登入流程；G1～G7 是串接實況賽事紀錄（上傳先發後的「開始比賽」何時出現、連結編碼、改先發後要重新上傳、草稿還原）。
 - `test_record_engine.js`（39 項）：比賽文字紀錄轉換引擎（根目錄 `record-engine.js`）。
   標準答案是 2026-08-30 G4 對雨人的賽事戰報：每位打者的 AB、R、H、RBI、BB、K，兩位投手的局數、被安打、失分、四壞、三振都要一致；
   另外測原始（未補正）紀錄要抓得出問題、打點與得分規則、各種 ⚠️ 偵測、對手半局算投手成績。

@@ -17,7 +17,7 @@ test('A1 一般9人：先發上傳，投手表帶入先發投手', async () => {
   setStarters(app, NINE);
   assert.deepStrictEqual([app.positionConflicts.value.length, app.missingPositions.value.length], [0, 0]);
   await app.uploadStartersToGAS(); await tick();
-  assert.strictEqual(app.currentStep.value, 3);
+  assert.strictEqual(app.currentStep.value, 2);   // V01.12.00 起上傳後留在第二步（開始比賽 → 實況賽事紀錄）
   assert.strictEqual(lastUpload(backend).pitchers.map(p => p.name).join(), '陳一');
   assert.strictEqual(app.isDHCancelled.value, false);
 });
@@ -100,6 +100,7 @@ test('B5 【修正】DH 制換投後重新整理，草稿能還原後援投手',
   setStarters(first.app, DH9);
   first.app.independentPitcherId.value = byName(first.app, '陳一');
   await first.app.uploadStartersToGAS(); await tick();
+  first.app.goToStep(3);                    // 第三步（備援）要自己點進去
   dhPitcherChange(first.app, '許投');
   first.saveDraft();
   const second = boot({ draft: JSON.parse(first.storage.longan_lineup_draft) });
@@ -229,7 +230,7 @@ test('E1 測試模式（未強制）：不需登入即可上傳', async () => {
   const { app, backend } = boot({ props: { TEAM_PASSCODE: 'longan' } });
   setStarters(app, NINE);
   await app.uploadStartersToGAS(); await tick();
-  assert.strictEqual(app.currentStep.value, 3);
+  assert.strictEqual(app.canStartGame.value, true);   // 上傳成功（V01.12.00 起留在第二步，出現「開始比賽」）
   assert.strictEqual(backend.calls.length, 1);
 });
 
@@ -237,7 +238,7 @@ test('E2 強制模式：跳出登入 → 輸入正確密碼 → 自動重送成�
   const { app, backend, storage } = boot({ props: { TEAM_PASSCODE: 'longan', AUTH_ENFORCED: 'true' }, loginPasscode: 'longan' });
   setStarters(app, NINE);
   await app.uploadStartersToGAS(); await tick(); await tick();
-  assert.strictEqual(app.currentStep.value, 3);
+  assert.strictEqual(app.canStartGame.value, true);
   assert.strictEqual(backend.calls.length, 1);
   assert.ok(storage.longan_auth_token);
   assert.strictEqual(app.isLoggedIn.value, true);
@@ -411,6 +412,79 @@ test('F8 舊版前端（沒帶 pitchers）仍可從打序產生投手表', async
   slots[0].substitutes.push({ pos: 'PH', posLabel: 'PH (代打)', number: '13', name: '謝替', timestamp: 6 });
   backend.handle({ action: 'saveSubstitutions', gameInfo: gi, activeLineup: slots });
   assert.strictEqual(pitcherRows(backend), '先發投手:陳一,後援投手:許投');
+});
+
+// ============ 情境 G：串接實況賽事紀錄（V01.12.00）============
+// 上傳先發成功後留在第二步，出現「開始比賽 ➔ 實況賽事紀錄」；先發或比賽資訊改過就要重新上傳
+test('G1 先發還沒上傳：不顯示「開始比賽」', async () => {
+  const { app } = boot();
+  setStarters(app, NINE);
+  assert.strictEqual(app.canStartGame.value, false);
+});
+
+test('G2 上傳成功：顯示「開始比賽」、留在第二步；連結帶日期、場次、對手（特殊字元有編碼）', async () => {
+  const { app } = boot();
+  app.gameInfo.value = { date: '2026-10-25', gameNum: 'G1', opponent: 'A&B 隊/2' };
+  setStarters(app, NINE);
+  await app.uploadStartersToGAS(); await tick();
+  assert.strictEqual(app.canStartGame.value, true);
+  assert.strictEqual(app.currentStep.value, 2);
+  assert.strictEqual(app.gameRecordUrl.value, 'game-record.html?date=2026-10-25&num=G1&opp=A%26B%20%E9%9A%8A%2F2');
+});
+
+test('G3 上傳失敗：不顯示「開始比賽」', async () => {
+  const { app, backend } = boot();
+  backend.handle = () => ({ success: false, message: '試算表寫入錯誤' });
+  setStarters(app, NINE);
+  await app.uploadStartersToGAS(); await tick();
+  assert.strictEqual(app.canStartGame.value, false);
+});
+
+test('G4 上傳後改了某一棒的球員或守位：按鈕消失；改回原樣又出現', async () => {
+  const { app } = boot();
+  setStarters(app, NINE);
+  await app.uploadStartersToGAS(); await tick();
+  const keep = app.lineup.value[0].positionCode;
+  app.lineup.value[0].positionCode = 'DH';
+  assert.strictEqual(app.canStartGame.value, false);
+  app.lineup.value[0].positionCode = keep;
+  assert.strictEqual(app.canStartGame.value, true);
+  const pid = app.lineup.value[8].playerId;
+  app.lineup.value[8].playerId = byName(app, '謝替');
+  assert.strictEqual(app.canStartGame.value, false);
+  app.lineup.value[8].playerId = pid;
+  assert.strictEqual(app.canStartGame.value, true);
+});
+
+test('G5 上傳後改了日期、場次或對手：按鈕消失', async () => {
+  for (const k of ['date', 'gameNum', 'opponent']) {
+    const { app } = boot();
+    setStarters(app, NINE);
+    await app.uploadStartersToGAS(); await tick();
+    app.gameInfo.value = { ...app.gameInfo.value, [k]: app.gameInfo.value[k] + 'x' };
+    assert.strictEqual(app.canStartGame.value, false, k);
+  }
+});
+
+test('G6 重新整理（草稿還原）：先發沒改過，按鈕仍在', async () => {
+  const first = boot();
+  setStarters(first.app, NINE);
+  await first.app.uploadStartersToGAS(); await tick();
+  first.saveDraft();
+  const second = boot({ draft: JSON.parse(first.storage.longan_lineup_draft) });
+  assert.strictEqual(second.app.currentStep.value, 2);
+  assert.strictEqual(second.app.canStartGame.value, true);
+});
+
+test('G7 第三步（備援）照樣能進去調度、上傳', async () => {
+  const { app, backend } = boot();
+  setStarters(app, NINE);
+  await app.uploadStartersToGAS(); await tick();
+  app.goToStep(3);
+  assert.strictEqual(app.currentStep.value, 3);
+  sub(app, 9, '謝替', 'PH');
+  await app.uploadSubstitutionsToGAS(); await tick();
+  assert.ok(batterNames(backend).some(x => x.includes('謝替')));
 });
 
 (async () => {

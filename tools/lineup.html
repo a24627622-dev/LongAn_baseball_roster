@@ -54,7 +54,7 @@
             </div>
             <div class="px-1 text-slate-300">➔</div>
             <div :class="['flex-1 text-center py-2 rounded-xl transition cursor-pointer', currentStep === 3 ? 'bg-blue-600 text-white shadow' : 'text-slate-400']" @click="goToStep(3)">
-                3. 調度更換
+                3. 調度（備援）
             </div>
         </div>
 
@@ -197,12 +197,24 @@
                         <span v-if="positionConflicts.length > 0">⚠️ 守位重複無法上傳</span>
                         <span v-else-if="missingPositions.length > 0">⚠️ 尚有守位未安排</span>
                         <span v-else-if="hasDHInLineup && !independentPitcherId">⚠️ 請選擇先發投手</span>
-                        <span v-else>{{ saving ? '上傳中...' : '確認先發並上傳 GAS ➔' }}</span>
+                        <span v-else>{{ saving ? '上傳中...' : (canStartGame ? '重新上傳先發' : '確認先發並上傳 GAS ➔') }}</span>
                     </button>
+                </div>
+
+                <!-- 串接實況賽事紀錄（V01.12.00）：先發上傳成功、之後沒改過才出現 -->
+                <div v-if="canStartGame" class="mt-2 p-4 rounded-2xl bg-emerald-50 border border-emerald-300 space-y-3">
+                    <div class="text-sm font-bold text-emerald-800">✅ 先發已上傳（{{ gameInfo.date }} {{ gameInfo.gameNum }} vs {{ gameInfo.opponent }}）</div>
+                    <a :href="gameRecordUrl" class="block w-full text-center bg-red-700 hover:bg-red-600 text-white text-lg font-bold py-3.5 rounded-xl shadow">
+                        ⚾ 開始比賽 ➔ 實況賽事紀錄
+                    </a>
+                    <p class="text-xs text-slate-500">比賽中的換人請在實況賽事紀錄記。改了先發要重新上傳，這個按鈕才會再出現。</p>
                 </div>
             </section>
 
             <section v-if="currentStep === 3" class="bg-white rounded-2xl p-6 shadow-sm border border-slate-200 space-y-6">
+                <div class="p-3 rounded-xl bg-amber-50 border border-amber-300 text-sm font-bold text-amber-900">
+                    ⚠️ 比賽中的換人請在「實況賽事紀錄」記，這裡只在工具故障時使用（備援）。
+                </div>
                 <div class="flex justify-between items-center flex-wrap gap-2">
                     <div>
                         <h2 class="text-xl font-bold flex items-center gap-2"><span>🔄</span> 比賽動態更換與更新</h2>
@@ -680,9 +692,24 @@
                 const uploadedBatches = ref([]);
 
                 // ----------------------------------------------------
+                // ⚾ 串接實況賽事紀錄（V01.12.00）：先發上傳成功時記下「上傳的是哪一版」，
+                // 之後先發或比賽資訊改過就要重新上傳，才會出現「開始比賽」
+                // ----------------------------------------------------
+                const uploadedStarters = ref('');
+                const startersSignature = computed(() => JSON.stringify({
+                    game: [gameInfo.value.date, gameInfo.value.gameNum, gameInfo.value.opponent],
+                    lineup: lineup.value.map(slot => [slot.playerId || '', slot.positionCode || '']),
+                    pitcher: independentPitcherId.value || ''
+                }));
+                const canStartGame = computed(() => !!uploadedStarters.value && uploadedStarters.value === startersSignature.value);
+                const gameRecordUrl = computed(() => 'game-record.html?date=' + encodeURIComponent(gameInfo.value.date || '') +
+                    '&num=' + encodeURIComponent(gameInfo.value.gameNum || '') +
+                    '&opp=' + encodeURIComponent(gameInfo.value.opponent || ''));
+
+                // ----------------------------------------------------
                 // 💾 自動防呆暫存機制 (LocalStorage Auto-Save)
                 // ----------------------------------------------------
-                watch([gameInfo, currentStep, lineup, activeLineup, currentBatchPending, uploadedBatches, independentPitcherId, extraPitchersHistory], () => {
+                watch([gameInfo, currentStep, lineup, activeLineup, currentBatchPending, uploadedBatches, independentPitcherId, extraPitchersHistory, uploadedStarters], () => {
                     if (players.value.length === 0) return;
                     const state = {
                         gameInfo: gameInfo.value,
@@ -693,6 +720,7 @@
                         uploadedBatches: uploadedBatches.value,
                         independentPitcherId: independentPitcherId.value,
                         extraPitchersHistory: extraPitchersHistory.value,
+                        uploadedStarters: uploadedStarters.value,
                         attendedIds: players.value.filter(p => p.isAttended).map(p => p.id),
                         timestamp: Date.now()
                     };
@@ -714,6 +742,7 @@
                                 uploadedBatches.value = draft.uploadedBatches || [];
                                 independentPitcherId.value = draft.independentPitcherId || '';
                                 extraPitchersHistory.value = draft.extraPitchersHistory || [];
+                                uploadedStarters.value = draft.uploadedStarters || '';
                                 
                                 if (draft.attendedIds && Array.isArray(draft.attendedIds)) {
                                     players.value.forEach(p => {
@@ -1245,8 +1274,9 @@
                         currentBatchPending.value = [];
                         uploadedBatches.value = [];
                         extraPitchersHistory.value = [];
-                        alert('✅ 先發陣容與先發投手已成功上傳至 Google Sheet！');
-                        goToStep(3);
+                        uploadedStarters.value = startersSignature.value;
+                        goToStep(2);   // 留在第二步：出現「開始比賽 ➔ 實況賽事紀錄」（第三步改成備援）
+                        alert('✅ 先發陣容與先發投手已成功上傳至 Google Sheet！\n按「開始比賽 ➔ 實況賽事紀錄」開始記錄比賽。');
                     }).catch(err => {
                         alert('⚠️ 上傳失敗：' + err.message);
                     }).finally(() => {
@@ -1530,7 +1560,8 @@
                     currentLeagueReportText, isSamePositionSelected, copyText, loadFromGAS, clearDraft,
                     fetchData, selectAll, resetAttendance, isPlayerInLineup, getPlayerPositionsText,
                     goToStep, uploadStartersToGAS, openSubModal, confirmSubstitution, confirmIndependentPitcherChange,
-                    removeSubstitute, removeIndependentPitcher, uploadSubstitutionsToGAS, unlockLastBatch, copyLineup, finishGame
+                    removeSubstitute, removeIndependentPitcher, uploadSubstitutionsToGAS, unlockLastBatch, copyLineup, finishGame,
+                    canStartGame, gameRecordUrl
                 };
             }
         }).mount('#app');

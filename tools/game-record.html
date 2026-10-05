@@ -285,7 +285,7 @@
       if (ui.screen === 'setup') app.innerHTML = setupHTML();
       else if (ui.screen === 'lineup') app.innerHTML = boardHTML() + lineupHTML();
       else if (ui.screen === 'done') app.innerHTML = doneHTML();
-      else app.innerHTML = boardHTML() + cloudHTML() + mainHTML() + timelineHTML() + footHTML();
+      else app.innerHTML = boardHTML() + cloudHTML() + reloadHTML() + mainHTML() + timelineHTML() + footHTML();
     }
 
     function boardHTML() {
@@ -335,7 +335,7 @@
           <div style="margin-top:12px"><button class="btn red wide" data-act="start">比賽開始 ➔ 確認守位</button></div></div>`;
       }
       return `
-        <div class="row" style="justify-content:space-between"><h2>實況賽事紀錄</h2><a href="index.html" class="hint">← 球隊管理</a></div>
+        <div class="row" style="justify-content:space-between"><h2>實況賽事紀錄</h2><span><a href="lineup.html" class="hint">← 回陣容調度</a>　<a href="index.html" class="hint">球隊管理</a></span></div>
         ${resume}
         <div class="gr-card">
           <b>1. 選擇比賽，讀取先發名單</b>
@@ -474,6 +474,23 @@
     }
 
     /* ----- 3. 打席輸入 ----- */
+    /* 還沒記第一筆：陣容調度改過先發時，重新讀取（先攻／後攻沿用） */
+    async function reloadLineup() {
+      const s = game.setup;
+      Object.assign(pre, { date: s.date, gameNum: s.gameNum, opponent: s.opponent, usBatFirst: s.usBatFirst, lineupData: null });
+      ui.reloadBusy = true; render();
+      await loadLineup({ date: s.date, gameNum: s.gameNum, opponent: s.opponent });
+      ui.reloadBusy = false;
+      if (pre.lineupData) { ui.reloadMsg = ''; startGame(); return; }
+      ui.reloadMsg = pre.msg; render();
+    }
+    function reloadHTML() {
+      if (game.events.length) return '';
+      return `<div class="gr-card"><div class="hint">還沒開始記。陣容調度改過先發（重新上傳）時，按這裡重新讀取。</div>
+        <div class="row" style="margin-top:6px"><button class="btn" data-act="reload-lineup" ${ui.reloadBusy ? 'disabled' : ''}>${ui.reloadBusy ? '讀取中…' : '重新讀取先發'}</button>
+        <a class="btn" href="lineup.html">← 回陣容調度</a></div>
+        ${ui.reloadMsg ? `<div class="err" style="margin-top:6px">${esc(ui.reloadMsg)}</div>` : ''}</div>`;
+    }
     function mainHTML() {
       if (st.ended) return '<div class="gr-card">比賽已結束。<button class="btn red wide" data-act="to-done" style="margin-top:8px">產出賽事成績資料</button></div>';
       if (ui.halfEnd) {
@@ -673,8 +690,8 @@
       try { return JSON.parse(text); } catch (e) { throw new Error('伺服器回應格式錯誤'); }
     }
 
-    async function loadLineup() {
-      const g = gameInfo();
+    async function loadLineup(given) {
+      const g = given || gameInfo();
       Object.assign(pre, g);
       if (!g.date || !g.opponent || !g.gameNum) { pre.msg = '請填日期、場次、對手。'; pre.msgOk = false; render(); return; }
       pre.msg = '讀取中…'; pre.msgOk = true; render();
@@ -732,6 +749,12 @@
     function startGame() {
       const g = { date: pre.date, gameNum: pre.gameNum, opponent: pre.opponent };
       const lu = pre.lineupData;
+      // 這台裝置有記到一半的「別場」比賽：先確認，不默默蓋掉
+      try {
+        const old = JSON.parse(store.get(SAVE_KEY) || 'null');
+        if (old && old.setup && old.setup.id !== gameId(g) && old.events.length
+          && !confirm(`這台裝置有記到一半的比賽 ${old.setup.id}（${old.events.length} 筆），開始新比賽會取代它。確定？（建議先下載備份檔）`)) return;
+      } catch (e) { /* 壞掉的存檔就直接取代 */ }
       game = {
         setup: {
           id: gameId(g), date: g.date, gameNum: g.gameNum, opponent: g.opponent, teamName: '龍安',
@@ -771,6 +794,7 @@
         case 'login': login(); return;
         case 'first': pre.usBatFirst = d.v === '1'; break;
         case 'start': startGame(); return;
+        case 'reload-lineup': reloadLineup(); return;
         case 'resume': game = JSON.parse(store.get(SAVE_KEY)); recompute(); resetPA(); ui.screen = 'main'; break;
         case 'discard': if (confirm('確定捨棄這台裝置上記到一半的比賽？（建議先下載備份檔）')) { store.del(SAVE_KEY); store.del(CLOUD_KEY); store.del(SHEET_KEY); } break;
         case 'open-lineup': openLineup(null, null); resetPA(); break;
@@ -916,6 +940,20 @@
         pre.schedule = items.filter((x) => isGame(x) && !x.cancelled).sort(byDate);
       } catch (e) { console.error(e); }
       render();
+      // 從陣容調度「開始比賽」過來（?date=&num=&opp=）：帶入這場比賽並讀取先發
+      const q = new URLSearchParams(location.search);
+      if (q.get('date') && q.get('opp')) {
+        const g = { date: q.get('date'), gameNum: q.get('num') || 'G1', opponent: q.get('opp') };
+        history.replaceState(null, '', location.pathname);   // 重新整理時不要再自動讀一次
+        let saved = null;
+        try { saved = JSON.parse(store.get(SAVE_KEY) || 'null'); } catch (e) { /* 壞掉的存檔 */ }
+        if (saved && saved.setup && saved.setup.id === gameId(g)) {   // 同一場記到一半：直接接著記
+          game = saved; recompute(); resetPA(); ui.screen = 'main'; render(); return;
+        }
+        Object.assign(pre, g);
+        render();
+        loadLineup(g);   // 別場記到一半時，上方照樣顯示「記到一半的比賽」，按「比賽開始」前會再確認
+      }
     })();
   </script>
 </body>

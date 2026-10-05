@@ -34,7 +34,7 @@
 
 ```
 node tests/test_gas_modules.js         # 40 項：Auth.gs、Pitchers.gs、Backup.gs、finishGame 帶成績
-node tests/test_lineup_logic.js        # 28 項：點名→先發→調度→上傳→回讀→結案
+node tests/test_lineup_logic.js        # 35 項：點名→先發→開始比賽（串接實況賽事紀錄）→調度→上傳→回讀→結案
 node tests/test_scenarios.js           # 26 項：三大調度情境、規則守門、DH 引導
 node tests/test_scenarios.js --repeat 5
 node tests/test_record_engine.js       # 39 項：比賽文字紀錄轉換引擎
@@ -43,7 +43,7 @@ node tests/test_game_core.js           # 71 項：實況賽事紀錄的計算核
 node tests/check_data.js               # 不是測試：檢查 data/*.json 與 data/games/*.json
 ```
 
-基準（2026-10-03，V01.11.00 開發中）：40＋28＋26＋39＋44＋71，`check_data` 沒有錯誤。測試數量有增減時，這裡、`tests/README.md`、`docs/測試報告_調度三情境.md` 一起更新。
+基準（2026-10-05，V01.12.00 開發中）：40＋35＋26＋39＋44＋71，`check_data` 沒有錯誤。測試數量有增減時，這裡、`tests/README.md`、`docs/測試報告_調度三情境.md` 一起更新。
 
 ### 測試放哪裡
 

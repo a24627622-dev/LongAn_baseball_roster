@@ -231,6 +231,7 @@
         const r = await post({ action: 'finishGame', requireSheet: true, gameInfo: { date: g.date, gameNum: g.gameNum, opponent: g.opponent }, ...fin });
         if (r && r.success) {
           store.set(SHEET_KEY, JSON.stringify({ id: g.id, events: n, at: new Date().toISOString(), warning: r.warning || '', overflow: fin.linescore.overflow }));
+          clearLineupDraft(g);
         } else if (r && r.code === 'AUTH_REQUIRED') {
           ui.sheetMsg = '寫入比賽分頁需要隊務登入（登入可能過期），請到陣容調度工具重新登入後按「重新寫入比賽分頁」';
         } else {
@@ -241,6 +242,14 @@
       }
       ui.sheetBusy = false;
       render();
+    }
+    /* 比賽分頁寫入成功＝這場結案：清掉陣容調度在這台裝置上的暫存（和陣容調度「比賽完成」的做法一樣），
+       回陣容調度就是空白、可以排下一場。只清同一場的；這裡的紀錄、雲端備份、比賽分頁都不受影響，賽後產出戰報照樣用得到 */
+    function clearLineupDraft(g) {
+      try {
+        const d = (JSON.parse(store.get('longan_lineup_draft') || 'null') || {}).gameInfo || {};
+        if (d.date === g.date && d.gameNum === g.gameNum && d.opponent === g.opponent) store.del('longan_lineup_draft');
+      } catch (e) { /* 壞掉的暫存就不動 */ }
     }
     function sheetHTML() {
       const c = sheetInfo();

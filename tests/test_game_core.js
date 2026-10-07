@@ -627,6 +627,60 @@ test('先發投手還沒投球就被換下：投手表照樣列出兩位，沒�
   assert.deepStrictEqual(f.stats.pitching.map((p) => [p.number, p.IP, p.SO]), [['19', '0.0', 0], ['22', '1.0', 3]]);
 });
 
+console.log('\nM 承繼跑者：失分算讓他上壘的投手（正式記錄規則 9.16(g)）');
+
+// 龍安先攻：先讓龍安三人出局，下半局對手打擊、我方投手 #19（第 9 棒守 P）
+const oppBB = { t: 'pa', result: 'BB', pos: null, runners: [{ from: 0, to: 1 }] };
+const changeP = (num) => ({ t: 'sub', kind: 'P', in: { number: String(num), name: `板凳${num}` } });
+const pitR = (st, num) => (st.stats.pitching[num] || {}).R;
+const double1 = { t: 'pa', result: '2B', pos: 7, runners: [{ from: 0, to: 2 }, { from: 1, to: 4 }] };
+
+test('投手 A 保送打者 → 換投 B → B 被敲二壘安打送回這位跑者：A 失 1 分、B 失 0 分（被安打算 B）', () => {
+  const st = play([...threeOuts, oppBB, changeP(22), double1]);
+  assert.deepStrictEqual([pitR(st, '19'), pitR(st, '22'), st.stats.pitching['22'].H, st.stats.pitching['19'].H], [1, 0, 1, 0]);
+});
+
+test('換投後才上壘的跑者得分：算新投手', () => {
+  const st = play([...threeOuts, changeP(22), oppBB, double1]);
+  assert.deepStrictEqual([pitR(st, '19'), pitR(st, '22')], [undefined, 1]);
+});
+
+test('野手選擇：A 的跑者被封殺、打者上壘，打者改算 A；下一棒全壘打 2 分 → A、B 各 1 分', () => {
+  const st = play([...threeOuts, oppBB, changeP(22),
+    { t: 'pa', result: 'FC', pos: 6, runners: [{ from: 0, to: 1 }, { from: 1, to: -1, reason: '封殺' }] },
+    { t: 'pa', result: 'HR', pos: 7, runners: [{ from: 0, to: 4 }, { from: 1, to: 4 }] }]);
+  assert.deepStrictEqual([pitR(st, '19'), pitR(st, '22'), st.score.opp], [1, 1, 2]);
+});
+
+test('換了三位投手：A 的跑者在 C 投球時得分，還是算 A', () => {
+  const st = play([...threeOuts, oppBB, changeP(22), changeP(23), double1]);
+  assert.deepStrictEqual([pitR(st, '19'), pitR(st, '22'), pitR(st, '23')], [1, undefined, 0]);
+});
+
+test('暴投讓承繼跑者得分：失分算 A，暴投次數算當時的投手 B', () => {
+  const st = play([...threeOuts, oppBB, changeP(22),
+    { t: 'run', runners: [{ from: 1, to: 2, reason: '暴投' }] }, { t: 'run', runners: [{ from: 2, to: 4, reason: '暴投' }] }]);
+  assert.deepStrictEqual([pitR(st, '19'), st.stats.pitching['19'].WP, pitR(st, '22'), st.stats.pitching['22'].WP], [1, 0, 0, 2]);
+});
+
+test('DH 制換投：承繼跑者得分一樣算前任投手', () => {
+  const st = play([...threeOuts, oppBB, changeP(22), double1], SETUP_DH);
+  assert.deepStrictEqual([pitR(st, '1'), pitR(st, '22')], [1, 0]);
+});
+
+test('不變條件：每一筆紀錄之後，所有投手的失分加總＝對手得分（8/30 整場＋承繼跑者情境）', () => {
+  const sumR = (st) => Object.values(st.stats.pitching).reduce((a, p) => a + p.R, 0);
+  let st = GC.newGame(g0830.setup);
+  g0830.events.forEach((ev, i) => { st = GC.apply(st, ev); assert.strictEqual(sumR(st), st.score.opp, `8/30 第 ${i + 1} 筆`); });
+  const evs = [...threeOuts, oppBB, { t: 'pa', result: 'BB', pos: null, runners: [{ from: 0, to: 1 }, { from: 1, to: 2 }] }, changeP(22),
+    { t: 'pa', result: 'FC', pos: 6, runners: [{ from: 0, to: 1 }, { from: 1, to: 2 }, { from: 2, to: -1, reason: '封殺' }] },
+    { t: 'run', runners: [{ from: 2, to: 3, reason: '暴投' }, { from: 1, to: 2, reason: '暴投' }] },
+    { t: 'pa', result: 'HR', pos: 8, runners: [{ from: 0, to: 4 }, { from: 2, to: 4 }, { from: 3, to: 4 }] }];
+  st = GC.newGame(SETUP);
+  evs.forEach((ev, i) => { st = GC.apply(st, ev); assert.strictEqual(sumR(st), st.score.opp, `情境第 ${i + 1} 筆`); });
+  assert.deepStrictEqual([pitR(st, '19'), pitR(st, '22')], [2, 1]);
+});
+
 console.log('\n不變條件（8/30 整場每一筆都檢查）');
 
 test('出局數 0～3、壘包不重複、比分＝各半局得分總和、重算兩次結果相同', () => {

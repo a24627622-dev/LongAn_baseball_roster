@@ -278,6 +278,13 @@
     return s.stats.pitching[p.number];
   }
 
+  /* 對手得分：失分算讓這位跑者上壘的投手（承繼跑者算前任投手）；舊紀錄沒有這項資料時算當時的投手 */
+  function chargeRun(s, runner) {
+    const num = runner && runner.pitcher;
+    const p = (num && s.stats.pitching[num]) || pit(s);
+    if (p) p.R += 1;
+  }
+
   /* ---------- 半局 ---------- */
   const HALF_CN = ['', '一', '二', '三', '四', '五', '六', '七', '八', '九', '十', '十一', '十二'];
   function curHalf(s) {
@@ -370,6 +377,14 @@
     const counted = voided ? [] : scorers;
     const batterOut = isOut(rows.find((r) => r.from === 0));
     const result = ev.result;
+    // 對手打者上壘：記下「讓他上壘的投手」，他之後得分算這位投手的失分（正式記錄規則 9.16(g)，承繼跑者算前任投手）。
+    // 野手選擇：前任投手的跑者被封殺、打者上壘時，打者改算前任投手的責任（每位投手為他放上壘的人數負責）
+    if (!isUs) {
+      const cp = currentPitcher(s);
+      batter.pitcher = cp ? cp.number : null;
+      const inherited = !batterOut && rows.find((r) => r.from > 0 && isOut(r) && r.runner && r.runner.pitcher && r.runner.pitcher !== batter.pitcher);
+      if (inherited) batter.pitcher = inherited.runner.pitcher;
+    }
 
     let kind = result;
     if (['FLY', 'LINE'].includes(result) && batterOut && outsBefore < 2 && counted.length && (ev.sf === true || OUTFIELD.includes(ev.pos))) kind = 'SF';
@@ -412,9 +427,9 @@
         if (result === 'BB' || result === 'IBB') p.BB += 1;
         if (result === 'HBP') p.HBP += 1;
         if (result === 'K' || result === 'K_REACH') p.SO += 1;
-        p.R += counted.length;
         if (rows.some((r) => r.reason === '暴投')) p.WP += 1;
       }
+      counted.forEach((r) => chargeRun(s, r.runner));
       if (fielder) bat(s, fielder).E += 1;
       if (result === 'CI') { const c = fielderAt(s, 2); if (c) bat(s, c).E += 1; }
     }
@@ -459,9 +474,9 @@
       const p = pit(s);
       if (p) {
         p.outs += outs;
-        p.R += scored.length;
         if (rows.some((r) => r.reason === '暴投')) p.WP += 1;
       }
+      scored.forEach((r) => chargeRun(s, r.runner));
       s.score.opp += scored.length;
     }
     h.runs += scored.length;

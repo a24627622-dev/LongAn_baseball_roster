@@ -418,4 +418,113 @@ console.log('\nCode.gs finishGame 帶成績（實況賽事紀錄比賽完成：�
   });
 }
 
+console.log('\nCode.gs 投手表公式（IP 的 2.1＝2 又 1/3 局；ERA、K9、BB9、WHIP 與合計 IP）');
+{
+  const files = ['gas/Code.gs', 'gas/Auth.gs', 'gas/Pitchers.gs', 'gas/Backup.gs'];
+  const GC = require('../game-core');
+  const g = JSON.parse(fs.readFileSync(path.join(__dirname, 'fixtures', '2026-08-30_G4_雨人.events.json'), 'utf8'));
+  const gameInfo = { date: '2026-08-30', gameNum: 'G4', opponent: '雨人' };
+  const SHEET = '2026-08-30_G4_雨人';
+  const fin = GC.sheetFinal(g.setup, g.events);
+  const P = (number, name) => ({ number, name, pos: 'P', posLabel: 'P (1)' });
+  const ST = (number, name, IP, R, H, BB, SO) => ({ number, name, IP, R, H, BB, SO, HR: 0, HBP: 0, WP: 0 });
+  const make = () => { const ss = new MockSpreadsheet(); const c = createGasContext({ files, spreadsheet: ss }); return { ss, ...c }; };
+  const post = (ctx, data) => out(ctx.doPost({ postData: { contents: JSON.stringify(data) } }));
+  // 寫入：陣容調度先上傳先發，實況賽事紀錄比賽完成帶投手成績
+  const write = (ctx, pitchers, pitching) => {
+    post(ctx, { action: 'saveStarters', gameInfo, lineup: fin.activeLineup.map((x) => x.starter), pitchers: [fin.pitchers[0]] });
+    return post(ctx, { action: 'finishGame', gameInfo, requireSheet: true, ...fin, pitchers, stats: { batting: fin.stats.batting, pitching } });
+  };
+  // 測試用：把試算表公式代入儲存格的值算出結果（只支援投手表用到的 IF、INT、MOD、ROUND、TEXT、SUM）
+  const colNum = (letters) => letters.split('').reduce((a, ch) => a * 26 + ch.charCodeAt(0) - 64, 0);
+  function cellValue(sh, r, c, depth = 0) {
+    const v = ((sh.rows[r - 1] || [])[c - 1]);
+    if (typeof v === 'string' && v.startsWith('=')) return evalFormula(sh, v, depth + 1);
+    if (v === '' || v === undefined || v === null) return 0;
+    const n = Number(v);
+    return Number.isNaN(n) ? v : n;
+  }
+  function evalFormula(sh, f, depth) {
+    if (depth > 20) throw new Error('公式循環');
+    const js = f.slice(1)
+      .replace(/([A-Z]+)(\d+):([A-Z]+)(\d+)/g, (m, c1, r1, c2, r2) => `RANGE(${colNum(c1)},${r1},${colNum(c2)},${r2})`)
+      .replace(/\b([A-Z]{1,2})(\d+)\b/g, (m, c, r) => `CELL(${colNum(c)},${r})`);
+    const fns = {
+      CELL: (c, r) => cellValue(sh, r, c, depth),
+      RANGE: (c1, r1, c2, r2) => { const a = []; for (let r = r1; r <= r2; r++) for (let c = c1; c <= c2; c++) a.push(cellValue(sh, r, c, depth)); return a; },
+      IF: (cond, a, b) => (cond ? a : b), INT: Math.floor, MOD: (a, b) => a - b * Math.floor(a / b),
+      ROUND: (x, n = 0) => Math.round(x * 10 ** n) / 10 ** n,
+      TEXT: (x, fmt) => (fmt === '0.00' ? Number(x).toFixed(2) : fmt === '.000' ? Number(x).toFixed(3).replace(/^0/, '') : String(x)),
+      SUM: (arr) => arr.reduce((a, x) => a + (typeof x === 'number' ? x : 0), 0),
+    };
+    return new Function(...Object.keys(fns), `return (${js});`)(...Object.values(fns));
+  }
+  const pitcherRows = (ss) => {
+    const sh = ss.getSheetByName(SHEET);
+    const h = sh.rows.findIndex((r) => r && r[0] === '順序') + 1;
+    const out2 = {};
+    for (let r = h + 1; r <= sh.rows.length; r++) {
+      const row = sh.rows[r - 1] || [];
+      const key = row[3] === '成績合計' ? '合計' : String(row[2]);
+      if (!row[3]) break;
+      out2[key] = { r, IP: cellValue(sh, r, 6), ER: cellValue(sh, r, 9), rates: [16, 17, 18, 19].map((c) => cellValue(sh, r, c)), cells: row };
+      if (key === '合計') break;
+    }
+    return out2;
+  };
+  const setER = (ss, rows, num, er) => ss.getSheetByName(SHEET).getRange(rows[num].r, 9).setValue(er);
+
+  const THREE = [P('1', '張容基'), P('55', '葉展昆'), P('56', '蘇垣華')];
+  const THREE_ST = [ST('1', '張容基', '2.1', 1, 2, 1, 3), ST('55', '葉展昆', '0.2', 2, 1, 0, 1), ST('56', '蘇垣華', '2.0', 0, 1, 1, 2)];
+
+  test('一位投手 IP 2.1（7/3 局）、ER 1、SO 3、BB 1、H 2：ERA 3.86、K9 11.57、BB9 3.86、WHIP 1.29', () => {
+    const { ss, ctx } = make();
+    assert.strictEqual(write(ctx, THREE, THREE_ST).success, true);
+    setER(ss, pitcherRows(ss), '1', 1);
+    assert.deepStrictEqual(pitcherRows(ss)['1'].rates, ['3.86', '11.57', '3.86', '1.29']);
+  });
+
+  test('合計 IP：2.1＋0.2＋2.0 → 5.0（15 個出局）；0.2＋0.2 → 1.1（4 個出局）', () => {
+    const a = make();
+    write(a.ctx, THREE, THREE_ST);
+    assert.strictEqual(Number(pitcherRows(a.ss)['合計'].IP).toFixed(1), '5.0');
+    const b = make();
+    write(b.ctx, [P('1', '張容基'), P('56', '蘇垣華')], [ST('1', '張容基', '0.2', 0, 0, 0, 0), ST('56', '蘇垣華', '0.2', 0, 0, 0, 0)]);
+    assert.strictEqual(Number(pitcherRows(b.ss)['合計'].IP).toFixed(1), '1.1');
+  });
+
+  test('合計 ERA：ER 合計 3、5 局 → 5.40；K9 合計 SO 6 → 10.80', () => {
+    const { ss, ctx } = make();
+    write(ctx, THREE, THREE_ST);
+    const rows = pitcherRows(ss);
+    setER(ss, rows, '1', 1); setER(ss, rows, '55', 2); setER(ss, rows, '56', 0);
+    assert.deepStrictEqual(pitcherRows(ss)['合計'].rates.slice(0, 2), ['5.40', '10.80']);
+  });
+
+  test('IP 0（沒拿到出局數就被換下）：四項比率都是 0.00，不會除以零', () => {
+    const { ss, ctx } = make();
+    write(ctx, THREE, [THREE_ST[0], ST('55', '葉展昆', '0.0', 2, 2, 1, 0), THREE_ST[2]]);
+    assert.deepStrictEqual(pitcherRows(ss)['55'].rates, ['0.00', '0.00', '0.00', '0.00']);
+  });
+
+  test('手填的 ER 在重寫投手表後保留，ERA 照樣引用 ER 欄重算', () => {
+    const { ss, ctx } = make();
+    write(ctx, THREE, THREE_ST);
+    setER(ss, pitcherRows(ss), '56', 2);
+    post(ctx, { action: 'finishGame', gameInfo, requireSheet: true, ...fin, pitchers: THREE, stats: { batting: fin.stats.batting, pitching: THREE_ST } });
+    const r = pitcherRows(ss)['56'];
+    assert.deepStrictEqual([r.ER, r.rates[0]], [2, '9.00']);
+  });
+
+  test('合計列的 R、H、ER、BB、SO、HR、HBP、WP 照舊直接加總', () => {
+    const { ss, ctx } = make();
+    write(ctx, THREE, THREE_ST);
+    const rows = pitcherRows(ss);
+    setER(ss, rows, '1', 1); setER(ss, rows, '55', 2);
+    const sh = ss.getSheetByName(SHEET);
+    const t = pitcherRows(ss)['合計'].r;
+    assert.deepStrictEqual([7, 8, 9, 10, 11, 12, 13, 14].map((c) => cellValue(sh, t, c)), [3, 4, 3, 2, 6, 0, 0, 0]);
+  });
+}
+
 console.log(`\n共 ${passed} 項通過` + (process.exitCode ? '（有失敗）' : ''));

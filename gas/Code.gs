@@ -479,12 +479,21 @@ function isPitcherEvent(p) {
   return label.split(/\s+/)[0] === "P";
 }
 
+// IP 是棒球寫法：2.1＝2 又 1/3 局、2.2＝2 又 2/3 局。算比率前先換算成真正的局數（V01.12.03）
+function ipInningsExpr_(cell) {
+  return '(INT(' + cell + ')+ROUND(MOD(' + cell + ',1)*10,0)/3)';
+}
+function ipOutsExpr_(cell) {
+  return '(INT(' + cell + ')*3+ROUND(MOD(' + cell + ',1)*10,0))';
+}
+
 function buildPitcherRateFormulas(r) {
   // F=IP, H=H, I=ER, J=BB, K=SO
-  var fERA = '=IF(F' + r + '>0, TEXT(9*I' + r + '/F' + r + ', "0.00"), "0.00")';
-  var fK9 = '=IF(F' + r + '>0, TEXT(9*K' + r + '/F' + r + ', "0.00"), "0.00")';
-  var fBB9 = '=IF(F' + r + '>0, TEXT(9*J' + r + '/F' + r + ', "0.00"), "0.00")';
-  var fWHIP = '=IF(F' + r + '>0, TEXT((H' + r + '+J' + r + ')/F' + r + ', "0.00"), "0.00")';
+  var inn = ipInningsExpr_('F' + r);
+  var fERA = '=IF(' + inn + '>0, TEXT(9*I' + r + '/' + inn + ', "0.00"), "0.00")';
+  var fK9 = '=IF(' + inn + '>0, TEXT(9*K' + r + '/' + inn + ', "0.00"), "0.00")';
+  var fBB9 = '=IF(' + inn + '>0, TEXT(9*J' + r + '/' + inn + ', "0.00"), "0.00")';
+  var fWHIP = '=IF(' + inn + '>0, TEXT((H' + r + '+J' + r + ')/' + inn + ', "0.00"), "0.00")';
   return [fERA, fK9, fBB9, fWHIP];
 }
 
@@ -584,7 +593,12 @@ function writePitcherTotalsRow(sheet, startRow, playerRowCount) {
 
   var firstDataRow = startRow;
   var lastDataRow = startRow + playerRowCount - 1;
-  var sumCols = ["F", "G", "H", "I", "J", "K", "L", "M", "N"]; // IP~WP
+  // IP 合計：每位投手先換算成出局數再加總，再寫回棒球寫法（2.1＋0.2＋2.0＝15 個出局＝5.0，不是 4.3）
+  var outs = [];
+  for (var r = firstDataRow; r <= lastDataRow; r++) outs.push(ipOutsExpr_('F' + r));
+  var outsSum = '(' + outs.join('+') + ')';
+  rowValues.push('=INT(' + outsSum + '/3)+MOD(' + outsSum + ',3)/10');
+  var sumCols = ["G", "H", "I", "J", "K", "L", "M", "N"]; // R~WP 直接加總
   sumCols.forEach(function (col) {
     rowValues.push('=SUM(' + col + firstDataRow + ':' + col + lastDataRow + ')');
   });

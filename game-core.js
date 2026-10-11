@@ -715,6 +715,21 @@
     return { activeLineup: slots, pitchers, stats: { batting, pitching }, linescore };
   }
 
+  /* ---------- 複製 LINE 打單：格式和陣容調度的「複製 LINE 打單」相同（先發＋↳ 依序的替補） ----------
+     標題：還沒記第一筆＝先發；比賽中＝N局上／下 調度後；比賽完成＝最終。DH 制最後一行寫目前的投手 */
+  function lineText(setup, events) {
+    const evs = events || [];
+    const s = replay(setup, evs);
+    const label = s.ended ? '最終' : evs.length ? `${s.inning}局${s.top ? '上' : '下'} 調度後` : '先發';
+    let text = `⚾ ${s.meta.teamName}棒球隊 打單 (${setup.date} ${setup.gameNum} vs ${setup.opponent})｜${label}\n-------------------------\n`;
+    sheetFinal(setup, evs).activeLineup.forEach((slot, i) => {
+      text += `${i + 1}. ${slot.starter.posLabel} #${slot.starter.number} ${slot.starter.name}\n`;
+      slot.substitutes.forEach((p) => { text += `   ↳ ${p.posLabel} #${p.number} ${p.name}\n`; });
+    });
+    if (s.dh && s.pitcher) text += `投手：#${s.pitcher.number} ${s.pitcher.name}\n`;
+    return text.replace(/\n$/, '');
+  }
+
   /* ---------- 產出賽事成績資料（data/games/<比賽ID>.json）---------- */
   function toGame(setup, events, opts = {}) {
     const s = replay(setup, events);
@@ -748,7 +763,7 @@
   }
 
   const api = {
-    newGame, apply, validate, replay, defaults, buildPA, fieldingProblems, currentPitcher, toGame, displayOf, umpireText, sheetRows, sheetFinal,
+    newGame, apply, validate, replay, defaults, buildPA, fieldingProblems, currentPitcher, toGame, displayOf, umpireText, sheetRows, sheetFinal, lineText,
     FIELD, POS_LABEL, ON_RESULTS, OUT_RESULTS,
   };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;

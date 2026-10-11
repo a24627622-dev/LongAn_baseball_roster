@@ -268,6 +268,17 @@
       return `<div class="cloud ${bad ? 'bad' : ''}"><span>${lines.map(esc).join('<br>')}</span>
         ${!ui.sheetBusy && !done ? '<button class="btn" data-act="sheet-now">重新寫入比賽分頁</button>' : ''}</div>`;
     }
+    /* 複製 LINE 打單（GameCore.lineText：先發＋↳ 替補，標題寫先發／N局 調度後／最終） */
+    const copyLineBtn = () => `<button class="btn dark" data-act="copy-line">${ui.lineCopied ? '✅ 已複製' : '複製 LINE 打單'}</button>`;
+    function copyLine() {
+      const text = GC.lineText(game.setup, game.events);
+      const done = () => { ui.lineCopied = true; render(); setTimeout(() => { ui.lineCopied = false; render(); }, 2000); };
+      const fallback = () => {
+        const ta = document.createElement('textarea');
+        ta.value = text; document.body.appendChild(ta); ta.select(); document.execCommand('copy'); ta.remove();
+      };
+      (navigator.clipboard ? navigator.clipboard.writeText(text) : Promise.reject()).catch(fallback).finally(done);
+    }
     function undo() {
       if (!game.events.length) return;
       game.events.pop();
@@ -412,7 +423,7 @@
         ${older.length ? `<details class="others"><summary>之前的調度紀錄（${older.length} 筆）</summary>${subList(older.slice().reverse())}</details>` : ''}
         ${s.removed.length ? `<div class="hint" style="margin:6px 0">已退場（不能再上場）：${s.removed.map((n) => '#' + esc(n)).join('、')}</div>` : ''}`;
       return `
-        <h2>調度</h2>
+        <div class="row" style="justify-content:space-between;align-items:center"><h2>調度</h2>${copyLineBtn()}</div>
         <div class="hint">點一棒：可以改守位、換人。${s.offense === 'us' ? '進攻中換上的人可以先不排守位，換到守備前再排。' : '守備中九個守位都要排好才能繼續。'}</div>
         <div style="font-weight:800;margin:8px 0 2px">最新打序</div>
         ${rows}${pit}
@@ -669,6 +680,7 @@
       const file = `${game.setup.id}.json`;
       return `<h2>比賽完成：產出賽事成績</h2>
         ${r.errors.length ? `<div class="errbox">${r.errors.map((e) => esc(e.msg)).join('<br>')}</div>` : '<div class="ok">✅ 資料格式檢查通過</div>'}
+        <div class="gr-card"><b>LINE 打單</b><div class="hint">最終打單（先發＋替補），貼到 LINE 群組。</div><div style="margin-top:8px">${copyLineBtn()}</div></div>
         <div class="gr-card"><b>試算表</b>${cloudHTML()}${sheetHTML()}</div>
         <div class="gr-card"><b>發布到官網（和文字紀錄轉換頁相同）</b>
           <ol class="hint" style="padding-left:18px"><li>按「複製全部內容」</li><li>按「開啟 GitHub 新增檔案頁」（檔名已填好）→ 貼上 → Commit changes</li><li>到時程編輯器把這場的「文字轉播」欄填上比賽 ID：<b>${esc(game.setup.id)}</b></li></ol>
@@ -900,6 +912,7 @@
           store.del(SAVE_KEY); store.del(CLOUD_KEY); store.del(SHEET_KEY); game = null; st = null; resetPA();
           ui = { screen: 'setup' }; pre.lineupData = null; pre.msg = '';
           break;
+        case 'copy-line': copyLine(); return;
         case 'copy': {
           const ta = $('out-json');
           (navigator.clipboard ? navigator.clipboard.writeText(ta.value) : Promise.reject()).catch(() => { ta.select(); document.execCommand('copy'); })

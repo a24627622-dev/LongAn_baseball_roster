@@ -204,9 +204,14 @@
                 <!-- 串接實況賽事紀錄（V01.12.00）：先發上傳成功、之後沒改過才出現 -->
                 <div v-if="canStartGame" class="mt-2 p-4 rounded-2xl bg-emerald-50 border border-emerald-300 space-y-3">
                     <div class="text-sm font-bold text-emerald-800">✅ 先發已上傳（{{ gameInfo.date }} {{ gameInfo.gameNum }} vs {{ gameInfo.opponent }}）</div>
-                    <a :href="gameRecordUrl" class="block w-full text-center bg-red-700 hover:bg-red-600 text-white text-lg font-bold py-3.5 rounded-xl shadow">
-                        ⚾ 開始比賽 ➔ 實況賽事紀錄
-                    </a>
+                    <div class="flex gap-2">
+                        <button @click="copyLineup" class="flex-none bg-blue-600 hover:bg-blue-500 text-white font-bold px-4 py-3.5 rounded-xl shadow">
+                            複製 LINE 打單
+                        </button>
+                        <a :href="gameRecordUrl" class="flex-1 text-center bg-red-700 hover:bg-red-600 text-white text-lg font-bold py-3.5 rounded-xl shadow">
+                            ⚾ 開始比賽 ➔ 實況賽事紀錄
+                        </a>
+                    </div>
                     <p class="text-xs text-slate-500">比賽中的換人請在實況賽事紀錄記。改了先發要重新上傳，這個按鈕才會再出現。</p>
                 </div>
             </section>

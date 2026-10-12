@@ -5,6 +5,15 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <title>龍安棒球隊 - 球隊管理</title>
   <link rel="stylesheet" href="../style.css">
+  <style>
+    /* 備援工具收合區（V01.12.06） */
+    .backup-tools { margin: 8px 0 16px; }
+    .backup-tools > summary { cursor: pointer; padding: 14px 16px; border-radius: 12px; background: #fff; border: 1px dashed #94a3b8; color: #334155; font-weight: 700; list-style: none; display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+    .backup-tools > summary::-webkit-details-marker { display: none; }
+    .backup-tools > summary::after { content: '展開 ▾'; flex: none; white-space: nowrap; font-weight: 400; color: #64748b; }
+    .backup-tools[open] > summary::after { content: '收合 ▴'; }
+    .backup-hint { font-size: .85rem; color: #64748b; margin: 10px 4px; }
+  </style>
 </head>
 <body>
 
@@ -19,7 +28,7 @@
     </header>
 
     <main class="app-content">
-      
+
       <div class="card card-active">
         <div class="card-title">
           <span>📋 陣容調度助手</span>
@@ -29,50 +38,6 @@
           本日比賽出席點名、九人/十人先發排定、場上調度換人與產生 LINE 報備文字。
         </p>
         <a href="lineup.html" class="btn btn-primary">進入調度助手 ➔</a>
-      </div>
-
-      <div class="card card-active">
-        <div class="card-title">
-          <span>📝 記錄員速查表</span>
-          <span class="badge badge-online">線上使用中</span>
-        </div>
-        <p class="card-desc">
-          比賽文字紀錄的寫法：結果符號、換人、對手半局簡記。手機直接開來對照。
-        </p>
-        <a href="record-guide.html" class="btn btn-primary">開啟速查表 ➔</a>
-      </div>
-
-      <div class="card card-active">
-        <div class="card-title">
-          <span>⚾ 實況賽事紀錄</span>
-          <span class="badge badge-online">試用中</span>
-        </div>
-        <p class="card-desc">
-          比賽中逐打席記錄：讀取陣容調度上傳的先發，點按鈕記打席、跑者、換人，自動算比分與成績；賽後產生賽事成績資料。
-        </p>
-        <a href="game-record.html" class="btn btn-primary">開始記錄 ➔</a>
-      </div>
-
-      <div class="card card-active">
-        <div class="card-title">
-          <span>🔁 文字紀錄轉換</span>
-          <span class="badge badge-online">線上使用中</span>
-        </div>
-        <p class="card-desc">
-          貼上記錄員的比賽文字紀錄，轉成文字轉播、算出成績，產生資料檔貼到 GitHub 發布。
-        </p>
-        <a href="record-converter.html" class="btn btn-primary">開啟轉換 ➔</a>
-      </div>
-
-      <div class="card card-active">
-        <div class="card-title">
-          <span>👥 球員名單產生器</span>
-          <span class="badge badge-online">線上使用中</span>
-        </div>
-        <p class="card-desc">
-          從試算表帶入背號、姓名，填暱稱、勾選有沒有照片。產生名單檔，貼到 GitHub 就生效（文字轉播的頭像用）。
-        </p>
-        <a href="players-builder.html" class="btn btn-primary">開啟產生器 ➔</a>
       </div>
 
       <div class="card card-active">
@@ -100,6 +65,17 @@
 
       <div class="card card-active">
         <div class="card-title">
+          <span>👥 球員名單產生器</span>
+          <span class="badge badge-online">線上使用中</span>
+        </div>
+        <p class="card-desc">
+          從試算表帶入背號、姓名，填暱稱、勾選有沒有照片。產生名單檔，貼到 GitHub 就生效（文字轉播的頭像用）。
+        </p>
+        <a href="players-builder.html" class="btn btn-primary">開啟產生器 ➔</a>
+      </div>
+
+      <div class="card card-active">
+        <div class="card-title">
           <span>📅 賽事時程 & 練球</span>
           <span class="badge badge-online">線上使用中</span>
         </div>
@@ -121,50 +97,97 @@
         <a href="../news.html" class="btn btn-outline">查看全部公告 ➔</a>
       </div>
 
-      <div class="card card-ready">
-        <div class="card-title">
-          <span>📊 球員成績登記助手</span>
-          <span class="badge badge-ready">準備中</span>
-        </div>
-        <p class="card-desc">
-          填寫個人 AB、H、2B、3B、HR、RBI 等打擊數據與投球成績，自動計算 AVG 與 OPS。
-          目前改由文字紀錄轉換工具接手，重新開放前暫不提供入口。
-        </p>
-        <span class="btn btn-outline" style="opacity:.45; cursor:not-allowed;">準備中</span>
-      </div>
+      <!-- 開發中的功能（V01.12.06）：還不能用，收合起來 -->
+      <details class="backup-tools">
+        <summary>🚧 開發中的功能（4 項）</summary>
 
-      <div class="card card-dev">
-        <div class="card-title">
-          <span>🏆 賽事成績</span>
-          <span class="badge badge-dev">開發中</span>
+        <div class="card card-ready">
+          <div class="card-title">
+            <span>📊 球員成績登記助手</span>
+            <span class="badge badge-ready">準備中</span>
+          </div>
+          <p class="card-desc">
+            填寫個人 AB、H、2B、3B、HR、RBI 等打擊數據與投球成績，自動計算 AVG 與 OPS。
+            目前改由文字紀錄轉換工具接手，重新開放前暫不提供入口。
+          </p>
+          <span class="btn btn-outline" style="opacity:.45; cursor:not-allowed;">準備中</span>
         </div>
-        <p class="card-desc">
-          過往比賽對戰勝負紀錄、球隊整體數據戰績與聯賽排名。
-        </p>
-        <a href="#" class="btn btn-outline btn-disabled">功能開發中</a>
-      </div>
 
-      <div class="card card-dev">
-        <div class="card-title">
-          <span>👥 球員名單 & 成績紀錄</span>
-          <span class="badge badge-dev">開發中</span>
+        <div class="card card-dev">
+          <div class="card-title">
+            <span>🏆 賽事成績</span>
+            <span class="badge badge-dev">開發中</span>
+          </div>
+          <p class="card-desc">
+            過往比賽對戰勝負紀錄、球隊整體數據戰績與聯賽排名。
+          </p>
+          <a href="#" class="btn btn-outline btn-disabled">功能開發中</a>
         </div>
-        <p class="card-desc">
-          全隊隊員名冊、背號、守位資料及個人生涯打擊/投球累積數據。
-        </p>
-        <a href="#" class="btn btn-outline btn-disabled">功能開發中</a>
-      </div>
 
-      <div class="card card-dev">
-        <div class="card-title">
-          <span>📸 照片影片上傳助手</span>
-          <span class="badge badge-dev">開發中</span>
+        <div class="card card-dev">
+          <div class="card-title">
+            <span>👥 球員名單 & 成績紀錄</span>
+            <span class="badge badge-dev">開發中</span>
+          </div>
+          <p class="card-desc">
+            全隊隊員名冊、背號、守位資料及個人生涯打擊/投球累積數據。
+          </p>
+          <a href="#" class="btn btn-outline btn-disabled">功能開發中</a>
         </div>
-        <p class="card-desc">
-          比賽精彩花絮照片、投手/打擊動作影片紀錄快速雲端彙整。
-        </p>
-        <a href="#" class="btn btn-outline btn-disabled">功能開發中</a>
-      </div>
+
+        <div class="card card-dev">
+          <div class="card-title">
+            <span>📸 照片影片上傳助手</span>
+            <span class="badge badge-dev">開發中</span>
+          </div>
+          <p class="card-desc">
+            比賽精彩花絮照片、投手/打擊動作影片紀錄快速雲端彙整。
+          </p>
+          <a href="#" class="btn btn-outline btn-disabled">功能開發中</a>
+        </div>
+      </details>
+
+      <!-- 備援工具（V01.12.06）：串接後平常用不到，收合在最下面。
+           實況賽事紀錄平常從陣容調度「開始比賽」進去；換手機要「從雲端備份載入」時從這裡進。
+           速查表、文字紀錄轉換是實況賽事紀錄出問題時改回手寫紀錄用的 -->
+      <details class="backup-tools">
+        <summary>🧰 備援工具（換手機接著記、手寫紀錄）</summary>
+        <p class="backup-hint">平常用不到。實況賽事紀錄請從陣容調度上傳先發後按「開始比賽」進入。</p>
+
+        <div class="card card-active">
+          <div class="card-title">
+            <span>⚾ 實況賽事紀錄</span>
+            <span class="badge badge-online">試用中</span>
+          </div>
+          <p class="card-desc">
+            比賽中逐打席記錄：讀取陣容調度上傳的先發，點按鈕記打席、跑者、換人，自動算比分與成績；賽後產生賽事成績資料。
+          </p>
+          <a href="game-record.html" class="btn btn-primary">開始記錄 ➔</a>
+        </div>
+
+        <div class="card card-active">
+          <div class="card-title">
+            <span>📝 記錄員速查表</span>
+            <span class="badge badge-online">線上使用中</span>
+          </div>
+          <p class="card-desc">
+            比賽文字紀錄的寫法：結果符號、換人、對手半局簡記。手機直接開來對照。
+          </p>
+          <a href="record-guide.html" class="btn btn-primary">開啟速查表 ➔</a>
+        </div>
+
+        <div class="card card-active">
+          <div class="card-title">
+            <span>🔁 文字紀錄轉換</span>
+            <span class="badge badge-online">線上使用中</span>
+          </div>
+          <p class="card-desc">
+            貼上記錄員的比賽文字紀錄，轉成文字轉播、算出成績，產生資料檔貼到 GitHub 發布。
+          </p>
+          <a href="record-converter.html" class="btn btn-primary">開啟轉換 ➔</a>
+        </div>
+
+      </details>
 
     </main>
 

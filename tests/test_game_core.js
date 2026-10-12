@@ -681,6 +681,41 @@ test('不變條件：每一筆紀錄之後，所有投手的失分加總＝對�
   assert.deepStrictEqual([pitR(st, '19'), pitR(st, '22')], [2, 1]);
 });
 
+console.log('\nN 複製 LINE 打單（lineText）');
+
+test('還沒記任何一筆：標題「先發」，9 棒只有先發，守位寫法和陣容調度相同', () => {
+  const lines = GC.lineText(SETUP, []).split('\n');
+  assert.strictEqual(lines[0], '⚾ 龍安棒球隊 打單 (2026-10-25 G1 vs ZERO)｜先發');
+  assert.strictEqual(lines[1], '-------------------------');
+  assert.deepStrictEqual(lines.slice(2, 4), ['1. CF (8) #11 球員11', '2. SS (6) #12 球員12']);
+  assert.strictEqual(lines[10], '9. P (1) #19 球員19');
+  assert.ok(!lines.some((l) => l.includes('↳')));
+});
+
+test('8/30 記到三局上代打之後：標題「3局上 調度後」，替補依序列在先發下面', () => {
+  const lines = GC.lineText(g0830.setup, g0830.events.slice(0, 35)).split('\n');
+  assert.strictEqual(lines[0], '⚾ 龍安棒球隊 打單 (2026-08-30 G4 vs 雨人)｜3局上 調度後');
+  const at = (prefix) => lines.indexOf(lines.find((l) => l.startsWith(prefix)));
+  const i2 = at('2. ');
+  assert.deepStrictEqual(lines.slice(i2, i2 + 3), ['2. 1B (3) #17 蘇巽雄', '   ↳ PR (代跑) #21 李浩偉', '   ↳ 1B (3) #21 李浩偉']);
+  const i9 = at('9. ');
+  assert.deepStrictEqual(lines.slice(i9), ['9. P (1) #1 張容基', '   ↳ PH (代打) #49 蘇辰雄']);
+});
+
+test('8/30 整場（最後一筆是比賽完成）：標題「最終」，替補和比賽分頁的最終名單一樣', () => {
+  const lines = GC.lineText(g0830.setup, g0830.events).split('\n');
+  assert.strictEqual(lines[0], '⚾ 龍安棒球隊 打單 (2026-08-30 G4 vs 雨人)｜最終');
+  assert.deepStrictEqual(lines.slice(-3), ['9. P (1) #1 張容基', '   ↳ PH (代打) #49 蘇辰雄', '   ↳ 3B (5) #49 蘇辰雄']);
+  assert.ok(lines.includes('   ↳ P (1) #56 蘇垣華'));
+});
+
+test('DH 制：最後一行寫目前的投手，換投後改成新投手；一般賽制沒有投手那一行', () => {
+  assert.strictEqual(GC.lineText(SETUP_DH, []).split('\n').pop(), '投手：#1 投手一');
+  const after = GC.lineText(SETUP_DH, [...threeOuts, { t: 'sub', kind: 'P', in: { number: '22', name: '板凳22' } }]).split('\n');
+  assert.strictEqual(after.pop(), '投手：#22 板凳22');
+  assert.ok(!GC.lineText(SETUP, []).includes('投手：'));
+});
+
 console.log('\n不變條件（8/30 整場每一筆都檢查）');
 
 test('出局數 0～3、壘包不重複、比分＝各半局得分總和、重算兩次結果相同', () => {

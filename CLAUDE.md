@@ -43,7 +43,7 @@ node tests/test_game_core.js           # 99 項：實況賽事紀錄的計算核
 node tests/check_data.js               # 不是測試：檢查 data/*.json 與 data/games/*.json
 ```
 
-基準（2026-10-12，V01.12.07 開發中）：46＋37＋26＋39＋44＋99，`check_data` 沒有錯誤。測試數量有增減時，這裡、`tests/README.md`、`docs/測試報告_調度三情境.md` 一起更新。
+基準（2026-10-12，V01.12.08 開發中）：46＋37＋26＋39＋44＋99，`check_data` 沒有錯誤。測試數量有增減時，這裡、`tests/README.md`、`docs/測試報告_調度三情境.md` 一起更新。
 
 ### 測試放哪裡
 

@@ -45,10 +45,11 @@
     .board .btn { min-height: 36px; padding: 0 10px; background: transparent; color: #fff; border-color: var(--gold-color); }
 
     /* 壘包 */
-    .diamond { position: relative; width: 230px; height: 150px; margin: 6px auto 0; }
-    .diamond .bag { position: absolute; width: 18px; height: 18px; transform: rotate(45deg); border: 2px solid #94a3b8; background: #fff; }
+    /* 壘包：bag 的 left/top 是中心點，名字標籤在壘包正下方、左右置中 */
+    .diamond { position: relative; width: 300px; height: 170px; margin: 6px auto 0; }
+    .diamond .bag { position: absolute; width: 18px; height: 18px; margin: -9px 0 0 -9px; transform: rotate(45deg); border: 2px solid #94a3b8; background: #fff; }
     .diamond .bag.on { background: var(--gold-color); border-color: var(--gold-color); }
-    .diamond .chip { position: absolute; width: 92px; min-height: 30px; border-radius: 15px; border: none; background: #15803d; color: #fff; font-size: .8rem; font-weight: 700; padding: 2px 4px; }
+    .diamond .chip { position: absolute; width: 90px; box-sizing: border-box; transform: translateX(-50%); min-height: 30px; border-radius: 15px; border: none; background: #15803d; color: #fff; font-size: .8rem; font-weight: 700; padding: 2px 4px; text-align: center; white-space: nowrap; overflow: hidden; }
     .diamond .chip.opp { background: #64748b; }
 
     .batter { display: flex; align-items: center; gap: 10px; }
@@ -104,6 +105,22 @@
     .grid3 .btn[data-act=sub-pick] { padding: 0 2px; font-size: .88rem; white-space: nowrap; overflow: hidden; }
     details.others { margin-top: 8px; border: 1px dashed #cbd5e1; border-radius: 10px; padding: 6px 4px; }
     details.others summary { cursor: pointer; font-size: .9rem; font-weight: 700; color: var(--text-muted); }
+    /* 開始比賽：最終確認（沿用陣容調度第 2 步的樣子） */
+    .picked { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+    .picked .btn { min-height: 36px; font-size: .85rem; flex: none; }
+    .st-row { display: flex; align-items: center; gap: 8px; padding: 10px; background: #f8fafc; border: 1px solid var(--border); border-radius: 12px; margin: 6px 0; }
+    .st-row .no { background: #1e293b; color: #fff; border-radius: 999px; padding: 2px 9px; font-size: .75rem; font-weight: 700; flex: none; }
+    .st-row .pl { background: #dbeafe; color: #1e40af; border-radius: 6px; padding: 2px 6px; font-size: .75rem; font-weight: 700; flex: none; }
+    .st-row .nm { font-weight: 700; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .st-row.pit { background: #fffbeb; border-color: #fde68a; }
+    .bench { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; margin-top: 6px; }
+    .bench span { display: flex; align-items: center; gap: 6px; padding: 6px; border: 1px solid var(--border); border-radius: 10px; background: #fff; font-size: .88rem; font-weight: 700; white-space: nowrap; overflow: hidden; }
+    .bench span i { font-style: normal; background: #e2e8f0; border-radius: 999px; min-width: 26px; height: 26px; display: inline-flex; align-items: center; justify-content: center; font-size: .75rem; flex: none; }
+    .side2 { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 6px; }
+    .side2 .btn { min-height: 56px; font-size: 1.05rem; }
+    .btn.go { min-height: 64px; font-size: 1.4rem; letter-spacing: 2px; margin-top: 14px; }
+    details.spare { margin-top: 14px; }
+    details.spare > summary { cursor: pointer; font-weight: 700; color: var(--text-muted); padding: 4px 2px; }
     textarea.out { width: 100%; min-height: 140px; font-family: ui-monospace, monospace; font-size: .75rem; }
   </style>
 </head>
@@ -119,7 +136,6 @@
        計算全部在 game-core.js；這個頁面只負責按鈕、顯示、存檔。
        存檔：一場 ＝ setup ＋ events，每一筆操作都存進這台裝置（localStorage）。 */
     const GC = GameCore;
-    const REPO = 'a24627622-dev/LongAn_baseball_roster';
     const AUTH_TOKEN_KEY = 'longan_auth_token';   // 和陣容調度工具共用
     const SAVE_KEY = 'longan_game_record';
     const $ = (id) => document.getElementById(id);
@@ -284,7 +300,8 @@
       const c = sheetInfo();
       const bad = !!(ui.cloudMsg || ui.sheetMsg || (c.id === game.setup.id && c.warning));
       return `<details class="gr-card others" ${bad ? 'open' : ''}><summary><b>試算表（備用）</b>${bad ? '　⚠️ 有狀況，請看下面' : ''}</summary>
-        <div style="margin-top:6px">${cloudHTML()}${sheetHTML()}</div></details>`;
+        <div style="margin-top:6px">${cloudHTML()}${sheetHTML()}</div>
+        <div style="margin-top:10px"><button class="btn" data-act="backup">下載備份檔</button></div></details>`;
     }
     function undo() {
       if (!game.events.length) return;
@@ -349,22 +366,31 @@
         + pre.schedule.map((x) => `<option value="${esc(x.date)}||${esc(x.opponent || '')}" ${isSel(`${x.date}||${x.opponent || ''}`)}>${esc(fmtDate(x.date))} vs ${esc(x.opponent || '未定')}（時程）</option>`).join('');
       const nums = ['G1', 'G2', 'G3', 'G4'].map((g) => `<option ${(pre.gameNum || 'G1') === g ? 'selected' : ''}>${g}</option>`).join('');
       const lu = pre.lineupData;
+      // 從陣容調度連過來而且讀到先發：選比賽收成一行（按「換一場」才展開）。欄位照樣放在頁面上（藏起來），雲端載入讀得到
+      const folded = !!(pre.fromLink && lu && !pre.pickOpen && !pre.needLogin);
       let luHTML = '';
       if (lu) {
-        luHTML = `<div class="gr-card"><b>先發名單</b>${lu.lineup.map((p, i) => `<div class="hint">${i + 1} 棒　#${esc(p.number)} ${esc(p.name)}　${esc(FIELD_LABEL[p.pos] || p.pos || '')}</div>`).join('')}
-          ${lu.dh ? `<div class="hint">投手（DH 制，不在打序）：#${esc(lu.pitcher.number)} ${esc(lu.pitcher.name)}</div>` : ''}
-          <div style="margin-top:8px"><b>板凳</b>（${lu.benchFromAttendance ? '陣容調度的點名：有到、沒排先發' : '⚠️ 這台裝置找不到這場的點名，先列出全部球員'}）</div>
-          <div class="hint">${lu.bench.map((p) => `#${esc(p.number)} ${esc(p.name)}`).join('、') || '（沒有）'}</div>
-          ${lu.benchFromAttendance ? '' : '<div class="hint">要用點名的板凳：請在<b>同一支手機、同一個瀏覽器</b>用陣容調度工具點名並上傳先發後，再回來讀取。</div>'}
-          <label>龍安是</label>
-          <div class="row"><button class="btn ${pre.usBatFirst !== false ? 'sel' : ''}" data-act="first" data-v="1">先攻（客隊）</button>
+        const row = (no, pl, p, cls) => `<div class="st-row ${cls || ''}"><span class="no">${no}</span><span class="pl">${esc(pl)}</span><span class="nm">#${esc(p.number)} ${esc(p.name)}</span></div>`;
+        luHTML = `<div class="gr-card"><b>最終確認</b>
+          <div style="font-weight:800;margin:10px 0 2px">先發</div>
+          ${lu.lineup.map((p, i) => row(`第 ${i + 1} 棒`, FIELD_LABEL[p.pos] || p.pos || '守位未定', p)).join('')}
+          ${lu.dh ? row('投手', '投手', lu.pitcher, 'pit') : ''}
+          <div style="font-weight:800;margin:12px 0 2px">板凳（${lu.bench.length} 人）</div>
+          ${lu.benchFromAttendance ? '' : '<div class="warnbox">這台裝置找不到這場的點名，先列出全部球員。要用點名的板凳：請在同一支手機、同一個瀏覽器用陣容調度點名並上傳先發後，再回來讀取。</div>'}
+          ${lu.bench.length ? `<div class="bench">${lu.bench.map((p) => `<span><i>${esc(p.number)}</i>${esc(p.name)}</span>`).join('')}</div>` : '<div class="hint">（沒有）</div>'}
+          <div style="font-weight:800;margin:14px 0 2px">龍安是</div>
+          <div class="side2"><button class="btn ${pre.usBatFirst !== false ? 'sel' : ''}" data-act="first" data-v="1">先攻（客隊）</button>
           <button class="btn ${pre.usBatFirst === false ? 'sel' : ''}" data-act="first" data-v="0">後攻（主隊）</button></div>
-          <div style="margin-top:12px"><button class="btn red wide" data-act="start">比賽開始 ➔ 確認守位</button></div></div>`;
+          <button class="btn red wide go" data-act="start">比賽開始!!</button></div>`;
       }
+      const spareOpen = !!(pre.cloudMsg && !pre.cloudOk);
       return `
         <div class="row" style="justify-content:space-between"><h2>實況賽事紀錄</h2><span><a href="lineup.html" class="hint">← 回陣容調度</a>　<a href="index.html" class="hint">球隊管理</a></span></div>
         ${resume}
         <div class="gr-card">
+          ${folded ? `<div class="picked"><div><b>${esc(pre.date)} ${esc(pre.gameNum)} vs ${esc(pre.opponent)}</b><div class="ok">✓ 已讀取先發</div></div>
+            <button class="btn" data-act="pick-open">換一場</button></div>` : ''}
+          <div style="${folded ? 'display:none' : ''}">
           <b>1. 選擇比賽，讀取先發名單</b>
           <div class="hint">讀的是陣容調度工具上傳的先發（同一個比賽 ID）。需要隊務登入，已在陣容調度登入過就不用再登。</div>
           <label>比賽</label>
@@ -378,13 +404,16 @@
           <div style="margin-top:10px"><button class="btn dark wide" data-act="load">讀取先發名單</button></div>
           <div class="login-box ${pre.needLogin ? 'show' : ''}"><input type="password" id="passcode" placeholder="隊務密碼"><button class="btn" data-act="login">登入</button></div>
           <div class="${pre.msgOk ? 'ok' : 'err'}" style="margin-top:6px">${esc(pre.msg || '')}</div>
+          </div>
         </div>
         ${luHTML}
-        <div class="gr-card"><b>從雲端備份接著記</b><div class="hint">換手機或這台的紀錄不見時：上面選好比賽（日期、場次、對手），再按這裡，從最後一次雲端備份接著記。</div>
-          <button class="btn wide" style="margin-top:8px" data-act="cloud-load">從雲端備份載入</button>
-          <div class="${pre.cloudOk ? 'ok' : 'err'}" style="margin-top:6px">${esc(pre.cloudMsg || '')}</div></div>
-        <div class="gr-card"><b>從備份檔還原</b><div class="hint">換手機或資料不見時，選「下載備份檔」存下來的檔案。</div>
-          <input type="file" id="restore-file" accept=".json,application/json"></div>`;
+        <details class="spare" ${spareOpen ? 'open' : ''}><summary>備用（換手機、紀錄不見時）</summary>
+          <div class="gr-card"><b>從雲端備份接著記</b><div class="hint">從這場最後一次雲端備份接著記。${lu ? '' : '請先在上面選好比賽。'}</div>
+            <button class="btn wide" style="margin-top:8px" data-act="cloud-load">從雲端備份載入</button>
+            <div class="${pre.cloudOk ? 'ok' : 'err'}" style="margin-top:6px">${esc(pre.cloudMsg || '')}</div></div>
+          <div class="gr-card"><b>從備份檔還原</b><div class="hint">選「下載備份檔」存下來的檔案。</div>
+            <input type="file" id="restore-file" accept=".json,application/json"></div>
+        </details>`;
     }
 
     /* ----- 2. 調度（換人、排守位） ----- */
@@ -512,7 +541,7 @@
         ${ui.reloadMsg ? `<div class="err" style="margin-top:6px">${esc(ui.reloadMsg)}</div>` : ''}</div>`;
     }
     function mainHTML() {
-      if (st.ended) return '<div class="gr-card">比賽已結束。<button class="btn red wide" data-act="to-done" style="margin-top:8px">產出賽事成績資料</button></div>';
+      if (st.ended) return '<div class="gr-card">比賽已結束。<button class="btn red wide" data-act="to-done" style="margin-top:8px">到比賽完成畫面</button></div>';
       if (ui.halfEnd) {
         const fp = GC.fieldingProblems(st);
         const needLineup = st.offense === 'opp' && fp.length;
@@ -526,14 +555,15 @@
     }
 
     function diamondHTML() {
-      const pos = [{ x: 186, y: 76, cx: 132, cy: 98 }, { x: 106, y: 12, cx: 69, cy: 34 }, { x: 26, y: 76, cx: 6, cy: 98 }];
+      // 一壘、二壘、三壘的中心點；名字標籤在壘包正下方
+      const pos = [{ x: 255, y: 92 }, { x: 150, y: 22 }, { x: 45, y: 92 }];
       const bags = pos.map((p, i) => {
         const r = st.bases[i];
         const label = r ? (r.side === 'us' ? `#${r.number} ${r.name}` : `第${r.slot}棒`) : '';
-        const chip = r ? `<button class="chip ${r.side === 'us' ? '' : 'opp'}" style="left:${p.cx}px;top:${p.cy}px" ${r.side === 'us' ? `data-act="pr" data-base="${i + 1}"` : 'disabled'}>${esc(label)}</button>` : '';
+        const chip = r ? `<button class="chip ${r.side === 'us' ? '' : 'opp'}" style="left:${p.x}px;top:${p.y + 18}px" ${r.side === 'us' ? `data-act="pr" data-base="${i + 1}"` : 'disabled'}>${esc(label)}</button>` : '';
         return `<div class="bag ${r ? 'on' : ''}" style="left:${p.x}px;top:${p.y}px"></div>${chip}`;
       }).join('');
-      return `<div class="diamond"><div class="bag" style="left:106px;top:120px;background:#e2e8f0"></div>${bags}</div>
+      return `<div class="diamond"><div class="bag" style="left:150px;top:152px;background:#e2e8f0"></div>${bags}</div>
         ${ui.prBase ? prHTML() : ''}`;
     }
     function prHTML() {
@@ -672,27 +702,24 @@
         ${ui.saveWarn ? `<div class="err" style="text-align:center">${esc(ui.saveWarn)}</div>` : ''}</div>`;
     }
 
-    /* ----- 4. 比賽完成：產出賽事成績資料 ----- */
+    /* ----- 4. 比賽完成 ----- */
+    /* 比賽完成：比賽當下只做 LINE 打單、確認雲端備份、清除這台裝置。
+       發布到官網改到賽後用電腦做（從雲端備份產出），不在手機上做 */
     function doneHTML() {
       const out = GC.toGame(game.setup, game.events);
-      const r = DataCheck.checkGame(out);
-      const json = JSON.stringify(out, null, 1) + '\n';
-      const file = `${game.setup.id}.json`;
-      return `<h2>比賽完成：產出賽事成績</h2>
-        ${r.errors.length ? `<div class="errbox">${r.errors.map((e) => esc(e.msg)).join('<br>')}</div>` : '<div class="ok">✅ 資料格式檢查通過</div>'}
+      const c = cloudInfo();
+      const synced = c.id === game.setup.id && c.events === game.events.length;
+      return `${boardHTML()}<h2>比賽完成</h2>
         <div class="gr-card"><b>LINE 打單</b><div class="hint">最終打單（先發＋替補），貼到 LINE 群組。</div><div style="margin-top:8px">${copyLineBtn()}</div></div>
-        <div class="gr-card"><b>發布到官網（和文字紀錄轉換頁相同）</b>
-          <ol class="hint" style="padding-left:18px"><li>按「複製全部內容」</li><li>按「開啟 GitHub 新增檔案頁」（檔名已填好）→ 貼上 → Commit changes</li><li>到時程編輯器把這場的「文字轉播」欄填上比賽 ID：<b>${esc(game.setup.id)}</b></li></ol>
-          <textarea class="out" id="out-json" readonly>${esc(json)}</textarea>
-          <div class="row" style="margin-top:8px"><button class="btn dark" data-act="copy">複製全部內容</button>
-          <a class="btn" target="_blank" rel="noopener" href="https://github.com/${REPO}/new/main/data/games?filename=${encodeURIComponent(file)}">開啟 GitHub 新增檔案頁 ↗</a></div>
-          <div id="copy-msg" class="ok"></div>
-          <div class="row" style="margin-top:8px"><button class="btn" data-act="backup">下載備份檔</button><button class="btn" data-act="back-main">回到紀錄畫面</button></div></div>
         <div class="gr-card"><b>結束</b>
-          <div class="hint">確認已經發布到 GitHub，或已經下載備份檔，再清除這台裝置上的紀錄。清除後就能記下一場。</div>
-          <div class="row" style="margin-top:8px"><button class="btn red" data-act="clear-exit">結束，清除這台裝置的紀錄</button><a class="btn" href="index.html">← 球隊管理</a></div></div>
+          ${synced ? '<div class="ok" style="margin-top:4px">☁ 整場紀錄已備份到雲端，清除後就能記下一場。</div>'
+            : `<div class="warnbox">${ui.cloudBusy ? '☁ 雲端備份中…' : '雲端還沒備份完，請先按「立即備份」（在下面的試算表（備用）裡）。'}</div>`}
+          <div class="row" style="margin-top:8px"><button class="btn red" data-act="clear-exit" ${synced ? '' : 'disabled'}>結束，清除這台裝置的紀錄</button>
+          <button class="btn" data-act="back-main">回到紀錄畫面</button></div>
+          ${synced ? '' : '<div style="margin-top:8px"><a href="#" class="hint" data-act="clear-force">沒網路，已下載備份檔，仍要清除</a></div>'}
+          <div style="margin-top:8px"><a class="hint" href="index.html">← 球隊管理</a></div></div>
         ${sheetCardHTML()}
-        <h2>預覽（公開的賽事成績頁會長這樣）</h2>
+        <h2>本場成績</h2>
         ${GameView.renderGame(out, GameView.photoMap(players, '../'))}`;
     }
 
@@ -741,7 +768,7 @@
     async function cloudLoad() {
       const g = gameInfo();
       Object.assign(pre, g);
-      if (!g.date || !g.opponent) { pre.cloudMsg = '請先選比賽或填日期、場次、對手。'; pre.cloudOk = false; render(); return; }
+      if (!g.date || !g.opponent) { pre.cloudMsg = '請先選比賽（上面的日期、場次、對手）。'; pre.cloudOk = false; pre.pickOpen = true; render(); return; }
       if (store.get(SAVE_KEY) && !confirm('這台裝置有記到一半的比賽，載入雲端備份會取代它。確定？')) return;
       pre.cloudMsg = '讀取中…'; pre.cloudOk = true; render();
       try {
@@ -786,7 +813,9 @@
         events: [],
       };
       recompute(); save(); resetPA();
-      openLineup(null, null);
+      // 守位齊全就直接進打席輸入；有問題（例如上傳的先發少一個守位）才帶去調度排好
+      if (GC.fieldingProblems(st).length) openLineup(null, null);
+      else { ui = { screen: 'main' }; resetPA(); }
       render();
     }
 
@@ -812,6 +841,7 @@
       const d = el.dataset;
       switch (act) {
         case 'load': loadLineup(); return;
+        case 'pick-open': pre.pickOpen = true; break;
         case 'login': login(); return;
         case 'first': pre.usBatFirst = d.v === '1'; break;
         case 'start': startGame(); return;
@@ -908,17 +938,15 @@
         case 'to-done': ui.screen = 'done'; break;
         case 'back-main': ui.screen = 'main'; break;
         case 'clear-exit':
-          if (!confirm('確定清除這台裝置上這場的紀錄？\n清除前請確認已經發布到 GitHub，或已經按「下載備份檔」。')) break;
+        case 'clear-force':
+          e.preventDefault();
+          if (!confirm(d.act === 'clear-exit' ? '確定清除這台裝置上這場的紀錄？（雲端備份還在）'
+            : '雲端還沒備份完。確定已經按「下載備份檔」存好，要清除這台裝置上這場的紀錄？')) break;
+          pre.fromLink = false; pre.pickOpen = false;
           store.del(SAVE_KEY); store.del(CLOUD_KEY); store.del(SHEET_KEY); game = null; st = null; resetPA();
           ui = { screen: 'setup' }; pre.lineupData = null; pre.msg = '';
           break;
         case 'copy-line': copyLine(); return;
-        case 'copy': {
-          const ta = $('out-json');
-          (navigator.clipboard ? navigator.clipboard.writeText(ta.value) : Promise.reject()).catch(() => { ta.select(); document.execCommand('copy'); })
-            .finally(() => { $('copy-msg').textContent = '已複製，接著開 GitHub 新增檔案頁貼上。'; });
-          return;
-        }
         default: return;
       }
       render();
@@ -972,7 +1000,7 @@
         if (saved && saved.setup && saved.setup.id === gameId(g)) {   // 同一場記到一半：直接接著記
           game = saved; recompute(); resetPA(); ui.screen = 'main'; render(); return;
         }
-        Object.assign(pre, g);
+        Object.assign(pre, g, { fromLink: true });
         render();
         loadLineup(g);   // 別場記到一半時，上方照樣顯示「記到一半的比賽」，按「比賽開始」前會再確認
       }

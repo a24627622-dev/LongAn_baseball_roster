@@ -279,6 +279,13 @@
       };
       (navigator.clipboard ? navigator.clipboard.writeText(text) : Promise.reject()).catch(fallback).finally(done);
     }
+    /* 比賽完成畫面的試算表狀態：平常收起來（備用）；備份或寫入失敗、有警告時自動展開 */
+    function sheetCardHTML() {
+      const c = sheetInfo();
+      const bad = !!(ui.cloudMsg || ui.sheetMsg || (c.id === game.setup.id && c.warning));
+      return `<details class="gr-card others" ${bad ? 'open' : ''}><summary><b>試算表（備用）</b>${bad ? '　⚠️ 有狀況，請看下面' : ''}</summary>
+        <div style="margin-top:6px">${cloudHTML()}${sheetHTML()}</div></details>`;
+    }
     function undo() {
       if (!game.events.length) return;
       game.events.pop();
@@ -412,15 +419,19 @@
       }
       const dhP = s.dh ? `<div class="gr-card"><b>投手</b><div class="row" style="margin-top:6px"><button class="btn ${ui.subKind === 'P' && !sel ? 'sel' : ''}" data-act="pitcher-sub">換投</button></div>${ui.subKind === 'P' && !sel ? benchHTML() : ''}</div>` : '';
       const defense = s.offense === 'opp';
-      // 調度紀錄（回報裁判用：裁判只看背號＋守位號碼）：這次進來之後做的放上面，之前的依半局收折在下面
-      const subs = umpireLog();
-      const fresh = subs.slice(ui.subsSeen || 0);
-      const older = subs.slice(0, ui.subsSeen || 0);
-      const subList = (list) => list.map((x) => `<div class="hint" style="padding:3px 0">${esc(x.label)}　${esc(x.text)}</div>`).join('');
+      // 調度紀錄（回報裁判用）：先換人、再換位置（GameCore.umpireReport）。這次進來之後做的放上面，之前的依半局收折在下面
+      const from = ui.lineupFrom == null ? game.events.length : ui.lineupFrom;
+      const fresh = GC.umpireReport(game.setup, game.events, from);
+      const older = GC.umpireHalves(game.setup, game.events.slice(0, from));
+      const lines = (list) => (list.length ? list.map((t) => `<div class="hint" style="padding:3px 0">${esc(t)}</div>`).join('') : '<div class="hint">（無）</div>');
+      const block = (r) => `<div style="font-weight:700;margin-top:6px">換人</div>${lines(r.subs)}
+        <div style="font-weight:700;margin-top:6px">換位置</div>${lines(r.moves)}
+        ${r.warnings.map((w) => `<div class="err">${esc(w)}</div>`).join('')}`;
+      const hasFresh = fresh.subs.length || fresh.moves.length;
       const report = `
-        <div class="gr-card ${fresh.length ? 'warnbox' : ''}"><b>這次的調度</b>
-          ${fresh.length ? subList(fresh) : '<div class="hint">這次還沒有換人或改守位。</div>'}</div>
-        ${older.length ? `<details class="others"><summary>之前的調度紀錄（${older.length} 筆）</summary>${subList(older.slice().reverse())}</details>` : ''}
+        <div class="gr-card ${hasFresh ? 'warnbox' : ''}"><b>這次的調度</b>
+          ${hasFresh || fresh.warnings.length ? block(fresh) : '<div class="hint">這次還沒有換人或改守位。</div>'}</div>
+        ${older.length ? `<details class="others"><summary>之前的調度紀錄（${older.length} 個半局）</summary>${older.slice().reverse().map((h) => `<div style="margin-top:8px"><b>${esc(h.label)}</b>${block(h)}</div>`).join('')}</details>` : ''}
         ${s.removed.length ? `<div class="hint" style="margin:6px 0">已退場（不能再上場）：${s.removed.map((n) => '#' + esc(n)).join('、')}</div>` : ''}`;
       return `
         <div class="row" style="justify-content:space-between;align-items:center"><h2>調度</h2>${copyLineBtn()}</div>
@@ -449,21 +460,10 @@
           <div class="grid3" style="margin-top:6px">${others.map(btn).join('')}</div></details>` : ''}`;
     }
     const allPlayers = () => players.map((p) => ({ number: String(p.number), name: p.name }));
-    /* 調度紀錄，給裁判看的寫法（GameCore.umpireText）：只有背號和守位號碼 */
-    function umpireLog() {
-      const out = [];
-      let s = GC.newGame(game.setup);
-      game.events.forEach((ev) => {
-        const text = GC.umpireText(s, ev);
-        if (text) out.push({ label: `${s.inning}局${s.top ? '上' : '下'}`, text });
-        s = GC.apply(s, ev);
-      });
-      return out;
-    }
     /* 進入調度畫面：記下目前有幾筆調度，之後新增的就是「這次的調度」 */
     function openLineup(slot, kind) {
       ui.screen = 'lineup'; ui.selSlot = slot; ui.subKind = kind; ui.lineupErr = '';
-      ui.subsSeen = umpireLog().length;
+      ui.lineupFrom = game.events.length;   // 「這次的調度」＝從這裡之後記的
     }
     function benchList() {
       const seen = new Set((game.setup.bench || []).map((p) => p.number));
@@ -681,7 +681,6 @@
       return `<h2>比賽完成：產出賽事成績</h2>
         ${r.errors.length ? `<div class="errbox">${r.errors.map((e) => esc(e.msg)).join('<br>')}</div>` : '<div class="ok">✅ 資料格式檢查通過</div>'}
         <div class="gr-card"><b>LINE 打單</b><div class="hint">最終打單（先發＋替補），貼到 LINE 群組。</div><div style="margin-top:8px">${copyLineBtn()}</div></div>
-        <div class="gr-card"><b>試算表</b>${cloudHTML()}${sheetHTML()}</div>
         <div class="gr-card"><b>發布到官網（和文字紀錄轉換頁相同）</b>
           <ol class="hint" style="padding-left:18px"><li>按「複製全部內容」</li><li>按「開啟 GitHub 新增檔案頁」（檔名已填好）→ 貼上 → Commit changes</li><li>到時程編輯器把這場的「文字轉播」欄填上比賽 ID：<b>${esc(game.setup.id)}</b></li></ol>
           <textarea class="out" id="out-json" readonly>${esc(json)}</textarea>
@@ -692,6 +691,7 @@
         <div class="gr-card"><b>結束</b>
           <div class="hint">確認已經發布到 GitHub，或已經下載備份檔，再清除這台裝置上的紀錄。清除後就能記下一場。</div>
           <div class="row" style="margin-top:8px"><button class="btn red" data-act="clear-exit">結束，清除這台裝置的紀錄</button><a class="btn" href="index.html">← 球隊管理</a></div></div>
+        ${sheetCardHTML()}
         <h2>預覽（公開的賽事成績頁會長這樣）</h2>
         ${GameView.renderGame(out, GameView.photoMap(players, '../'))}`;
     }

@@ -716,6 +716,100 @@ test('DH 制：最後一行寫目前的投手，換投後改成新投手；一�
   assert.ok(!GC.lineText(SETUP, []).includes('投手：'));
 });
 
+console.log('\nO 調度紀錄分成「換人／換位置」（umpireReport，先換人、再換位置）');
+
+// 龍安先攻：threeOuts 之後換我方守備；一般制 #11 中外 8、#12 游擊 6、#13 二壘 4、#14 一壘 3、#15 三壘 5、#16 左 7、#17 右 9、#18 捕 2、#19 投 1
+// DH 制：第 4 棒 #14 DH、第 9 棒 #19 一壘 3、投手 #1
+const sub = (kind, num, extra = {}) => ({ t: 'sub', kind, in: { number: String(num), name: `板凳${num}` }, ...extra });
+const posEv = (...changes) => ({ t: 'pos', changes: changes.map(([slot, pos]) => ({ slot, pos })) });
+const K1 = { t: 'pa', result: 'K', pos: null, runners: [{ from: 0, to: -1 }] };
+const single = { t: 'pa', result: '1B', pos: 8, runners: [{ from: 0, to: 1 }] };
+const rep = (setup, evs, start) => { const r = GC.umpireReport(setup, evs, start); return [r.subs, r.moves, r.warnings]; };
+
+test('1-1 單純換投：#21 換 #19；換位置無', () => {
+  assert.deepStrictEqual(rep(SETUP, [...threeOuts, sub('P', 21)], 3), [['#21 換 #19'], [], []]);
+});
+
+test('1-2 #22 上場守游擊、#12 改守三壘、#15 下場：#22 換 #15；守 5 ↔ 守 6 對調', () => {
+  assert.deepStrictEqual(rep(SETUP, [...threeOuts, sub('DEF', 22, { slot: 5, pos: 'SS' }), posEv([2, '3B'])], 3),
+    [['#22 換 #15'], ['守 5 ↔ 守 6 對調'], []]);
+});
+
+test('1-3 只輪換：投手→二壘、二壘→三壘、三壘→投手：守 1 換到守 4 / 守 4 換到守 5 / 守 5 換到守 1', () => {
+  assert.deepStrictEqual(rep(SETUP, [...threeOuts, posEv([9, '2B'], [3, '3B'], [5, 'P'])], 3),
+    [[], ['守 1 換到守 4 / 守 4 換到守 5 / 守 5 換到守 1'], []]);
+});
+
+test('1-4 換投＋二壘游擊互換：#21 換 #19；守 4 ↔ 守 6 對調', () => {
+  assert.deepStrictEqual(rep(SETUP, [...threeOuts, sub('P', 21), posEv([3, 'SS'], [2, '2B'])], 3),
+    [['#21 換 #19'], ['守 4 ↔ 守 6 對調'], []]);
+});
+
+test('1-5 換投，游擊 #12 上來投球、#21 守游擊：#21 換 #19；守 1 ↔ 守 6 對調', () => {
+  assert.deepStrictEqual(rep(SETUP, [...threeOuts, sub('P', 21), posEv([9, 'SS'], [2, 'P'])], 3),
+    [['#21 換 #19'], ['守 1 ↔ 守 6 對調'], []]);
+});
+
+test('2-1 DH 制換投：#21 換 #1（投手）；換位置無', () => {
+  assert.deepStrictEqual(rep(SETUP_DH, [...threeOuts, sub('P', 21)], 3), [['#21 換 #1（投手）'], [], []]);
+});
+
+test('2-2 DH 被代打：進攻時 #22 換 #14（代打）；下個守備半局留任 DH，換人、換位置都無', () => {
+  const evs = [K1, K1, single, sub('PH', 22), { t: 'pa', result: 'K', pos: null, runners: [{ from: 0, to: -1 }, { from: 1, to: 1 }] }];
+  assert.deepStrictEqual(rep(SETUP_DH, evs.slice(0, 4), 3), [['#22 換 #14（代打）'], [], []]);
+  assert.deepStrictEqual(rep(SETUP_DH, evs, 5), [[], [], []]);
+});
+
+test('3-1 DH 改守一壘、一壘 #19 下場：DH 取消：#1（投手）接第 9 棒，#19 退場；DH 換到守 3', () => {
+  assert.deepStrictEqual(rep(SETUP_DH, [...threeOuts, { t: 'dhOff', slot: 9 }, posEv([4, '1B'])], 3),
+    [['DH 取消：#1（投手）接第 9 棒，#19 退場'], ['DH 換到守 3'], []]);
+});
+
+test('3-2 投手接 DH 的棒次：DH 取消：#1（投手）接第 4 棒，#14 退場；換位置無', () => {
+  assert.deepStrictEqual(rep(SETUP_DH, [...threeOuts, { t: 'dhOff', slot: 4 }], 3),
+    [['DH 取消：#1（投手）接第 4 棒，#14 退場'], [], []]);
+});
+
+test('4-1 代打：#21 換 #11（代打）；進攻中還沒排守位不算缺守位', () => {
+  assert.deepStrictEqual(rep(SETUP, [sub('PH', 21)], 0), [['#21 換 #11（代打）'], [], []]);
+});
+
+test('4-2 代跑：#22 換 #11（代跑）', () => {
+  assert.deepStrictEqual(rep(SETUP, [single, sub('PR', 22, { base: 1 })], 1), [['#22 換 #11（代跑）'], [], []]);
+});
+
+const phThenDefense = [sub('PH', 21), K1, K1, K1];
+test('4-3 代打者下個守備半局留下守原位：#21 留下守 8（原代打）', () => {
+  assert.deepStrictEqual(rep(SETUP, [...phThenDefense, posEv([1, 'CF'])], 4), [[], ['#21 留下守 8（原代打）'], []]);
+});
+
+test('4-4 代打者改守游擊、#12 改守中外野：守 6 ↔ 守 8 對調', () => {
+  assert.deepStrictEqual(rep(SETUP, [...phThenDefense, posEv([1, 'SS'], [2, 'CF'])], 4), [[], ['守 6 ↔ 守 8 對調'], []]);
+});
+
+test('4-5 代打後換別人上去守備：#22 換 #21；換位置無', () => {
+  assert.deepStrictEqual(rep(SETUP, [...phThenDefense, sub('DEF', 22, { slot: 1, pos: 'CF' })], 4), [['#22 換 #21'], [], []]);
+});
+
+test('同一批換兩次：換人照順序列出，換位置只看最後結果', () => {
+  assert.deepStrictEqual(rep(SETUP, [...threeOuts, sub('DEF', 22, { slot: 5, pos: '3B' }), sub('DEF', 23, { slot: 5, pos: '3B' })], 3),
+    [['#22 換 #15', '#23 換 #22'], [], []]);
+});
+
+test('守備時有守位空著（代打者還沒排守位）：⚠️ 守 8 還沒有人', () => {
+  assert.deepStrictEqual(rep(SETUP, [...phThenDefense, sub('P', 22)], 4), [['#22 換 #19'], [], ['⚠️ 守 8 還沒有人']]);
+});
+
+test('之前的調度依半局分批（umpireHalves）：每個半局各自的換人、換位置', () => {
+  // 1局上三振三人 → 1局下換投 → 對手三人出局 → 2局上輪到第 4 棒 #14，#22 代打
+  const evs = [...threeOuts, sub('P', 21), K1, K1, K1, sub('PH', 22)];
+  const halves = GC.umpireHalves(SETUP, evs);
+  assert.deepStrictEqual(halves.map((h) => [h.label, h.subs, h.moves]), [
+    ['1局下', ['#21 換 #19'], []],
+    ['2局上', ['#22 換 #14（代打）'], []],
+  ]);
+});
+
 console.log('\n不變條件（8/30 整場每一筆都檢查）');
 
 test('出局數 0～3、壘包不重複、比分＝各半局得分總和、重算兩次結果相同', () => {

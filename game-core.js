@@ -589,6 +589,119 @@
     return null;
   }
 
+  /* ---------- 調度紀錄：換人／換位置（給裁判看，V01.12.07）----------
+     一批調度（events[start..end)）分成兩段：
+       換人：照發生順序，「上場背號 換 下場背號」，代打／代跑／DH 制換投加註；DH 取消寫誰接哪一棒、誰退場
+       換位置：先換人（上場的人先接下場那位的守位），再比較這一批開始和結束時每個人的守位，只寫守位；
+               兩個互換寫「↔ 對調」、三個以上寫成閉環；代打者留下守原位寫「#21 留下守 5（原代打）」
+     守備中（對手進攻）有守位沒人，另外列警告 */
+  const umpPos = (c) => (c === 'DH' ? 'DH' : `守 ${POS_NUM[c] || c}`);
+  const umpOrder = (c) => (c === 'DH' ? 10 : Number(POS_NUM[c]) || 99);
+  function umpireReport(setup, events, start = 0, end) {
+    const evs = events || [];
+    const stop = end == null ? evs.length : end;
+    const origin = {};   // 代打／代跑上場的人 → 他接的守位（被換下那位當時的守位）與種類
+    const step = (st, ev) => {
+      if (ev.t === 'sub' && (ev.kind === 'PH' || ev.kind === 'PR')) {
+        const old = ev.kind === 'PH' ? st.lineup[st.usNext] : st.lineup[st.bases[ev.base - 1].slot - 1];
+        const prev = origin[old.number];
+        origin[String(ev.in.number)] = { pos: old.pos || (prev && prev.pos) || null, kind: ev.kind };
+      }
+      return apply(st, ev);
+    };
+    let s = newGame(setup);
+    for (let i = 0; i < start; i++) s = step(s, evs[i]);
+
+    // 這一批開始時每個人的基準守位（代打／代跑還沒排守位的，用他接的守位）
+    const base = {};
+    const pinch = {};
+    s.lineup.forEach((p) => {
+      if (p.pos) base[p.number] = p.pos;
+      else if (origin[p.number] && origin[p.number].pos) { base[p.number] = origin[p.number].pos; pinch[p.number] = origin[p.number].kind; }
+    });
+    if (s.dh && s.pitcher) base[s.pitcher.number] = 'P';
+
+    const subs = [];
+    for (let i = start; i < stop; i++) {
+      const ev = evs[i];
+      if (ev.t === 'sub') {
+        let out;
+        if (ev.kind === 'PH') out = s.lineup[s.usNext];
+        else if (ev.kind === 'PR') out = s.lineup[s.bases[ev.base - 1].slot - 1];
+        else if (ev.kind === 'P') out = s.dh ? s.pitcher : s.lineup.find((x) => x.pos === 'P');
+        else out = s.lineup[ev.slot - 1];
+        const tag = ev.kind === 'PH' ? '（代打）' : ev.kind === 'PR' ? '（代跑）' : ev.kind === 'P' && s.dh ? '（投手）' : '';
+        subs.push(`#${ev.in.number} 換 #${out.number}${tag}`);
+        const inNum = String(ev.in.number);
+        if (base[out.number] !== undefined) base[inNum] = base[out.number];   // 先換人：接下場那位的守位
+        delete pinch[inNum];
+      } else if (ev.t === 'dhOff') {
+        subs.push(`DH 取消：#${s.pitcher.number}（投手）接第 ${ev.slot} 棒，#${s.lineup[ev.slot - 1].number} 退場`);
+      }
+      s = step(s, ev);
+    }
+
+    const final = {};
+    s.lineup.forEach((p) => { final[p.number] = p.pos; });
+    if (s.dh && s.pitcher) final[s.pitcher.number] = 'P';
+    const edges = {};
+    const stay = [];
+    Object.keys(final).forEach((num) => {
+      const b = base[num];
+      const f = final[num];
+      if (!b || !f) return;
+      if (b === f) {
+        if (pinch[num]) stay.push(`#${num} 留下${umpPos(f)}（原${pinch[num] === 'PH' ? '代打' : '代跑'}）`);
+        return;
+      }
+      edges[b] = f;
+    });
+    const moves = [];
+    const seen = new Set();
+    const targets = new Set(Object.values(edges));
+    const keys = Object.keys(edges).sort((a, b) => umpOrder(a) - umpOrder(b));
+    const pairs = (nodes) => nodes.slice(0, -1).map((a, i) => `${umpPos(a)} 換到${umpPos(nodes[i + 1])}`).join(' / ');
+    // 不是閉環（起點沒有人補進來，例如 DH 取消）
+    keys.filter((k) => !targets.has(k)).forEach((k) => {
+      const nodes = [k];
+      seen.add(k);
+      let x = edges[k];
+      while (x !== undefined && edges[x] !== undefined && !seen.has(x)) { nodes.push(x); seen.add(x); x = edges[x]; }
+      nodes.push(x);
+      moves.push(pairs(nodes));
+    });
+    // 閉環
+    keys.filter((k) => !seen.has(k)).forEach((k) => {
+      if (seen.has(k)) return;
+      const nodes = [k];
+      seen.add(k);
+      let x = edges[k];
+      while (x !== k && !seen.has(x)) { nodes.push(x); seen.add(x); x = edges[x]; }
+      moves.push(nodes.length === 2 ? `${umpPos(nodes[0])} ↔ ${umpPos(nodes[1])} 對調` : pairs([...nodes, k]));
+    });
+    moves.push(...stay);
+
+    const held = new Set(Object.values(final));
+    const warnings = s.offense === 'opp' ? FIELD.filter((c) => !held.has(c)).map((c) => `⚠️ ${umpPos(c)} 還沒有人`) : [];
+    return { subs, moves, warnings };
+  }
+  /* 之前的調度：每個半局有換人或換守位的，各算一批 */
+  function umpireHalves(setup, events) {
+    const evs = events || [];
+    const groups = [];
+    let s = newGame(setup);
+    evs.forEach((ev, i) => {
+      if (ev.t === 'sub' || ev.t === 'pos' || ev.t === 'dhOff') {
+        const label = `${s.inning}局${s.top ? '上' : '下'}`;
+        const g = groups[groups.length - 1];
+        if (g && g.label === label) g.end = i + 1;
+        else groups.push({ label, start: i, end: i + 1 });
+      }
+      s = apply(s, ev);
+    });
+    return groups.map((g) => ({ label: g.label, ...umpireReport(setup, evs, g.start, g.end) }));
+  }
+
   /* ---------- 雲端備份的表格列（試算表「賽事紀錄_比賽ID」分頁，一筆紀錄一列）----------
      半局標題列：{ type:'half', offense, cells:['一局上','龍安攻','2分',''] }
      紀錄列：    { type:'event', cells:[A,B,C,D], ev }（ev 是原本那一筆，讀回來就能接著記） */
@@ -763,7 +876,7 @@
   }
 
   const api = {
-    newGame, apply, validate, replay, defaults, buildPA, fieldingProblems, currentPitcher, toGame, displayOf, umpireText, sheetRows, sheetFinal, lineText,
+    newGame, apply, validate, replay, defaults, buildPA, fieldingProblems, currentPitcher, toGame, displayOf, umpireText, umpireReport, umpireHalves, sheetRows, sheetFinal, lineText,
     FIELD, POS_LABEL, ON_RESULTS, OUT_RESULTS,
   };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;

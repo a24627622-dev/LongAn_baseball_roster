@@ -5,7 +5,7 @@ const fs = require('fs');
 const os = require('os');
 const path = require('path');
 const { execFileSync } = require('child_process');
-const { checkSchedule, checkAnnouncements, checkPlayers, checkGame, checkGameRoster, announcementLink } = require('../data-check');
+const { checkSchedule, checkAnnouncements, checkPlayers, checkGame, checkGameRoster, announcementLink, publishStatus, applySheetER } = require('../data-check');
 
 let passed = 0;
 const test = (name, fn) => {
@@ -398,6 +398,114 @@ test('CLI：比賽資料對不上名單 → exit 1', () => {
   assert.strictEqual(code, 1, out);
   assert.match(out, /#93 黃宥憬/);
 });
+
+console.log('\n投手 ER（自責分，V01.13.00：官網投手表加 ER 欄，ER 以試算表為準）');
+{
+  const pit = (extra = {}) => ({ number: '56', name: '蘇垣華', IP: '3.0', H: 7, R: 6, BB: 1, HBP: 0, SO: 7, HR: 0, ...extra });
+  const withPit = (...ps) => ({ ...goodGame(), pitching: ps });
+
+  test('ER 沒填 → 通過（舊比賽）；0 到 R 之間的整數 → 通過', () => {
+    [pit(), pit({ ER: 0 }), pit({ ER: 6 }), pit({ ER: null })].forEach((p) => assert.deepStrictEqual(checkGame(withPit(p)).errors, [], JSON.stringify(p)));
+  });
+
+  test('ER 大於 R、負數、小數、文字 → 錯誤，指出是哪位投手', () => {
+    [pit({ ER: 7 }), pit({ ER: -1 }), pit({ ER: 1.5 }), pit({ ER: '2' })].forEach((p) => {
+      assert.match(msgs(checkGame(withPit(p)).errors), /#56 蘇垣華.*ER/, JSON.stringify(p));
+    });
+  });
+
+  test('applySheetER：照背號套上試算表的 ER；沒填的提醒、黃色的提醒「待確認」；不改原本的物件', () => {
+    const game = withPit({ ...pit(), number: '1', name: '張容基', R: 0 }, pit());
+    const r = applySheetER(game, [{ number: '1', name: '張容基', ER: null, pending: false }, { number: '56', name: '蘇垣華', ER: 0, pending: true }]);
+    assert.deepStrictEqual(r.game.pitching.map((p) => [p.number, p.ER]), [['1', null], ['56', 0]]);
+    assert.ok(!('ER' in game.pitching[0]));
+    assert.match(r.warnings.join(' / '), /#1 張容基.*還沒填 ER/);
+    assert.match(r.warnings.join(' / '), /#56 蘇垣華.*待確認/);
+  });
+
+  test('applySheetER：試算表找不到這位投手、或讀不到試算表（null）→ ER 留空並提醒', () => {
+    const r = applySheetER(withPit(pit()), []);
+    assert.deepStrictEqual(r.game.pitching.map((p) => p.ER), [null]);
+    assert.match(r.warnings.join(' / '), /#56 蘇垣華.*還沒填 ER/);
+    const r2 = applySheetER(withPit(pit()), null);
+    assert.match(r2.warnings.join(' / '), /讀不到試算表的 ER/);
+  });
+}
+
+console.log('\n賽事成績發布 publishStatus（時程裡找這場、連結和比分對不對）');
+{
+  // 賽事成績（GameCore.toGame 產出）只用到 id、date、opponent、score
+  const pub = (extra = {}) => ({ id: '2026-10-25_G1_ZERO', date: '2026-10-25', gameNum: 'G1', opponent: 'ZERO', score: { us: 7, opp: 3 }, ...extra });
+  const URL = 'game.html?id=2026-10-25_G1_ZERO';
+
+  test('時程有同一天、同對手的比賽，還沒連結、還沒填比分 → 找到 1 場，要填的連結和比分', () => {
+    const r = publishStatus([practice('2026-10-18'), game('2026-10-25')], pub());
+    assert.strictEqual(r.matches.length, 1);
+    assert.strictEqual(r.matches[0].index, 1);
+    assert.strictEqual(r.matches[0].link, 'none');
+    assert.strictEqual(r.matches[0].score, 'none');
+    assert.strictEqual(r.resultUrl, URL);
+    assert.deepStrictEqual(r.score, { longan: 7, opponent: 3 });
+    assert.deepStrictEqual(r.warnings, []);
+  });
+
+  test('resultUrl 已經是這一場 → 已連結；比分一樣 → 正確', () => {
+    const r = publishStatus([game('2026-10-25', { resultUrl: URL, score: { longan: 7, opponent: 3 } })], pub());
+    assert.strictEqual(r.matches[0].link, 'this');
+    assert.strictEqual(r.matches[0].score, 'ok');
+  });
+
+  test('resultUrl 連到別場 → 提醒，並說出連到哪一場', () => {
+    const r = publishStatus([game('2026-10-25', { resultUrl: 'game.html?id=2026-10-25_G2_ZERO' })], pub());
+    assert.strictEqual(r.matches[0].link, 'other');
+    assert.strictEqual(r.matches[0].linkedId, '2026-10-25_G2_ZERO');
+    assert.match(r.warnings.join(' / '), /連到別場.*2026-10-25_G2_ZERO/);
+  });
+
+  test('比分不一致 → 列出時程和工具兩邊的數字', () => {
+    const r = publishStatus([game('2026-10-25', { score: { longan: 6, opponent: 3 } })], pub());
+    assert.strictEqual(r.matches[0].score, 'diff');
+    assert.deepStrictEqual(r.matches[0].scheduleScore, { longan: 6, opponent: 3 });
+    assert.match(r.warnings.join(' / '), /比分.*6.*3.*7.*3/);
+  });
+
+  test('時程找不到這場（測試比賽）→ 0 場，提醒不要發布到正式官網', () => {
+    const r = publishStatus([game('2026-10-25', { opponent: '雨人' }), game('2026-10-26')], pub());
+    assert.deepStrictEqual(r.matches, []);
+    assert.match(r.warnings.join(' / '), /時程裡沒有這場.*測試比賽請不要發布/);
+  });
+
+  test('同一天同對手兩場（雙重賽）→ 兩場都列出，提醒依場次確認', () => {
+    const r = publishStatus([game('2026-10-25', { startTime: '08:00' }), game('2026-10-25', { startTime: '13:00' })], pub());
+    assert.deepStrictEqual(r.matches.map((m) => m.index), [0, 1]);
+    assert.match(r.warnings.join(' / '), /2 場.*場次/);
+  });
+
+  test('已取消的比賽、同一天的練球不算', () => {
+    const r = publishStatus([game('2026-10-25', { cancelled: true }), practice('2026-10-25'), game('2026-10-25')], pub());
+    assert.deepStrictEqual(r.matches.map((m) => m.index), [2]);
+  });
+
+  test('對手名稱前後有空白照樣比對得到（時程、賽事成績兩邊都可能有）', () => {
+    assert.strictEqual(publishStatus([game('2026-10-25', { opponent: ' ZERO ' })], pub()).matches.length, 1);
+    assert.strictEqual(publishStatus([game('2026-10-25')], pub({ opponent: 'ZERO ' })).matches.length, 1);
+  });
+
+  test('比賽 ID 有中文：連結文字和時程編輯器寫進去的一樣（encodeURIComponent）', () => {
+    const r = publishStatus([game('2026-08-30', { opponent: '雨人' })], pub({ id: '2026-08-30_G4_雨人', date: '2026-08-30', opponent: '雨人' }));
+    assert.strictEqual(r.resultUrl, 'game.html?id=2026-08-30_G4_%E9%9B%A8%E4%BA%BA');
+    // repo 裡 8/30 這場的時程連結就是這個字串（人工確認過可以點開）
+    const sched = JSON.parse(fs.readFileSync(path.join(__dirname, '..', 'data', 'schedule.json'), 'utf8'));
+    const real = sched.filter((x) => x.date === '2026-08-30' && x.type === 'game')[0];
+    assert.strictEqual(real.resultUrl, r.resultUrl);
+  });
+
+  test('異常輸入：時程不是陣列、賽事成績缺資料 → 不丟錯，回 0 場', () => {
+    assert.deepStrictEqual(publishStatus(null, pub()).matches, []);
+    assert.deepStrictEqual(publishStatus([game('2026-10-25'), null, 5], pub()).matches.map((m) => m.index), [0]);
+    assert.deepStrictEqual(publishStatus([game('2026-10-25')], null).matches, []);
+  });
+}
 
 test('repo 裡現在的資料檔都通過', () => {
   const out = execFileSync('node', [CLI], { encoding: 'utf8' });

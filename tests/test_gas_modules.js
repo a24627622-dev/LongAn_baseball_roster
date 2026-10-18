@@ -289,6 +289,93 @@ console.log('\nBackup.gs（實況賽事紀錄的雲端備份：一場一頁「�
     assert.match(r.message, /5 萬字/);
     assert.ok(!ss.getSheetByName(SHEET));
   });
+
+  // listRecordBackups：賽事成績發布工具（電腦用）的比賽選單，只列真的有雲端備份的比賽
+  const list = (ctx, extra = {}) => post(ctx, { action: 'listRecordBackups', ...extra });
+  const other = (id, date, gameNum, opponent) => ({ ...g0830.setup, id, date, gameNum, opponent });
+  const save = (ctx, setup, n) => post(ctx, { ...payload(n, setup), setup });
+
+  test('listRecordBackups：沒有任何備份 → 空清單', () => {
+    const { ctx } = make();
+    const r = list(ctx);
+    assert.strictEqual(r.success, true);
+    assert.deepStrictEqual(r.games, []);
+  });
+
+  test('listRecordBackups：兩場備份 → 比賽 ID、日期、場次、對手、更新時間，日期新的在前', () => {
+    const { ss, ctx } = make();
+    save(ctx, g0830.setup, 69);
+    save(ctx, other('2026-10-25_G1_ZERO', '2026-10-25', 'G1', 'ZERO'), 3);
+    ss.getSheetByName(SHEET).getRange(6, 2).setValue('2026/08/30 18:00:00');
+    ss.getSheetByName('賽事紀錄_2026-10-25_G1_ZERO').getRange(6, 2).setValue('2026/10/25 12:00:00');
+    const r = list(ctx);
+    assert.deepStrictEqual(r.games.map((x) => [x.gameId, x.date, x.gameNum, x.opponent, x.updatedAt]), [
+      ['2026-10-25_G1_ZERO', '2026-10-25', 'G1', 'ZERO', '2026/10/25 12:00:00'],
+      [GID, '2026-08-30', 'G4', '雨人', '2026/08/30 18:00:00'],
+    ]);
+  });
+
+  test('listRecordBackups：同一天兩場 → G2 在 G1 前面（新的在前）', () => {
+    const { ctx } = make();
+    save(ctx, other('2026-10-25_G1_ZERO', '2026-10-25', 'G1', 'ZERO'), 3);
+    save(ctx, other('2026-10-25_G2_ZERO', '2026-10-25', 'G2', 'ZERO'), 3);
+    assert.deepStrictEqual(list(ctx).games.map((x) => x.gameNum), ['G2', 'G1']);
+  });
+
+  test('listRecordBackups：最後一筆是「比賽完成」→ finished true；記到一半 → false', () => {
+    const { ctx } = make();
+    save(ctx, g0830.setup, 69);                                       // 8/30 第 69 筆是 { t: 'end' }
+    save(ctx, other('2026-10-25_G1_ZERO', '2026-10-25', 'G1', 'ZERO'), 20);
+    const byId = Object.fromEntries(list(ctx).games.map((x) => [x.gameId, x.finished]));
+    assert.deepStrictEqual(byId, { [GID]: true, '2026-10-25_G1_ZERO': false });
+  });
+
+  test('listRecordBackups：不是「賽事紀錄_」開頭的分頁（比賽分頁、名單、調度紀錄）不列', () => {
+    const { ss, ctx } = make();
+    const fake = ss.insertSheet('2026-08-30_G4_雨人');          // 就算長得像備份（B1、E1 都有值）也不列
+    fake.getRange(1, 2).setValue(GID); fake.getRange(1, 5).setValue(JSON.stringify(g0830.setup));
+    ss.insertSheet('調度紀錄');
+    save(ctx, g0830.setup, 3);
+    assert.deepStrictEqual(list(ctx).games.map((x) => x.gameId), [GID]);
+  });
+
+  test('listRecordBackups：分頁名稱的特殊字元被換成「-」時，回傳第 1 列記的真正比賽 ID（讀得回來）', () => {
+    const { ctx } = make();
+    const setup = other('2026-08-30_G4_A/B', '2026-08-30', 'G4', 'A/B');
+    save(ctx, setup, 2);
+    const g = list(ctx).games;
+    assert.deepStrictEqual(g.map((x) => [x.gameId, x.opponent]), [['2026-08-30_G4_A/B', 'A/B']]);
+    assert.strictEqual(load(ctx, g[0].gameId).success, true);
+  });
+
+  test('listRecordBackups：「賽事紀錄_」分頁第 1 列被改壞或空白 → 跳過這頁，其他照列', () => {
+    const { ss, ctx } = make();
+    save(ctx, g0830.setup, 3);
+    ss.insertSheet('賽事紀錄_空白');
+    save(ctx, other('2026-10-25_G1_ZERO', '2026-10-25', 'G1', 'ZERO'), 3);
+    ss.getSheetByName('賽事紀錄_2026-10-25_G1_ZERO').getRange(1, 2).setValue('亂打');
+    const r = list(ctx);
+    assert.strictEqual(r.success, true);
+    assert.deepStrictEqual(r.games.map((x) => x.gameId), [GID]);
+  });
+
+  test('listRecordBackups：強制登入模式沒登入 → AUTH_REQUIRED；登入後可以列', () => {
+    const { ctx } = make({ TEAM_PASSCODE: 'abc', AUTH_ENFORCED: 'true' });
+    assert.strictEqual(list(ctx).code, 'AUTH_REQUIRED');
+    const token = post(ctx, { action: 'login', passcode: 'abc' }).token;
+    assert.strictEqual(list(ctx, { token }).success, true);
+  });
+
+  test('listRecordBackups：不變條件——清單裡每一場都用 loadRecordBackup 讀得回來，而且只讀不寫', () => {
+    const { ss, ctx } = make();
+    save(ctx, g0830.setup, 69);
+    save(ctx, other('2026-10-25_G1_ZERO', '2026-10-25', 'G1', 'ZERO'), 5);
+    const before = JSON.stringify(ss.sheets);
+    const games = list(ctx).games;
+    assert.strictEqual(JSON.stringify(ss.sheets), before);
+    assert.strictEqual(games.length, 2);
+    games.forEach((x) => assert.strictEqual(load(ctx, x.gameId).success, true, x.gameId));
+  });
 }
 
 console.log('\nCode.gs finishGame 帶成績（實況賽事紀錄比賽完成：最終名單、成績、逐局比分寫進比賽分頁）');
@@ -332,15 +419,102 @@ console.log('\nCode.gs finishGame 帶成績（實況賽事紀錄比賽完成：�
     assert.strictEqual(batterRow(ss, '蘇垣華')[5], 3);
   });
 
-  test('投手表：IP～WP 寫入，ER 保留手填的值', () => {
+  test('投手表：IP～WP 寫入；ER 寫工具的建議值（8/30 兩位都是 0），人改過的 ER 保留（V01.13.00 起）', () => {
     const { ss, ctx } = make();
     starters(ctx);
     finish(ctx);
     const r = rowIdx(ss, '順序', (x) => String(x[2]) === '56') + 1;
     sheetOf(ss).getRange(r, 9).setValue(4);
     finish(ctx);
-    assert.deepStrictEqual(pitcherRow(ss, '1').slice(5, 14), ['2.0', 0, 1, '', 1, 1, 0, 1, 0]);
+    assert.deepStrictEqual(pitcherRow(ss, '1').slice(5, 14), ['2.0', 0, 1, 0, 1, 1, 0, 1, 0]);
     assert.deepStrictEqual(pitcherRow(ss, '56').slice(5, 14), ['3.0', 6, 7, 4, 1, 7, 0, 0, 0]);
+  });
+
+  // ---- 自責分建議值（ER-3、ER-4）：註解記工具的建議值，判斷不準的塗黃 ----
+  const erRow = (ss, num) => rowIdx(ss, '順序', (x) => String(x[2]) === num) + 1;
+  const erCell = (ss, num) => {
+    const r = erRow(ss, num);
+    const rng = sheetOf(ss).getRange(r, 9);
+    return { v: rng.getValues()[0][0], note: rng.getNotes()[0][0], bg: rng.getBackgrounds()[0][0] };
+  };
+  const YELLOW = '#fff2cc';
+  const withER = (er1, er56, flags56 = []) => ({ stats: { batting: fin.stats.batting,
+    pitching: fin.stats.pitching.map((p) => ({ ...p, ER: p.number === '1' ? er1 : er56, erFlags: p.number === '1' ? [] : flags56 })) } });
+
+  test('ER 格空白 → 寫入建議值，註解「工具建議 X」；有判斷不準的分 → 塗黃，註解列出原因', () => {
+    const { ss, ctx } = make();
+    starters(ctx);
+    finish(ctx);
+    const a = erCell(ss, '1');
+    const b = erCell(ss, '56');
+    assert.deepStrictEqual([a.v, a.note, a.bg], [0, '工具建議 0', '#ffffff']);
+    assert.strictEqual(b.v, 0);
+    assert.match(b.note, /^工具建議 0\n三局下：重建半局/);
+    assert.strictEqual(b.bg, YELLOW);
+  });
+
+  test('ER 格還是上次的建議值 → 換成新的建議值（紀錄修正後重新寫入）', () => {
+    const { ss, ctx } = make();
+    starters(ctx);
+    finish(ctx, withER(2, 3));
+    finish(ctx, withER(1, 0));
+    assert.deepStrictEqual([erCell(ss, '1').v, erCell(ss, '1').note, erCell(ss, '56').v], [1, '工具建議 1', 0]);
+  });
+
+  test('ER 格被人改過 → 保留人填的，註解「工具建議 X，已保留你填的 Y」，底色不動', () => {
+    const { ss, ctx } = make();
+    starters(ctx);
+    finish(ctx);                                             // #56 塗黃
+    sheetOf(ss).getRange(erRow(ss, '56'), 9).setValue(2);
+    sheetOf(ss).getRange(erRow(ss, '1'), 9).setValue(1).setBackground('#ffffff');
+    finish(ctx);
+    const b = erCell(ss, '56');
+    assert.deepStrictEqual([b.v, b.bg], [2, YELLOW]);           // 還沒清黃色：照舊黃
+    assert.match(b.note, /^工具建議 0，已保留你填的 2/);
+    assert.deepStrictEqual([erCell(ss, '1').v, erCell(ss, '1').note], [1, '工具建議 0，已保留你填的 1']);
+    // 人確認後自己清掉黃色：重新寫入不會再塗回去
+    sheetOf(ss).getRange(erRow(ss, '56'), 9).setBackground('#ffffff');
+    finish(ctx);
+    assert.strictEqual(erCell(ss, '56').bg, '#ffffff');
+  });
+
+  test('舊資料：ER 有手填值、沒有註解 → 保留', () => {
+    const { ss, ctx } = make();
+    starters(ctx);
+    finish(ctx, withER(undefined, undefined));               // 舊版手機：沒帶 ER
+    assert.deepStrictEqual([erCell(ss, '1').v, erCell(ss, '1').note], ['', '']);
+    sheetOf(ss).getRange(erRow(ss, '1'), 9).setValue(3);
+    finish(ctx);
+    assert.deepStrictEqual([erCell(ss, '1').v, erCell(ss, '1').note], [3, '工具建議 0，已保留你填的 3']);
+  });
+
+  test('工具寫的格子：這次沒有判斷不準的分 → 清掉上次塗的黃色', () => {
+    const { ss, ctx } = make();
+    starters(ctx);
+    finish(ctx);
+    assert.strictEqual(erCell(ss, '56').bg, YELLOW);
+    finish(ctx, withER(0, 0, []));
+    assert.deepStrictEqual([erCell(ss, '56').bg, erCell(ss, '56').note], ['#ffffff', '工具建議 0']);
+  });
+
+  test('getGameER：回傳每位投手的 ER、空白當作還沒填（null）、黃色當作待確認', () => {
+    const { ss, ctx } = make();
+    starters(ctx);
+    finish(ctx);
+    sheetOf(ss).getRange(erRow(ss, '1'), 9).setValue('');
+    const r = post(ctx, { action: 'getGameER', gameInfo });
+    assert.strictEqual(r.success, true);
+    assert.deepStrictEqual(r.pitchers.map((p) => [p.number, p.name, p.ER, p.pending]), [['1', '張容基', null, false], ['56', '蘇垣華', 0, true]]);
+  });
+
+  test('getGameER：比賽分頁不存在 → 回錯誤；強制登入時沒登入 → AUTH_REQUIRED', () => {
+    const { ctx } = make();
+    const r = post(ctx, { action: 'getGameER', gameInfo });
+    assert.strictEqual(r.success, false);
+    assert.match(r.message, /找不到/);
+    const ss2 = new MockSpreadsheet();
+    const c2 = createGasContext({ files, spreadsheet: ss2, props: { TEAM_PASSCODE: 'abc', AUTH_ENFORCED: 'true' } });
+    assert.strictEqual(post(c2.ctx, { action: 'getGameER', gameInfo }).code, 'AUTH_REQUIRED');
   });
 
   test('逐局比分：第 6、7 列寫雙方每局得分與 R、H、E；龍安的 R、H 維持接打者合計的公式', () => {
@@ -514,6 +688,13 @@ console.log('\nCode.gs 投手表公式（IP 的 2.1＝2 又 1/3 局；ERA、K9�
     post(ctx, { action: 'finishGame', gameInfo, requireSheet: true, ...fin, pitchers: THREE, stats: { batting: fin.stats.batting, pitching: THREE_ST } });
     const r = pitcherRows(ss)['56'];
     assert.deepStrictEqual([r.ER, r.rates[0]], [2, '9.00']);
+  });
+
+  test('工具寫入的 ER 建議值：ERA 照樣引用 ER 欄（IP 2.1、ER 1 → 3.86）', () => {
+    const { ss, ctx } = make();
+    write(ctx, THREE, THREE_ST.map((p) => ({ ...p, ER: p.number === '1' ? 1 : 0, erFlags: [] })));
+    const r = pitcherRows(ss)['1'];
+    assert.deepStrictEqual([r.ER, r.rates[0]], [1, '3.86']);
   });
 
   test('合計列的 R、H、ER、BB、SO、HR、HBP、WP 照舊直接加總', () => {

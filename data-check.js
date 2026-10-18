@@ -221,7 +221,28 @@
     });
     if (!Array.isArray(data.batting)) e('缺少 batting（打者成績）');
     if (!Array.isArray(data.pitching)) e('缺少 pitching（投手成績）');
+    // ER（V01.13.00 起）：可以不填（舊比賽）；有填就要是 0～R 的整數
+    else data.pitching.forEach((p) => {
+      if (!isObject(p) || p.ER === undefined || p.ER === null) return;
+      if (!Number.isInteger(p.ER) || p.ER < 0 || (Number.isInteger(p.R) && p.ER > p.R)) e(`#${p.number} ${p.name}：ER 應為 0～${p.R} 的整數，實際是 ${JSON.stringify(p.ER)}`);
+    });
     return r;
+  }
+
+  /* 發布時把試算表投手表的 ER（人確認過的）套進賽事成績資料。sheet：GAS getGameER 的 pitchers（讀不到時是 null）。
+     回傳 { game（新的物件，不改原本的）, warnings } */
+  function applySheetER(game, sheet) {
+    const warnings = [];
+    const out = { ...game, pitching: (game.pitching || []).map((p) => ({ ...p })) };
+    if (!Array.isArray(sheet)) warnings.push('讀不到試算表的 ER（比賽分頁不存在或沒有網路），官網的 ER 會留空');
+    const list = Array.isArray(sheet) ? sheet : [];
+    out.pitching.forEach((p) => {
+      const row = list.find((x) => String(x.number) === String(p.number));
+      p.ER = row && Number.isInteger(row.ER) ? row.ER : null;
+      if (Array.isArray(sheet) && p.ER === null) warnings.push(`#${p.number} ${p.name}：試算表還沒填 ER`);
+      if (row && row.pending) warnings.push(`#${p.number} ${p.name}：試算表的 ER 還是黃色（待確認）`);
+    });
+    return { game: out, warnings };
   }
 
   /* 比賽資料裡的我方球員（打者、壘上跑者、得分者、投手）要對得上 data/players.json。
@@ -259,7 +280,37 @@
     return r;
   }
 
-  const api = { checkSchedule, checkAnnouncements, checkPlayers, checkGame, checkGameRoster, isValidDate, announcementLink };
+  /* 賽事成績發布（tools/record-converter.html）：在時程裡找這場（同一天、同對手、沒取消的比賽），
+     看「文字轉播」連結和比分填了沒、對不對。game 是 GameCore.toGame 的產出（用 id、date、opponent、score） */
+  function publishStatus(schedule, game) {
+    const out = { matches: [], resultUrl: '', score: null, warnings: [] };
+    if (!isObject(game) || typeof game.id !== 'string') return out;
+    out.resultUrl = `game.html?id=${encodeURIComponent(game.id)}`;
+    if (isObject(game.score)) out.score = { longan: game.score.us, opponent: game.score.opp };
+    const opp = String(game.opponent || '').trim();
+    (Array.isArray(schedule) ? schedule : []).forEach((item, index) => {
+      if (!isObject(item) || item.type !== 'game' || item.cancelled || item.date !== game.date) return;
+      if (String(item.opponent || '').trim() !== opp) return;
+      const m = { index, item, link: 'none', linkedId: '', score: 'none', scheduleScore: null };
+      if (typeof item.resultUrl === 'string' && item.resultUrl) {
+        m.linkedId = item.resultUrl.startsWith('game.html?id=') ? decodeURIComponent(item.resultUrl.slice('game.html?id='.length)) : item.resultUrl;
+        m.link = item.resultUrl === out.resultUrl ? 'this' : 'other';
+        if (m.link === 'other') out.warnings.push(`時程這場的「文字轉播」連到別場（${m.linkedId}），請確認`);
+      }
+      if (isObject(item.score)) {
+        m.scheduleScore = { longan: item.score.longan, opponent: item.score.opponent };
+        const same = out.score && item.score.longan === out.score.longan && item.score.opponent === out.score.opponent;
+        m.score = same ? 'ok' : 'diff';
+        if (!same && out.score) out.warnings.push(`時程的比分 ${item.score.longan}：${item.score.opponent} 和紀錄的 ${out.score.longan}：${out.score.opponent} 不一樣`);
+      }
+      out.matches.push(m);
+    });
+    if (!out.matches.length) out.warnings.push('時程裡沒有這場（同一天、同對手的比賽）；main 就是正式官網，測試比賽請不要發布');
+    if (out.matches.length > 1) out.warnings.push(`時程裡同一天、同對手有 ${out.matches.length} 場，請依場次確認要填哪一場`);
+    return out;
+  }
+
+  const api = { checkSchedule, checkAnnouncements, checkPlayers, checkGame, checkGameRoster, isValidDate, announcementLink, publishStatus, applySheetER };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   else root.DataCheck = api;
 })(this);

@@ -19,8 +19,16 @@ class MockRange {
   }
   getBackgrounds() {
     const bg = this.sheet.bg || [];
-    return this.getValues().map((r, i) => r.map((_, j) => ((bg[this.r - 1 + i] || [])[this.c - 1 + j]) || '#ffffff'));
+    // 用 setBackground 改過的以改過的為準（和真的試算表一樣），沒改過的讀建表時給的 bg
+    return this.getValues().map((r, i) => r.map((_, j) => {
+      const f = this.sheet.fmt[`${this.r + i},${this.c + j}`];
+      return (f && f.bg) || ((bg[this.r - 1 + i] || [])[this.c - 1 + j]) || '#ffffff';
+    }));
   }
+  // 儲存格註解（自責分建議值用）
+  getNotes() { return this.getValues().map((r, i) => r.map((_, j) => this.sheet.notes[`${this.r + i},${this.c + j}`] || '')); }
+  setNotes(arr) { arr.forEach((row, i) => row.forEach((t, j) => { this.sheet.notes[`${this.r + i},${this.c + j}`] = t || ''; })); return this; }
+  setNote(t) { return this.setNotes([[t]]); }
   setValues(vals) {
     if (vals.length !== this.nr || vals.some(v => v.length !== this.nc)) {
       throw new Error(`setValues 尺寸不符：範圍 ${this.nr}x${this.nc}，資料 ${vals.length}x${vals[0] && vals[0].length}`);
@@ -44,8 +52,8 @@ class MockRange {
   }
 }
 class MockSheet {
-  constructor(name, rows, bg) { this.name = name; this.rows = rows || []; this.bg = bg || []; this.fmt = {}; this.widths = {}; }
-  clear() { this.rows = []; this.bg = []; this.fmt = {}; return this; }
+  constructor(name, rows, bg) { this.name = name; this.rows = rows || []; this.bg = bg || []; this.fmt = {}; this.notes = {}; this.widths = {}; }
+  clear() { this.rows = []; this.bg = []; this.fmt = {}; this.notes = {}; return this; }
   setColumnWidth(c, w) { this.widths[c] = w; return this; }
   set(r, c, v) { while (this.rows.length < r) this.rows.push([]); const row = this.rows[r - 1]; while (row.length < c) row.push(''); row[c - 1] = v; }
   getRange(r, c, nr = 1, nc = 1) {
@@ -68,6 +76,7 @@ class MockSpreadsheet {
   constructor() { this.sheets = {}; }
   getSheetByName(n) { return this.sheets[n] || null; }
   insertSheet(n) { if (this.sheets[n]) throw new Error('分頁已存在 ' + n); return (this.sheets[n] = new MockSheet(n)); }
+  getSheets() { return Object.values(this.sheets); }
 }
 
 function createGasContext(opts = {}) {

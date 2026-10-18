@@ -681,6 +681,142 @@ test('不變條件：每一筆紀錄之後，所有投手的失分加總＝對�
   assert.deepStrictEqual([pitR(st, '19'), pitR(st, '22')], [2, 1]);
 });
 
+console.log('\nP 自責分建議值（正式記錄規則 9.16；期望值手算，見 docs/自責分建議值說明.md）');
+
+// 龍安先攻：龍安三人出局後，對手打擊、我方投手 #19；換投用 changeP(22)
+const ER = (st, num) => { const p = st.stats.pitching[num] || {}; return [p.R, p.ER]; };
+const flagsOf = (st, num) => (st.stats.pitching[num] || {}).erFlags || [];
+const oppPA = (result, runners, extra = {}) => ({ t: 'pa', result, pos: extra.pos === undefined ? 6 : extra.pos, runners, ...extra });
+const oppK = oppPA('K', [{ from: 0, to: OUT }], { pos: null });
+const oppE = oppPA('E', [{ from: 0, to: 1 }]);
+const oppHR1 = oppPA('HR', [{ from: 0, to: 4 }, { from: 1, to: 4 }], { pos: 7 });
+
+test('失誤上壘 → 下一棒兩分全壘打：R 2、ER 1（失誤上壘的那位得分不算）', () => {
+  const st = play([...threeOuts, oppE, oppHR1]);
+  assert.deepStrictEqual(ER(st, '19'), [2, 1]);
+  assert.deepStrictEqual(flagsOf(st, '19'), []);
+});
+
+test('兩出局後失誤上壘，接著二安、一安各得 1 分：R 2、ER 0；重建半局已三出局，塗黃說明', () => {
+  const st = play([...threeOuts, oppK, oppK, oppE,
+    oppPA('2B', [{ from: 0, to: 2 }, { from: 1, to: 4 }], { pos: 7 }),
+    oppPA('1B', [{ from: 0, to: 1 }, { from: 2, to: 4 }], { pos: 8 })]);
+  assert.deepStrictEqual(ER(st, '19'), [2, 0]);
+  assert.strictEqual(flagsOf(st, '19').length, 1);
+  assert.match(flagsOf(st, '19')[0], /一局下.*三出局/);
+});
+
+test('三壘跑者暴投回本壘：R 1、ER 1', () => {
+  const st = play([...threeOuts, oppPA('3B', [{ from: 0, to: 3 }], { pos: 9 }), { t: 'run', runners: [{ from: 3, to: 4, reason: '暴投' }] }]);
+  assert.deepStrictEqual(ER(st, '19'), [1, 1]);
+});
+
+test('三壘跑者捕逸回本壘：R 1、ER 0，塗黃說明', () => {
+  const st = play([...threeOuts, oppPA('3B', [{ from: 0, to: 3 }], { pos: 9 }), { t: 'run', runners: [{ from: 3, to: 4, reason: '捕逸' }] }]);
+  assert.deepStrictEqual(ER(st, '19'), [1, 0]);
+  assert.strictEqual(flagsOf(st, '19').length, 1);
+});
+
+test('承繼跑者：A 保送後換 B，B 被敲二安送回 → A 的 R 1、ER 1；B 是 0、0', () => {
+  const st = play([...threeOuts, oppBB, changeP(22), double1]);
+  assert.deepStrictEqual([ER(st, '19'), ER(st, '22')], [[1, 1], [0, 0]]);
+});
+
+test('安打上壘、靠失誤推進到三壘，再靠一安得分：ER 0，塗黃（有疑問時對投手有利）', () => {
+  const st = play([...threeOuts, oppPA('1B', [{ from: 0, to: 1 }], { pos: 8 }),
+    { t: 'run', runners: [{ from: 1, to: 3, reason: '失誤' }] },
+    oppPA('1B', [{ from: 0, to: 1 }, { from: 3, to: 4 }], { pos: 8 })]);
+  assert.deepStrictEqual(ER(st, '19'), [1, 0]);
+  assert.strictEqual(flagsOf(st, '19').length, 1);
+  assert.match(flagsOf(st, '19')[0], /一局下.*第1棒.*失誤/);
+});
+
+test('同上但被全壘打送回：不管有沒有那次推進都會得分 → R 2、ER 2，不塗黃', () => {
+  const st = play([...threeOuts, oppPA('1B', [{ from: 0, to: 1 }], { pos: 8 }),
+    { t: 'run', runners: [{ from: 1, to: 3, reason: '失誤' }] },
+    oppPA('HR', [{ from: 0, to: 4 }, { from: 3, to: 4 }], { pos: 7 })]);
+  assert.deepStrictEqual(ER(st, '19'), [2, 2]);
+  assert.deepStrictEqual(flagsOf(st, '19'), []);
+});
+
+test('捕手妨礙打擊上壘 → 下一棒兩分全壘打：R 2、ER 1', () => {
+  const st = play([...threeOuts, oppPA('CI', [{ from: 0, to: 1 }], { pos: null }), oppHR1]);
+  assert.deepStrictEqual(ER(st, '19'), [2, 1]);
+});
+
+test('不死三振：靠暴投上壘再得分算自責；靠捕逸上壘不算，而且算一次出局機會', () => {
+  const kWP = oppPA('K_REACH', [{ from: 0, to: 1, reason: '暴投' }], { pos: null });
+  const kPB = oppPA('K_REACH', [{ from: 0, to: 1, reason: '捕逸' }], { pos: null });
+  assert.deepStrictEqual(ER(play([...threeOuts, kWP, oppHR1]), '19'), [2, 2]);
+  assert.deepStrictEqual(ER(play([...threeOuts, kPB, oppHR1]), '19'), [2, 1]);
+  // 兩出局後捕逸的不死三振＝第三次出局機會：之後的全壘打也不算自責
+  assert.deepStrictEqual(ER(play([...threeOuts, oppK, oppK, kPB, oppHR1]), '19'), [2, 0]);
+});
+
+test('不死三振沒選原因：看同一球其他跑者的原因（捕逸）；都沒有時當作非自責並塗黃', () => {
+  const k3 = oppPA('K', [{ from: 0, to: OUT }, { from: 3, to: 3 }], { pos: null });
+  const st = play([...threeOuts, oppPA('3B', [{ from: 0, to: 3 }], { pos: 9 }), k3, k3,
+    oppPA('K_REACH', [{ from: 0, to: 1 }, { from: 3, to: 4, reason: '捕逸' }], { pos: null })]);
+  assert.deepStrictEqual(ER(st, '19'), [1, 0]);
+  const st2 = play([...threeOuts, oppPA('K_REACH', [{ from: 0, to: 1 }], { pos: null }), oppHR1]);
+  assert.deepStrictEqual(ER(st2, '19'), [2, 1]);
+  assert.strictEqual(flagsOf(st2, '19').length, 1);
+});
+
+test('第三次出局機會就是那個失誤上壘的打席，同一球回來的分：ER 0，塗黃', () => {
+  const st = play([...threeOuts, oppK, oppK, oppPA('3B', [{ from: 0, to: 3 }], { pos: 9 }),
+    oppPA('E', [{ from: 0, to: 1 }, { from: 3, to: 4 }])]);
+  assert.deepStrictEqual(ER(st, '19'), [1, 0]);
+  assert.strictEqual(flagsOf(st, '19').length, 1);
+});
+
+test('規則 9.16(i)：A 兩出局後失誤上壘換 B，B 被轟兩分全壘打 → A：R 1、ER 0；B：R 1、ER 1 並塗黃（球隊算非自責）', () => {
+  const st = play([...threeOuts, oppK, oppK, oppE, changeP(22), oppHR1]);
+  assert.deepStrictEqual([ER(st, '19'), ER(st, '22')], [[1, 0], [1, 1]]);
+  assert.deepStrictEqual(flagsOf(st, '19'), []);
+  assert.strictEqual(flagsOf(st, '22').length, 1);
+  assert.match(flagsOf(st, '22')[0], /9\.16\(i\)/);
+});
+
+test('野選封殺一位靠失誤上壘的跑者，打者之後得分：ER 0，塗黃', () => {
+  const st = play([...threeOuts, oppE,
+    oppPA('FC', [{ from: 0, to: 1 }, { from: 1, to: OUT, reason: '封殺' }]),
+    oppPA('2B', [{ from: 0, to: 2 }, { from: 1, to: 4 }], { pos: 7 })]);
+  assert.deepStrictEqual(ER(st, '19'), [1, 0]);
+  assert.strictEqual(flagsOf(st, '19').length, 1);
+});
+
+test('龍安進攻的半局（對手失誤）不影響我方投手的 ER', () => {
+  const st = play([oppE, oppHR1, ...threeOuts.slice(0, 2), { t: 'pa', result: 'K', pos: null, runners: [{ from: 0, to: OUT }] },
+    oppPA('1B', [{ from: 0, to: 1 }], { pos: 8 }), oppHR1]);
+  assert.deepStrictEqual(ER(st, '19'), [2, 2]);
+});
+
+test('8/30 驗收：三局下兩出局後游擊失誤（第三次出局機會），之後 6 分都不算自責 → #1 ER 0、#56 ER 0，#56 塗黃一條', () => {
+  const st = GC.replay(g0830.setup, g0830.events);
+  assert.deepStrictEqual([ER(st, '1'), ER(st, '56')], [[0, 0], [6, 0]]);
+  assert.strictEqual(flagsOf(st, '56').length, 1);
+  assert.match(flagsOf(st, '56')[0], /三局下/);
+});
+
+test('不變條件：每一筆紀錄之後，每位投手 0 ≤ ER ≤ R（8/30 整場＋本節所有情境）', () => {
+  const check = (st, where) => Object.values(st.stats.pitching).forEach((p) => {
+    assert.ok(Number.isInteger(p.ER) && p.ER >= 0 && p.ER <= p.R, `${where} #${p.number} R ${p.R} ER ${p.ER}`);
+  });
+  let st = GC.newGame(g0830.setup);
+  g0830.events.forEach((ev, i) => { st = GC.apply(st, ev); check(st, `8/30 第 ${i + 1} 筆`); });
+  const scen = [[oppE, oppHR1], [oppK, oppK, oppE, changeP(22), oppHR1], [oppBB, changeP(22), double1],
+    [oppE, oppPA('FC', [{ from: 0, to: 1 }, { from: 1, to: OUT, reason: '封殺' }]), oppHR1]];
+  scen.forEach((evs, k) => { let s2 = GC.newGame(SETUP); [...threeOuts, ...evs].forEach((ev, i) => { s2 = GC.apply(s2, ev); check(s2, `情境 ${k + 1} 第 ${i + 1} 筆`); }); });
+});
+
+test('比賽分頁（sheetFinal）的投手帶 ER 建議值和塗黃原因；公開的賽事成績（toGame）不帶（ER 以試算表為準）', () => {
+  const f = GC.sheetFinal(g0830.setup, g0830.events);
+  assert.deepStrictEqual(f.stats.pitching.map((p) => [p.number, p.ER, p.erFlags.length]), [['1', 0, 0], ['56', 0, 1]]);
+  const g = GC.toGame(g0830.setup, g0830.events);
+  assert.ok(g.pitching.every((p) => !('ER' in p) && !('erFlags' in p)));
+});
+
 console.log('\nN 複製 LINE 打單（lineText）');
 
 test('還沒記任何一筆：標題「先發」，9 棒只有先發，守位寫法和陣容調度相同', () => {

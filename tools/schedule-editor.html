@@ -374,6 +374,13 @@
       }
       document.getElementById('load-warn').innerHTML = warn.html;
       renderAll();
+      // 從賽事成績發布工具過來（?date=2026-10-25）：展開那一天的比賽
+      const want = new URLSearchParams(location.search).get('date');
+      if (want) {
+        const i = items.findIndex((x) => x.date === want && x.type === 'game');
+        const row = i >= 0 && document.querySelector(`[data-row="${i}"]`);
+        if (row) { row.open = true; row.scrollIntoView({ block: 'center' }); }
+      }
     })();
   </script>
 

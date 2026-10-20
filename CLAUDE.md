@@ -33,17 +33,17 @@
 開工前全部跑一次當基準線，有失敗先停下來回報；改完再全部重跑，全綠才 commit。
 
 ```
-node tests/test_gas_modules.js         # 46 項：Auth.gs、Pitchers.gs、Backup.gs、finishGame 帶成績、投手表公式
+node tests/test_gas_modules.js         # 63 項：Auth.gs、Pitchers.gs、Backup.gs（含發布工具的比賽清單）、finishGame 帶成績與 ER 建議值、getGameER、投手表公式
 node tests/test_lineup_logic.js        # 37 項：點名→先發→開始比賽（串接實況賽事紀錄）→調度→上傳→回讀→結案
 node tests/test_scenarios.js           # 26 項：三大調度情境、規則守門、DH 引導
 node tests/test_scenarios.js --repeat 5
 node tests/test_record_engine.js       # 39 項：比賽文字紀錄轉換引擎
-node tests/test_check_data.js          # 44 項：資料檔檢查規則、公告連結、比賽資料對名單
-node tests/test_game_core.js           # 99 項：實況賽事紀錄的計算核心（漏洞清單、8/30 驗收、雲端備份表格列、比賽分頁最終名單與成績、承繼跑者、LINE 打單、調度紀錄換人／換位置）
+node tests/test_check_data.js          # 58 項：資料檔檢查規則、公告連結、比賽資料對名單、賽事成績發布狀態、投手 ER
+node tests/test_game_core.js           # 116 項：實況賽事紀錄的計算核心（漏洞清單、8/30 驗收、雲端備份表格列、比賽分頁最終名單與成績、承繼跑者、LINE 打單、調度紀錄換人／換位置、自責分建議值）
 node tests/check_data.js               # 不是測試：檢查 data/*.json 與 data/games/*.json
 ```
 
-基準（2026-10-12，V01.12.08 開發中）：46＋37＋26＋39＋44＋99，`check_data` 沒有錯誤。測試數量有增減時，這裡、`tests/README.md`、`docs/測試報告_調度三情境.md` 一起更新。
+基準（2026-10-18，V01.13.00 開發中）：63＋37＋26＋39＋58＋116，`check_data` 沒有錯誤。測試數量有增減時，這裡、`tests/README.md`、`docs/測試報告_調度三情境.md` 一起更新。
 
 ### 測試放哪裡
 

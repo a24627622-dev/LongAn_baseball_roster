@@ -105,3 +105,33 @@ function loadRecordBackup_(ss, gameId) {
   }
   return { success: true, record: { setup: setup, events: events }, updatedAt: v[5] ? v[5][1] : '' };
 }
+
+// 賽事成績發布工具（電腦用）的比賽選單：列出所有「賽事紀錄_」分頁，日期新的在前。只讀不寫。
+// 日期、場次、對手從第 1 列 E 欄的開賽設定讀（B 欄的日期可能被試算表自動轉成日期格式）；
+// 第 1 列被改壞（比賽 ID 對不上、開賽設定讀不出來）的分頁跳過，不讓整個清單失敗
+function listRecordBackups_(ss) {
+  var games = [];
+  var sheets = ss.getSheets();
+  for (var i = 0; i < sheets.length; i++) {
+    var sh = sheets[i];
+    if (sh.getName().indexOf(RECORD_SHEET_PREFIX) !== 0) continue;
+    var head = sh.getRange(1, 1, 6, 5).getValues();
+    var gameId = String(head[0][1] || '');
+    var setup;
+    try { setup = JSON.parse(head[0][4]); } catch (e) { continue; }
+    if (!setup || setup.id !== gameId || !/^\d{4}-\d{2}-\d{2}_G\d+_.+/.test(gameId)) continue;
+    var finished = false;
+    var last = sh.getLastRow();
+    if (last >= RECORD_FIRST_ROW) {
+      try { finished = JSON.parse(String(sh.getRange(last, 5).getValues()[0][0] || '{}')).t === 'end'; } catch (e2) { finished = false; }
+    }
+    var upd = head[5][1];
+    if (upd instanceof Date) upd = Utilities.formatDate(upd, 'GMT+8', 'yyyy/MM/dd HH:mm:ss');
+    games.push({ gameId: gameId, date: setup.date || '', gameNum: setup.gameNum || '', opponent: setup.opponent || '', updatedAt: String(upd || ''), finished: finished });
+  }
+  games.sort(function (a, b) {
+    if (a.date !== b.date) return a.date < b.date ? 1 : -1;
+    return Number(String(b.gameNum).replace(/\D/g, '')) - Number(String(a.gameNum).replace(/\D/g, ''));
+  });
+  return { success: true, games: games };
+}

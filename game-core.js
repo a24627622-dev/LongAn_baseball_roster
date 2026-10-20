@@ -272,18 +272,51 @@
     const p = currentPitcher(s);
     if (!p) return null;
     if (!s.stats.pitching[p.number]) {
-      s.stats.pitching[p.number] = { number: p.number, name: p.name || '', outs: 0, H: 0, R: 0, BB: 0, HBP: 0, SO: 0, HR: 0, WP: 0 };
+      s.stats.pitching[p.number] = { number: p.number, name: p.name || '', outs: 0, H: 0, R: 0, BB: 0, HBP: 0, SO: 0, HR: 0, WP: 0, ER: 0, erFlags: [] };
       s.stats.pitchOrder.push(p.number);
     }
     return s.stats.pitching[p.number];
   }
 
-  /* 對手得分：失分算讓這位跑者上壘的投手（承繼跑者算前任投手）；舊紀錄沒有這項資料時算當時的投手 */
-  function chargeRun(s, runner) {
+  /* 對手得分：失分算讓這位跑者上壘的投手（承繼跑者算前任投手）；舊紀錄沒有這項資料時算當時的投手。
+     同時判斷是不是自責分（正式記錄規則 9.16，說明見 docs/自責分建議值說明.md）：
+     - 跑者靠失誤、妨礙打擊、捕逸／失誤的不死三振上壘 → 不算
+     - 重建半局：出局數＋「本來會出局的失誤」（失誤上壘、捕逸／失誤的不死三振）到 3 之後 → 不算（塗黃）
+       後援投手從上場時重新數失誤（9.16(i)）：球隊算非自責、他個人算自責時照個人的算（塗黃）
+     - 跑者靠失誤、捕逸推進後得分 → 有疑問時對投手有利，不算（塗黃）；被全壘打送回來的照算
+     ctx：{ outs：判斷這一分時的出局數（打席用這一球之後的），hr：這一球是全壘打 } */
+  function erState(s) {
+    const key = `${s.inning}${s.top ? 'T' : 'B'}`;
+    if (!s.erh || s.erh.key !== key) s.erh = { key, err: 0, entry: {} };
+    return s.erh;
+  }
+  function erEnter(s) {
+    const e = erState(s);
+    const cp = currentPitcher(s);
+    if (cp && e.entry[cp.number] === undefined) e.entry[cp.number] = e.err;
+    return e;
+  }
+  function chargeRun(s, runner, ctx) {
     const num = runner && runner.pitcher;
     const p = (num && s.stats.pitching[num]) || pit(s);
-    if (p) p.R += 1;
+    if (!p) return;
+    p.R += 1;
+    if (!runner) { p.ER += 1; return; }
+    const e = erState(s);
+    const label = `${curHalf(s).label}`;
+    const flag = (t) => { if (!p.erFlags.includes(t)) p.erFlags.push(t); };
+    const mine = e.err - (e.entry[p.number] || 0);
+    if (runner.erReach) {
+      if (runner.erReach === 'FC-E') flag(`${label} 第${runner.slot}棒：野選封殺了靠失誤上壘的跑者才上壘，得分不算自責（請確認）`);
+      if (runner.erReach === 'K?') flag(`${label} 第${runner.slot}棒：不死三振沒選原因，當作捕逸，得分不算自責（請確認）`);
+      return;
+    }
+    if (mine > 0 && ctx.outs + mine >= 3) { flag(`${label}：重建半局（拿掉失誤）已經三出局，之後的失分不算自責（請確認）`); return; }
+    if (runner.aided && !ctx.hr) { flag(`${label} 第${runner.slot}棒：靠失誤或捕逸推進後得分，當作不算自責（請確認）`); return; }
+    p.ER += 1;
+    if (e.err > 0 && ctx.outs + e.err >= 3) flag(`${label}：規則 9.16(i) 後援投手不沾換投前失誤的光，這分球隊算非自責、這位投手算自責（請確認）`);
   }
+  const AIDED = ['失誤', '捕逸'];
 
   /* ---------- 半局 ---------- */
   const HALF_CN = ['', '一', '二', '三', '四', '五', '六', '七', '八', '九', '十', '十一', '十二'];
@@ -384,6 +417,18 @@
       batter.pitcher = cp ? cp.number : null;
       const inherited = !batterOut && rows.find((r) => r.from > 0 && isOut(r) && r.runner && r.runner.pitcher && r.runner.pitcher !== batter.pitcher);
       if (inherited) batter.pitcher = inherited.runner.pitcher;
+      // 自責分：打者怎麼上壘、這一球有沒有「本來會出局的失誤」、跑者有沒有靠失誤或捕逸推進
+      const e = erEnter(s);
+      if (!batterOut) {
+        const why = rows.map((r) => r.reason).filter(Boolean);
+        if (result === 'E') { batter.erReach = 'E'; e.err += 1; }
+        else if (result === 'CI') batter.erReach = 'CI';
+        else if (result === 'K_REACH') {
+          if (why.includes('暴投')) batter.erReach = null;
+          else { batter.erReach = why.some((w) => AIDED.includes(w)) ? 'K' : 'K?'; e.err += 1; }
+        } else if (rows.some((r) => r.from > 0 && isOut(r) && r.runner && r.runner.erReach)) batter.erReach = 'FC-E';
+      }
+      rows.forEach((r) => { if (r.runner && !isOut(r) && r.to > r.from && AIDED.includes(r.reason) && !(r.from === 0 && result === 'K_REACH')) r.runner.aided = true; });
     }
 
     let kind = result;
@@ -429,7 +474,7 @@
         if (result === 'K' || result === 'K_REACH') p.SO += 1;
         if (rows.some((r) => r.reason === '暴投')) p.WP += 1;
       }
-      counted.forEach((r) => chargeRun(s, r.runner));
+      counted.forEach((r) => chargeRun(s, r.runner, { outs: outsAfter, hr: result === 'HR' }));
       if (fielder) bat(s, fielder).E += 1;
       if (result === 'CI') { const c = fielderAt(s, 2); if (c) bat(s, c).E += 1; }
     }
@@ -476,7 +521,9 @@
         p.outs += outs;
         if (rows.some((r) => r.reason === '暴投')) p.WP += 1;
       }
-      scored.forEach((r) => chargeRun(s, r.runner));
+      erEnter(s);
+      rows.forEach((r) => { if (r.runner && !isOut(r) && AIDED.includes(r.reason)) r.runner.aided = true; });
+      scored.forEach((r) => chargeRun(s, r.runner, { outs: s.outs, hr: false }));
       s.score.opp += scored.length;
     }
     h.runs += scored.length;
@@ -808,8 +855,9 @@
       return row;
     });
     const pitching = pitchers.map((p) => {
-      const st = s.stats.pitching[p.number] || { outs: 0, R: 0, H: 0, BB: 0, SO: 0, HR: 0, HBP: 0, WP: 0 };
-      return { number: p.number, name: p.name, IP: `${Math.floor(st.outs / 3)}.${st.outs % 3}`, R: st.R, H: st.H, BB: st.BB, SO: st.SO, HR: st.HR, HBP: st.HBP, WP: st.WP };
+      const st = s.stats.pitching[p.number] || { outs: 0, R: 0, H: 0, BB: 0, SO: 0, HR: 0, HBP: 0, WP: 0, ER: 0, erFlags: [] };
+      return { number: p.number, name: p.name, IP: `${Math.floor(st.outs / 3)}.${st.outs % 3}`, R: st.R, H: st.H, BB: st.BB, SO: st.SO, HR: st.HR, HBP: st.HBP, WP: st.WP,
+        ER: st.ER, erFlags: st.erFlags.slice() };
     });
 
     const paItems = (side) => s.halves.filter((h) => h.offense === side).flatMap((h) => h.items).filter((it) => it.type === 'pa');
@@ -857,8 +905,9 @@
         batting.push({ slot: i + 1, ...row, name, appeared: true });
       });
     });
+    // ER 不放進公開資料：官網的 ER 以試算表比賽分頁（人確認過的）為準，發布時才套上
     const pitching = s.stats.pitchOrder.map((num) => {
-      const p = s.stats.pitching[num];
+      const { ER, erFlags, ...p } = s.stats.pitching[num];
       return { ...p, IP: `${Math.floor(p.outs / 3)}.${p.outs % 3}` };
     });
     return {

@@ -138,12 +138,14 @@
   }
 
   function pitchingHTML(game) {
-    const cols = [['IP', 'IP'], ['H', 'H'], ['R', 'R'], ['BB', 'BB'], ['HBP', 'HBP'], ['SO', 'SO'], ['HR', 'HR']];
+    // ER（自責分）V01.13.00 起才有；舊比賽沒有 ER 顯示「-」
+    const cols = [['IP', 'IP'], ['H', 'H'], ['R', 'R'], ['ER', 'ER'], ['BB', 'BB'], ['HBP', 'HBP'], ['SO', 'SO'], ['HR', 'HR']];
+    const cell = (p, k) => (p[k] === undefined || p[k] === null ? '-' : p[k]);
     return `
       <div class="gv-table-wrap">
         <table class="gv-stats">
           <thead><tr><th class="l">投手</th>${cols.map(([, t]) => `<th>${t}</th>`).join('')}</tr></thead>
-          <tbody>${game.pitching.map((p) => `<tr><td class="l">${esc(p.name)}</td>${cols.map(([k]) => `<td>${p[k]}</td>`).join('')}</tr>`).join('')}</tbody>
+          <tbody>${game.pitching.map((p) => `<tr><td class="l">${esc(p.name)}</td>${cols.map(([k]) => `<td>${cell(p, k)}</td>`).join('')}</tr>`).join('')}</tbody>
         </table>
       </div>`;
   }

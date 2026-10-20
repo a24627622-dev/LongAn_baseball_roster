@@ -98,6 +98,14 @@ function doPost(e) {
     // 實況賽事紀錄的雲端備份（Backup.gs）：在寫「調度紀錄」流水簿、建立比賽分頁之前就回應
     if (action === 'saveRecordBackup') return jsonOut(saveRecordBackup_(ss, data.gameId, data.setup, data.rows));
     if (action === 'loadRecordBackup') return jsonOut(loadRecordBackup_(ss, data.gameId));
+    if (action === 'listRecordBackups') return jsonOut(listRecordBackups_(ss));
+
+    // action = getGameER：賽事成績發布（電腦）讀投手表的 ER（人確認過的自責分）
+    if (action === 'getGameER') {
+      var erSheet = gameIdStr && gameIdStr !== "__" ? ss.getSheetByName(gameIdStr) : null;
+      if (!erSheet) return jsonOut({ success: false, message: "找不到這場比賽的分頁：" + gameIdStr });
+      return jsonOut({ success: true, pitchers: readGameER_(erSheet) });
+    }
 
     // action = getGameLineup：回讀某場比賽目前已上傳的完整先發＋調度紀錄
     if (action === 'getGameLineup') {
@@ -511,7 +519,8 @@ function ensurePitcherRateHeader(sheet, headerRow) {
 // 每位投手只會出現一列（依上場順序）。
 // IP/R/H/ER/BB/SO/HR/HBP/WP 這些數據欄位是手動填的，依「背號+姓名」比對保留，不會被清空。
 // payload：{ activeLineup: [...], pitchers: [...] }（為了相容，直接傳 activeLineup 陣列也可以）
-// statsByPitcher（可省略）：{ "背號|姓名": { IP, R, H, BB, SO, HR, HBP, WP } }，ER（自責分）一律保留表上手填的值
+// statsByPitcher（可省略）：{ "背號|姓名": { IP, R, H, BB, SO, HR, HBP, WP, ER?, erFlags? } }
+// ER（自責分）：有帶 ER 建議值時見 erCell_；沒帶時保留表上手填的值
 function writePitcherBlock(sheet, payload, timeFormatted, statsByPitcher) {
   if (Array.isArray(payload)) payload = { activeLineup: payload };
   var headerRow = findHeaderRowByLabel(sheet, "順序", 300);
@@ -523,15 +532,19 @@ function writePitcherBlock(sheet, payload, timeFormatted, statsByPitcher) {
   var lastRow = sheet.getLastRow();
   var oldEndRow = headerRow;
   var savedStats = {};
+  var savedER = {};   // ER 格的註解與底色（自責分建議值）
 
   if (lastRow > headerRow) {
     var existing = sheet.getRange(headerRow + 1, 1, lastRow - headerRow, PITCHER_WIDTH).getValues();
+    var erNotes = sheet.getRange(headerRow + 1, PITCHER_ER_COL, lastRow - headerRow, 1).getNotes();
+    var erBgs = sheet.getRange(headerRow + 1, PITCHER_ER_COL, lastRow - headerRow, 1).getBackgrounds();
     for (var i = 0; i < existing.length; i++) {
       var label = (existing[i][4] || "").toString();
       if (label !== "先發投手" && label !== "後援投手") break;
       oldEndRow = headerRow + 1 + i;
       var key = existing[i][2] + "|" + existing[i][3]; // 背號|球員姓名
       savedStats[key] = existing[i].slice(5, 14); // F~N：IP~WP
+      savedER[key] = { note: String(erNotes[i][0] || ""), bg: String(erBgs[i][0] || "") };
     }
   }
 
@@ -553,12 +566,16 @@ function writePitcherBlock(sheet, payload, timeFormatted, statsByPitcher) {
 
   var startRow = headerRow + 1;
   var outValues = [];
+  var erOut = [];   // 每一列 ER 格的 { note, bg }
   pitchers.forEach(function (p, i) {
     var r = startRow + i;
     var key = p.number + "|" + p.name;
     var stats = savedStats[key] || ["", "", "", "", "", "", "", "", ""];
+    var old = savedER[key] || { note: "", bg: "" };
     var given = statsByPitcher && statsByPitcher[key];
-    if (given) stats = [given.IP, given.R, given.H, stats[3], given.BB, given.SO, given.HR, given.HBP, given.WP];
+    var er = erCell_(stats[3], old, given);
+    if (given) stats = [given.IP, given.R, given.H, er.value, given.BB, given.SO, given.HR, given.HBP, given.WP];
+    erOut.push(er);
     var row = [(i + 1).toString(), p.posLabel, p.number, p.name, i === 0 ? "先發投手" : "後援投手"].concat(stats);
     outValues.push(row);
   });
@@ -567,6 +584,9 @@ function writePitcherBlock(sheet, payload, timeFormatted, statsByPitcher) {
   pRng.setValues(outValues);
   // 跟打者表一樣，先清成白底黑字，避免插入列時繼承到表頭的深色底
   pRng.setBackground(COLOR_ROW_WHITE_BG).setFontColor(COLOR_ROW_BLACK_FONT).setFontWeight("normal");
+  // ER 格：註解記工具的建議值與原因；判斷不準的塗黃，人改過或已經清掉黃色的照舊
+  sheet.getRange(startRow, PITCHER_ER_COL, erOut.length, 1).setNotes(erOut.map(function (e) { return [e.note]; }));
+  erOut.forEach(function (e, i) { if (e.bg) sheet.getRange(startRow + i, PITCHER_ER_COL).setBackground(e.bg); });
   pitchers.forEach(function (p, i) {
     var r = startRow + i;
     var rate = buildPitcherRateFormulas(r);
@@ -576,6 +596,46 @@ function writePitcherBlock(sheet, payload, timeFormatted, statsByPitcher) {
   });
 
   writePitcherTotalsRow(sheet, startRow, outValues.length);
+}
+
+// 自責分建議值（ER-3、ER-4）：
+//   - 格子空白，或還是上次工具的建議值（註解「工具建議 X」）→ 寫入新的建議值；有判斷不準的分塗黃，沒有就白底
+//   - 格子被人改過（含沒有註解的舊手填值）→ 保留，註解寫「工具建議 X，已保留你填的 Y」，底色不動
+//   - 這次沒帶建議值（舊版手機）→ 值、註解、底色都照舊
+// old：{ note, bg } 是表上原本 ER 格的註解與底色；回傳 { value, note, bg }（bg 空字串＝白底，由整列白底處理）
+var PITCHER_ER_COL = 9;           // I 欄
+var COLOR_ER_PENDING = "#fff2cc"; // 待確認的自責分：淡黃
+function erCell_(current, old, given) {
+  var keepBg = old.bg && old.bg.toLowerCase() !== COLOR_ROW_WHITE_BG.toLowerCase() ? old.bg : "";
+  if (!given || !isCount_(given.ER)) return { value: current, note: old.note, bg: keepBg };
+  var flags = (given.erFlags instanceof Array ? given.erFlags : []).map(String);
+  var m = /^工具建議 (\d+)/.exec(old.note);
+  var mine = current === "" || current === null || (m && Number(current) === Number(m[1]) && /^工具建議 \d+(\n|$)/.test(old.note));
+  var head = "工具建議 " + given.ER;
+  if (mine) return { value: given.ER, note: [head].concat(flags).join("\n"), bg: flags.length ? COLOR_ER_PENDING : "" };
+  return { value: current, note: [head + "，已保留你填的 " + current].concat(flags).join("\n"), bg: keepBg };
+}
+
+// 賽事成績發布（電腦）讀 ER：投手表每位投手的 ER（空白＝null）與是否還是黃色（待確認）
+function readGameER_(sheet) {
+  var headerRow = findHeaderRowByLabel(sheet, "順序", 300);
+  if (headerRow === -1) return [];
+  var lastRow = sheet.getLastRow();
+  if (lastRow <= headerRow) return [];
+  var rows = sheet.getRange(headerRow + 1, 1, lastRow - headerRow, PITCHER_WIDTH).getValues();
+  var bgs = sheet.getRange(headerRow + 1, PITCHER_ER_COL, lastRow - headerRow, 1).getBackgrounds();
+  var out = [];
+  for (var i = 0; i < rows.length; i++) {
+    var label = (rows[i][4] || "").toString();
+    if (label !== "先發投手" && label !== "後援投手") break;
+    var v = rows[i][PITCHER_ER_COL - 1];
+    out.push({
+      number: String(rows[i][2]), name: String(rows[i][3]),
+      ER: v === "" || v === null || isNaN(Number(v)) ? null : Number(v),
+      pending: String(bgs[i][0] || "").toLowerCase() === COLOR_ER_PENDING
+    });
+  }
+  return out;
 }
 
 function writePitcherTotalsRow(sheet, startRow, playerRowCount) {

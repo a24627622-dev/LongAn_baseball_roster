@@ -278,7 +278,7 @@
         lines.push(`📋 比賽分頁已寫入最終名單、成績、逐局比分（${when}）`);
         if (c.warning) lines.push(`⚠️ ${c.warning}`);
         if (c.overflow) lines.push('⚠️ 比賽超過 5 局：第 6 局以後的逐局比分請到試算表手動補（R、H、E 總數已經正確）');
-        lines.push('自責分（ER）工具不算，請到比賽分頁的投手表手填');
+        lines.push('自責分（ER）已寫入建議值；黃色的格子請到試算表確認（可以直接改）');
       } else lines.push('📋 還沒寫入比賽分頁');
       const bad = !ui.sheetBusy && (ui.sheetMsg || (done && c.warning));
       return `<div class="cloud ${bad ? 'bad' : ''}"><span>${lines.map(esc).join('<br>')}</span>

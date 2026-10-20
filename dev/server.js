@@ -68,7 +68,12 @@ function buildRosterSheet() {
 function loadSpreadsheet() {
   const ss = new MockSpreadsheet();
   const saved = readJson(DATA_FILE, {});
-  Object.keys(saved).forEach(name => { ss.sheets[name] = new MockSheet(name, saved[name].rows, saved[name].bg); });
+  Object.keys(saved).forEach(name => {
+    const sh = new MockSheet(name, saved[name].rows, saved[name].bg);
+    sh.fmt = saved[name].fmt || {};       // 底色等格式（自責分建議值的黃色）
+    sh.notes = saved[name].notes || {};   // 儲存格註解（自責分建議值）
+    ss.sheets[name] = sh;
+  });
   ss.sheets['球員名單'] = buildRosterSheet(); // 名單一律以 dev/roster.json 為準
   return ss;
 }
@@ -78,7 +83,7 @@ function saveSpreadsheet(ss) {
   const out = {};
   Object.keys(ss.sheets).forEach(name => {
     if (name === '球員名單') return;
-    out[name] = { rows: ss.sheets[name].rows, bg: ss.sheets[name].bg };
+    out[name] = { rows: ss.sheets[name].rows, bg: ss.sheets[name].bg, fmt: ss.sheets[name].fmt, notes: ss.sheets[name].notes };
   });
   fs.writeFileSync(DATA_FILE, JSON.stringify(out, null, 1), 'utf8');
 }

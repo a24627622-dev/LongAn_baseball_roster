@@ -81,11 +81,14 @@
     "note": ""
   },
   {
-    "type": "practice",
+    "type": "game",
     "date": "2026-11-15",
-    "startTime": "08:00",
-    "endTime": "12:00",
-    "venue": "",
+    "gatherTime": "09:00",
+    "startTime": "10:00",
+    "venue": "大漢B球場",
+    "opponent": "RELOOC",
+    "score": null,
+    "resultUrl": null,
     "cancelled": false,
     "note": ""
   }

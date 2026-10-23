@@ -59,8 +59,8 @@
     "opponent": "ZERO",
     "score": null,
     "resultUrl": null,
-    "cancelled": false,
-    "note": ""
+    "cancelled": true,
+    "note": "因颱風取消"
   },
   {
     "type": "practice",

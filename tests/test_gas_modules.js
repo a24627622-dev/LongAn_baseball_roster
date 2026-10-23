@@ -592,6 +592,72 @@ console.log('\nCode.gs finishGame 帶成績（實況賽事紀錄比賽完成：�
   });
 }
 
+console.log('\nCode.gs 板凳名單（V01.13.01：投手表下方空一列，「板凳（有到沒上場）」）');
+{
+  const files = ['gas/Code.gs', 'gas/Auth.gs', 'gas/Pitchers.gs', 'gas/Backup.gs'];
+  const GC = require('../game-core');
+  const g = JSON.parse(fs.readFileSync(path.join(__dirname, 'fixtures', '2026-08-30_G4_雨人.events.json'), 'utf8'));
+  const gameInfo = { date: '2026-08-30', gameNum: 'G4', opponent: '雨人' };
+  const SHEET = '2026-08-30_G4_雨人';
+  const fin = GC.sheetFinal(g.setup, g.events);
+  const make = () => { const ss = new MockSpreadsheet(); const c = createGasContext({ files, spreadsheet: ss }); return { ss, ...c }; };
+  const post = (ctx, data) => out(ctx.doPost({ postData: { contents: JSON.stringify(data) } }));
+  const B = (n, name) => ({ number: n, name });
+  const starters = (ctx, bench) => post(ctx, { action: 'saveStarters', gameInfo, lineup: fin.activeLineup.map((x) => x.starter), pitchers: [fin.pitchers[0]], ...(bench ? { bench } : {}) });
+  const rows = (ss) => ss.getSheetByName(SHEET).getDataRange().getValues();
+  // 投手表合計列之後：[空白列, 表頭, 板凳…]
+  const afterPitchers = (ss) => {
+    const v = rows(ss);
+    const h = v.findIndex((r) => r[0] === '順序');
+    const t = v.findIndex((r, i) => i > h && r[3] === '成績合計');
+    return v.slice(t + 1).map((r) => r.slice(0, 3));
+  };
+
+  test('上傳先發帶板凳：投手表合計列下面空一列，表頭「板凳（有到沒上場）｜背號｜球員姓名」，一人一列', () => {
+    const { ss, ctx } = make();
+    assert.strictEqual(starters(ctx, [B('21', '李浩偉'), B('55', '葉展昆')]).success, true);
+    assert.deepStrictEqual(afterPitchers(ss), [['', '', ''], ['板凳（有到沒上場）', '背號', '球員姓名'], [1, '21', '李浩偉'], [2, '55', '葉展昆']]);
+  });
+
+  test('再上傳一次：板凳變少整份重寫，不留舊列；變多照樣寫得下', () => {
+    const { ss, ctx } = make();
+    starters(ctx, [B('21', '李浩偉'), B('55', '葉展昆'), B('36', '李尊堯')]);
+    starters(ctx, [B('49', '蘇辰雄')]);
+    assert.deepStrictEqual(afterPitchers(ss).slice(1), [['板凳（有到沒上場）', '背號', '球員姓名'], [1, '49', '蘇辰雄']]);
+    starters(ctx, [B('21', '李浩偉'), B('55', '葉展昆')]);
+    assert.deepStrictEqual(afterPitchers(ss).slice(2), [[1, '21', '李浩偉'], [2, '55', '葉展昆']]);
+  });
+
+  test('比賽完成改成最終版；投手從 1 位變 2 位、投手表變長，板凳表跟著往下移、不會被蓋掉', () => {
+    const { ss, ctx } = make();
+    starters(ctx, [B('21', '李浩偉'), B('55', '葉展昆')]);
+    const r = post(ctx, { action: 'finishGame', gameInfo, requireSheet: true, ...fin, bench: [B('55', '葉展昆')] });
+    assert.strictEqual(r.success, true, r.message);
+    const v = rows(ss);
+    const h = v.findIndex((x) => x[0] === '順序');
+    assert.deepStrictEqual(v.slice(h + 1, h + 3).map((x) => x[3]), ['張容基', '蘇垣華']);
+    assert.deepStrictEqual(afterPitchers(ss), [['', '', ''], ['板凳（有到沒上場）', '背號', '球員姓名'], [1, '55', '葉展昆']]);
+  });
+
+  test('舊版前端沒帶板凳 → 板凳表不動；板凳是空的 → 只有表頭', () => {
+    const { ss, ctx } = make();
+    starters(ctx, [B('21', '李浩偉')]);
+    post(ctx, { action: 'finishGame', gameInfo, requireSheet: true, ...fin, bench: undefined });
+    assert.deepStrictEqual(afterPitchers(ss).slice(2), [[1, '21', '李浩偉']]);
+    starters(ctx, []);
+    assert.deepStrictEqual(afterPitchers(ss).slice(1), [['板凳（有到沒上場）', '背號', '球員姓名']]);
+  });
+
+  test('回讀先發（getGameLineup）一起回傳板凳；舊比賽分頁沒有板凳表 → 空陣列', () => {
+    const { ctx } = make();
+    starters(ctx, [B('21', '李浩偉'), B('55', '葉展昆')]);
+    assert.deepStrictEqual(post(ctx, { action: 'getGameLineup', gameInfo }).data.bench, [B('21', '李浩偉'), B('55', '葉展昆')]);
+    const c2 = make();
+    starters(c2.ctx);
+    assert.deepStrictEqual(post(c2.ctx, { action: 'getGameLineup', gameInfo }).data.bench, []);
+  });
+}
+
 console.log('\nCode.gs 投手表公式（IP 的 2.1＝2 又 1/3 局；ERA、K9、BB9、WHIP 與合計 IP）');
 {
   const files = ['gas/Code.gs', 'gas/Auth.gs', 'gas/Pitchers.gs', 'gas/Backup.gs'];

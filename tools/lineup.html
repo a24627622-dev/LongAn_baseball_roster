@@ -2,6 +2,7 @@
 <html lang="zh-TW">
 <head>
     <meta charset="UTF-8">
+    <script src="gate.js"></script>  <!-- 球隊管理密碼（V01.13.01） -->
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>龍安棒球隊點名與先發陣容助手</title>
     <meta name="robots" content="noindex, nofollow"><!-- 隊務工具頁，不讓搜尋引擎收錄 -->
@@ -861,6 +862,8 @@
                                     }
                                 });
                             }
+                            // 板凳（V01.13.01）：有到沒上場的人也標成已出席，點名＝先發＋替補＋投手＋板凳
+                            (Array.isArray(res.data.bench) ? res.data.bench : []).forEach(matchPlayer);
                             currentBatchPending.value = [];
                             uploadedBatches.value = [];
                             alert('✅ 已成功從雲端回讀該場比賽的完整先發與調度紀錄！');
@@ -1268,12 +1271,17 @@
                     }));
 
                     const pitcherPayload = activePitchers.value;
+                    // 板凳（V01.13.01）：點名有到、沒排先發的人（DH 制的先發投手不在打序，也不算板凳）
+                    const usedIds = new Set([...starterPayload.map(s => s.id), ...pitcherPayload.map(p => p.id)]);
+                    const benchPayload = attendedPlayers.value.filter(p => !usedIds.has(p.id))
+                        .map(p => ({ number: String(p['背號'] || ''), name: p['球員姓名'] }));
 
                     postToGAS({
                         action: 'saveStarters',
                         gameInfo: gameInfo.value,
                         lineup: starterPayload,
-                        pitchers: pitcherPayload
+                        pitchers: pitcherPayload,
+                        bench: benchPayload
                     }).then(() => {
                         currentBatchPending.value = [];
                         uploadedBatches.value = [];

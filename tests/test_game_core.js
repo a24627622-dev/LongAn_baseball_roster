@@ -627,6 +627,14 @@ test('先發投手還沒投球就被換下：投手表照樣列出兩位，沒�
   assert.deepStrictEqual(f.stats.pitching.map((p) => [p.number, p.IP, p.SO]), [['19', '0.0', 0], ['22', '1.0', 3]]);
 });
 
+test('最終板凳（V01.13.01）：開賽板凳扣掉比賽中上場過的人；8/30 板凳 4 人都上場過 → 空的', () => {
+  assert.deepStrictEqual(fin0830.bench, []);
+  const f = GC.sheetFinal(SETUP, [{ t: 'sub', kind: 'PH', in: { number: '21', name: '板凳21' } },
+    { t: 'pa', result: 'K', pos: null, runners: [{ from: 0, to: OUT }] },
+    { t: 'sub', kind: 'DEF', slot: 1, in: { number: '23', name: '板凳23' }, pos: 'CF' }]);
+  assert.deepStrictEqual(f.bench, [{ number: '22', name: '板凳22' }, { number: '24', name: '板凳24' }, { number: '25', name: '板凳25' }]);
+});
+
 console.log('\nM 承繼跑者：失分算讓他上壘的投手（正式記錄規則 9.16(g)）');
 
 // 龍安先攻：先讓龍安三人出局，下半局對手打擊、我方投手 #19（第 9 棒守 P）

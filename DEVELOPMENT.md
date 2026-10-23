@@ -328,6 +328,26 @@ git pull origin main
 | `data/announcements.json` | 公告 |
 | `data/schedule.json` | 比賽與練球時程 |
 
+## 網站搬到 Cloudflare Pages（2026-10-25 定案，還沒搬）
+
+**為什麼**：GitHub Pages 的網址 `a24627622-dev.github.io` 會露出個人帳號。改用 Cloudflare Pages（免費）：網址 `longan-baseball.pages.dev`（被用走就用 `longan-baseball-tw`），之後 repo 改成私人。
+平常的工作方式不變：一樣在 GitHub 網頁改 `data/`、一樣 Merge PR，Cloudflare 會在一兩分鐘內自動更新網站。
+
+**順序很重要**：GitHub Pages 在免費方案**不支援私人 repo**，repo 一改成私人，舊網址馬上打不開。所以要「新網址確認正常 → 舊網址轉址一段時間 → 使用者決定關閉時才改私人」。
+
+1. **註冊 Cloudflare**：用球隊 Google 信箱註冊（免費方案）
+2. **建立網站**：Cloudflare 後台「Workers & Pages → 建立 → Pages → 連接到 Git」
+   - 授權 GitHub 時選「只允許這個 repo」（`LongAn_baseball_roster`）
+   - 專案名稱：`longan-baseball`（決定網址）
+   - Production branch：`main`
+   - Framework preset：`None`；Build command：**留空白**；Build output directory：**留空白（或 `/`）**
+   - 按「儲存並部署」，一兩分鐘後打開 `https://longan-baseball.pages.dev/`
+3. **檢查新網址**：首頁、公告、賽事時程、戰績、賽事成績頁都正常；球隊管理要先輸入隊務密碼（新網址的瀏覽器要重新登入一次）；陣容調度能讀名單、上傳先發（GAS 照常，不用改）
+4. **LINE 機器人**：Apps Script「指令碼屬性」新增 `LINE_SITE_URL` ＝ `https://longan-baseball.pages.dev`（不用改程式）
+5. **舊網址轉址**：Claude 會做一個小版本——在舊網址（`github.io`）打開任何頁面，自動轉到新網址的同一頁（新網址不受影響）。重發新連結給隊員
+6. **使用者測試完、決定關閉舊網址時**：GitHub repo「Settings → General → Danger Zone → Change visibility → Private」。舊網址從此打不開，程式和修改紀錄也不再公開
+7. **改完私人之後**：GitHub 的自動資料檢查照常（私人 repo 每月有免費執行額度，這個檢查用量很小）；文件裡「main＝GitHub Pages」「repo 是公開的」的說明由 Claude 一起更新（金鑰照樣不放進 repo）
+
 ## 三種維護方式
 
 **A. 口述給 Claude** —— 講一句「發一則公告，標題 X、內容 Y」，Claude 改檔、推到 `claude/…` 分支並開 PR，你在 GitHub 網頁 Merge（第 11 節）。

@@ -119,7 +119,7 @@ function doPost(e) {
       var loaded = readGameSheetAsActiveLineup(lookupSheet);
       return jsonOut({
         success: true, mode: 'json', message: "讀取成功",
-        data: { activeLineup: loaded.activeLineup, pitchers: readGameSheetPitchers(lookupSheet) }
+        data: { activeLineup: loaded.activeLineup, pitchers: readGameSheetPitchers(lookupSheet), bench: readBenchBlock_(lookupSheet) }
       });
     }
 
@@ -155,6 +155,7 @@ function doPost(e) {
         });
         writeBatterBlock(gameSheet, startersAsSlots, timeFormatted);
         writePitcherBlock(gameSheet, { activeLineup: startersAsSlots, pitchers: data.pitchers }, timeFormatted);
+        writeBenchBlock_(gameSheet, data.bench);
       }
 
       else if (action === 'saveSubstitutions' || action === 'saveChanges') {
@@ -176,6 +177,7 @@ function doPost(e) {
         if (data.activeLineup && data.activeLineup.length > 0) {
           writeBatterBlock(gameSheet, data.activeLineup, timeFormatted, gameStats.batting);
           writePitcherBlock(gameSheet, data, timeFormatted, gameStats.pitching);
+          writeBenchBlock_(gameSheet, data.bench);
         }
         if (gameStats.linescore) writeLinescore_(gameSheet, gameStats.linescore);
         gameSheet.getRange(3, 3, 1, 2).setValues([["比賽結束時間", timeFormatted]]);
@@ -636,6 +638,54 @@ function readGameER_(sheet) {
     });
   }
   return out;
+}
+
+// 板凳名單（V01.13.01）：投手表合計列下面空一列，「板凳（有到沒上場）｜背號｜球員姓名」，一人一列。
+// 陣容調度上傳先發時寫「有到、沒排先發」；實況賽事紀錄比賽完成時改成最終版「有到、整場沒上場」。
+// bench 不是陣列（舊版前端沒帶）時不動。投手表變長時板凳表跟著列一起往下移，用表頭文字找位置。
+var BENCH_LABEL = "板凳（有到沒上場）";
+function findPitcherTotalsRow_(sheet) {
+  var headerRow = findHeaderRowByLabel(sheet, "順序", 300);
+  if (headerRow === -1) return -1;
+  var lastRow = sheet.getLastRow();
+  if (lastRow <= headerRow) return -1;
+  var colD = sheet.getRange(headerRow + 1, 4, lastRow - headerRow, 1).getValues();
+  for (var i = 0; i < colD.length; i++) if (colD[i][0] === "成績合計") return headerRow + 1 + i;
+  return -1;
+}
+function benchRowCount_(sheet, headerRow) {
+  var lastRow = sheet.getLastRow();
+  if (lastRow <= headerRow) return 0;
+  var colA = sheet.getRange(headerRow + 1, 1, lastRow - headerRow, 1).getValues();
+  var n = 0;
+  while (n < colA.length && typeof colA[n][0] === "number" && colA[n][0] > 0) n++;
+  return n;
+}
+function writeBenchBlock_(sheet, bench) {
+  if (!(bench instanceof Array)) return;
+  var totalsRow = findPitcherTotalsRow_(sheet);
+  if (totalsRow === -1) return;
+  var oldHeader = findHeaderRowByLabel(sheet, BENCH_LABEL, 500);
+  if (oldHeader !== -1) {
+    var oldCount = benchRowCount_(sheet, oldHeader);
+    var clearRng = sheet.getRange(oldHeader, 1, oldCount + 1, 3);
+    clearRng.setValues(clearRng.getValues().map(function () { return ["", "", ""]; }));
+    clearRng.setBackground(COLOR_ROW_WHITE_BG).setFontColor(COLOR_ROW_BLACK_FONT).setFontWeight("normal");
+  }
+  var headerRow = totalsRow + 2;
+  sheet.getRange(totalsRow + 1, 1, 1, 3).setValues([["", "", ""]]);
+  var values = [[BENCH_LABEL, "背號", "球員姓名"]];
+  bench.forEach(function (p, i) { values.push([i + 1, String((p && p.number) || ""), String((p && p.name) || "")]); });
+  sheet.getRange(headerRow, 1, values.length, 3).setValues(values);
+  sheet.getRange(headerRow, 1, 1, 3).setBackground(COLOR_HEADER_BG).setFontColor(COLOR_HEADER_FONT).setFontWeight("bold");
+  if (values.length > 1) sheet.getRange(headerRow + 1, 1, values.length - 1, 3).setBackground(COLOR_ROW_WHITE_BG).setFontColor(COLOR_ROW_BLACK_FONT).setFontWeight("normal");
+}
+function readBenchBlock_(sheet) {
+  var headerRow = findHeaderRowByLabel(sheet, BENCH_LABEL, 500);
+  if (headerRow === -1) return [];
+  var n = benchRowCount_(sheet, headerRow);
+  if (!n) return [];
+  return sheet.getRange(headerRow + 1, 1, n, 3).getValues().map(function (r) { return { number: String(r[1]), name: String(r[2]) }; });
 }
 
 function writePitcherTotalsRow(sheet, startRow, playerRowCount) {

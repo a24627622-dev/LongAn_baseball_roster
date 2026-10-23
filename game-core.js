@@ -873,7 +873,10 @@
       oppRHE: [s.score.opp, hits('opp'), reachedOnError('us')],
       overflow: s.halves.some((h) => h.inning > SHEET_INNINGS),
     };
-    return { activeLineup: slots, pitchers, stats: { batting, pitching }, linescore };
+    // 最終板凳（有到沒上場）：開賽板凳扣掉比賽中換上場過的人
+    const entered = new Set((events || []).filter((ev) => ev.t === 'sub' && ev.in).map((ev) => String(ev.in.number)));
+    const bench = (setup.bench || []).filter((p) => !entered.has(String(p.number))).map((p) => ({ number: String(p.number), name: p.name || '' }));
+    return { activeLineup: slots, pitchers, stats: { batting, pitching }, linescore, bench };
   }
 
   /* ---------- 複製 LINE 打單：格式和陣容調度的「複製 LINE 打單」相同（先發＋↳ 依序的替補） ----------

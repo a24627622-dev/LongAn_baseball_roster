@@ -2,6 +2,7 @@
 <html lang="zh-TW">
 <head>
   <meta charset="UTF-8">
+  <script src="gate.js"></script>  <!-- 球隊管理密碼（V01.13.01） -->
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
   <title>實況賽事紀錄 - 龍安棒球隊</title>
   <link rel="icon" href="../logo-192.png">
@@ -376,7 +377,7 @@
           ${lu.lineup.map((p, i) => row(`第 ${i + 1} 棒`, FIELD_LABEL[p.pos] || p.pos || '守位未定', p)).join('')}
           ${lu.dh ? row('投手', '投手', lu.pitcher, 'pit') : ''}
           <div style="font-weight:800;margin:12px 0 2px">板凳（${lu.bench.length} 人）</div>
-          ${lu.benchFromAttendance ? '' : '<div class="warnbox">這台裝置找不到這場的點名，先列出全部球員。要用點名的板凳：請在同一支手機、同一個瀏覽器用陣容調度點名並上傳先發後，再回來讀取。</div>'}
+          ${lu.benchFromAttendance ? '' : '<div class="warnbox">找不到這場的板凳名單，先列出全部球員。請在陣容調度點名後重新上傳先發，再回來讀取。</div>'}
           ${lu.bench.length ? `<div class="bench">${lu.bench.map((p) => `<span><i>${esc(p.number)}</i>${esc(p.name)}</span>`).join('')}</div>` : '<div class="hint">（沒有）</div>'}
           <div style="font-weight:800;margin:14px 0 2px">龍安是</div>
           <div class="side2"><button class="btn ${pre.usBatFirst !== false ? 'sel' : ''}" data-act="first" data-v="1">先攻（客隊）</button>
@@ -757,7 +758,9 @@
         const pitcher = dh ? conv((r.data.pitchers || [])[0] || {}) : null;
         if (dh && !pitcher.number) { pre.msg = 'DH 制但讀不到先發投手，請確認陣容調度工具已上傳。'; pre.msgOk = false; render(); return; }
         const used = new Set([...starters.map((p) => p.number), ...(pitcher ? [pitcher.number] : [])]);
-        const att = attendanceFor(g);
+        // 板凳：比賽分頁的板凳表（陣容調度上傳先發時寫的，換手機也讀得到）→ 這台裝置的點名 → 全部球員
+        const sheetBench = (r.data.bench || []).map((p) => ({ number: String(p.number), name: String(p.name || '').split('/')[0].trim() })).filter((p) => p.number);
+        const att = sheetBench.length ? sheetBench : attendanceFor(g);
         const bench = (att || allPlayers()).filter((p) => !used.has(p.number));
         pre.lineupData = { lineup: starters, dh, pitcher, bench, benchFromAttendance: !!att };
         pre.msg = `已讀取 ${gameId(g)} 的先發。`; pre.msgOk = true; pre.needLogin = false;

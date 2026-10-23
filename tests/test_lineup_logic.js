@@ -512,6 +512,41 @@ test('G9 回讀雲端紀錄不會減少點名人數（板凳球員留著，第�
   assert.strictEqual(app.attendedCount.value, attended);
 });
 
+// ============ 板凳名單（V01.13.01）：上傳先發時一起寫進比賽分頁，回讀時用來還原點名 ============
+const benchNames = (up) => (up.bench || []).map(p => p.name).join(',');
+
+test('H1 上傳先發帶板凳：點名有到的人扣掉先發', async () => {
+  const { app, backend } = boot();
+  app.players.value.find(p => p['球員姓名'] === '郭替').isAttended = false;   // 沒到
+  setStarters(app, NINE);
+  await app.uploadStartersToGAS(); await tick();
+  assert.strictEqual(benchNames(lastUpload(backend)), '楊十,許投,鄭投,謝替');
+  assert.deepStrictEqual(lastUpload(backend).bench[0], { number: '10', name: '楊十' });
+});
+
+test('H2 全場DH：DH 制的先發投手不在打序，也不算板凳', async () => {
+  const { app, backend } = boot();
+  setStarters(app, DH9);
+  app.independentPitcherId.value = byName(app, '陳一');
+  await app.uploadStartersToGAS(); await tick();
+  assert.strictEqual(benchNames(lastUpload(backend)), '許投,鄭投,謝替,郭替');
+});
+
+test('H3 回讀（另一支手機、還沒點名）：點名用「先發＋板凳」還原，沒到的人不會被勾', async () => {
+  const { app, backend } = boot();
+  app.gameInfo.value.opponent = '猛虎';
+  app.players.value.find(p => p['球員姓名'] === '郭替').isAttended = false;
+  setStarters(app, NINE);
+  await app.uploadStartersToGAS(); await tick();
+  const other = boot();
+  other.backend.handle = backend.handle;
+  other.app.gameInfo.value = { ...app.gameInfo.value };
+  other.app.players.value.forEach(p => { p.isAttended = false; });
+  await other.app.loadFromGAS(); await tick();
+  const attended = other.app.players.value.filter(p => p.isAttended).map(p => p['球員姓名']).sort().join(',');
+  assert.strictEqual(attended, ['林二', '黃三', '張四', '李五', '王六', '陳一', '吳七', '劉八', '蔡九', '楊十', '許投', '鄭投', '謝替'].sort().join(','));
+});
+
 (async () => {
   for (const [name, fn] of tests) {
     try { await fn(); passed++; console.log('  ✅ ' + name); }

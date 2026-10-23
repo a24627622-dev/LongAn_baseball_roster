@@ -148,6 +148,7 @@ POST /gas  action=login  → ❌ AUTH_FAILED 密碼錯誤。
    - **登入成功**：之前那筆上傳會自動重送。
    - **按「🔓 隊務」登出**：再上傳一次，應該要重新登入。
 5. 測完把 `AUTH_ENFORCED` 改回 `false`，平常開發比較方便。
+6. **球隊管理密碼**（V01.13.01 起，`tools/gate.js`）：`tools/` 底下每一頁打開時，這支手機沒登入過或通行證過期（30 天）就先出現密碼畫面，輸入隊務密碼才看得到頁面。和 `AUTH_ENFORCED` 無關，一律會擋。要再看到密碼畫面：瀏覽器開發者工具刪掉 localStorage 的 `longan_auth_token`，或在陣容調度按「🔓 隊務」登出。只在手機上檢查到期時間，不連網，是防誤闖的基本機制
 
 > 本機的密碼只存在 `dev/config.json`，跟正式 GAS 的 `TEAM_PASSCODE` 完全無關，**不要把正式密碼寫進這個檔案**（這個檔案會被 commit 進 git）。
 
@@ -178,6 +179,7 @@ node tests/test_scenarios.js
 node tests/test_record_engine.js
 node tests/test_check_data.js
 node tests/test_game_core.js
+node tests/test_gate.js
 node tests/check_data.js
 ```
 

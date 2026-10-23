@@ -38,14 +38,15 @@ node tests/test_lineup_logic.js        # 40 項：點名→先發→開始比賽
 node tests/test_scenarios.js           # 26 項：三大調度情境、規則守門、DH 引導
 node tests/test_scenarios.js --repeat 5
 node tests/test_record_engine.js       # 39 項：比賽文字紀錄轉換引擎
-node tests/test_check_data.js          # 60 項：資料檔檢查規則、公告連結、比賽資料對名單、賽事成績發布狀態、投手 ER、時程的賽事欄位
+node tests/test_check_data.js          # 62 項：資料檔檢查規則、公告連結、比賽資料對名單、賽事成績發布狀態、投手 ER、時程的賽事欄位、球場資訊
 node tests/test_game_core.js           # 117 項：實況賽事紀錄的計算核心（漏洞清單、8/30 驗收、雲端備份表格列、比賽分頁最終名單與成績、承繼跑者、LINE 打單、調度紀錄換人／換位置、自責分建議值、最終板凳）
 node tests/test_gate.js               # 5 項：球隊管理密碼（tools/gate.js 通行證到期判斷）
 node tests/test_season_stats.js       # 10 項：戰績頁的整季加總（season-stats.js：分組、勝敗、打擊與比率、投手 IP／ER、讀不到的場次）
+node tests/test_line.js               # 26 項：LINE「龍安虛擬球隊經理」（gas/Line.gs：觸發、各關鍵字的回覆、球場資訊、天氣、出錯、不影響隊務）
 node tests/check_data.js               # 不是測試：檢查 data/*.json 與 data/games/*.json
 ```
 
-基準（2026-10-24，V01.13.02 開發中）：68＋40＋26＋39＋60＋117＋5（gate）＋10（season_stats），`check_data` 沒有錯誤。測試數量有增減時，這裡、`tests/README.md`、`docs/測試報告_調度三情境.md` 一起更新。
+基準（2026-10-25，V01.14.00 開發中）：68＋40＋26＋39＋62＋117＋5（gate）＋10（season_stats）＋26（line），`check_data` 沒有錯誤。測試數量有增減時，這裡、`tests/README.md`、`docs/測試報告_調度三情境.md` 一起更新。
 
 ### 測試放哪裡
 

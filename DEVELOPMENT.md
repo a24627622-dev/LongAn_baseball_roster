@@ -181,6 +181,7 @@ node tests/test_check_data.js
 node tests/test_game_core.js
 node tests/test_gate.js
 node tests/test_season_stats.js
+node tests/test_line.js
 node tests/check_data.js
 ```
 
@@ -212,7 +213,7 @@ git commit -m "V01.02.00 本機測試版"   # 存成一個版本
    - 副本會連同 Apps Script 一起複製，而且是一個**獨立的**新專案，改它不會影響正式的那份。
 2. 在副本裡：
    - 刪掉從正式版複製過來的比賽分頁（留下「球員名單」即可）。
-   - 打開「擴充功能 → Apps Script」，把本機的 `gas/Code.gs` 貼上覆蓋，再用「＋ → 指令碼」新增 `Auth`、`Pitchers`、`Backup` 三個檔案並貼上內容。
+   - 打開「擴充功能 → Apps Script」，把本機的 `gas/Code.gs` 貼上覆蓋，再用「＋ → 指令碼」新增 `Auth`、`Pitchers`、`Backup`、`Line` 檔案並貼上內容；另外新增 `SeasonStats`，貼上根目錄的 `season-stats.js`（V01.14.00 起）。
 3. 在副本的 Apps Script 左側點「專案設定 ⚙️」，在「指令碼屬性」新增一筆：`TEAM_PASSCODE` = 你自訂的測試密碼。
 4. 按「部署 → 新增部署作業 → 類型選『網頁應用程式』」：
    - 執行身分：**我**
@@ -419,6 +420,74 @@ git pull origin main
 **比賽完成**（V01.11.00 起）：按「比賽完成」時，最終名單、打者與投手成績、逐局比分會寫進陣容調度建立的比賽分頁（陣容調度要先上傳過先發）。工具的成績會覆蓋手填值；自責分（ER）V01.13.00 起寫入建議值（判斷不準的塗黃，人在試算表確認，改過的重新寫入時保留）；比賽超過 5 局時，第 6 局以後的逐局比分請手動補。寫入失敗時按「重新寫入比賽分頁」。
 
 換手機或手機上的紀錄不見時：開始畫面選好同一場比賽 → 最下面「備用」→「從雲端備份載入」，從最後一次備份接著記（最多重記還沒備份的那半局）。「下載備份檔」仍可當最後保險。
+
+## LINE「龍安虛擬球隊經理」（V01.14.00 起）
+
+球隊 LINE 群組裡打「#」開頭的關鍵字，機器人回覆官網上的資訊（只回覆、不推播，不用 LINE 的推播額度）：
+
+| 打這個 | 回什麼 |
+|---|---|
+| `#下一場` | 下一場比賽：日期、對手、賽事、集合／開賽、球場、地圖、停車、集合點、注意事項、降雨機率（36 小時內）、倒數 |
+| `#練球` | 下一次練球；取消會註明 |
+| `#公告` | 日期最新的一則公告 |
+| `#戰績` | 最新一季的勝敗和 |
+| `#上一場` | 最近一場有賽事成績的比分 |
+| `#陳奕瑋`、`#5`、`#坦克` | 球員本季成績（名字、背號、暱稱都可以） |
+| `#說明` | 用法 |
+
+- 沒有「#」的訊息不理、不記錄；括號裡的字（例「#陳奕瑋（啦啦隊風格）」）第一版忽略
+- 資料讀官網的 `data/`：時程（時程編輯器）、公告（公告產生器）、球員名單、戰績與賽事成績、**球場資訊 `data/venues.json`**
+- 程式在 `gas/Line.gs`；戰績與球員成績用 `season-stats.js`（和官網戰績頁同一份），部署時貼成 Apps Script 的 `SeasonStats`
+
+### 球場資訊 `data/venues.json`
+
+`#下一場`、`#練球` 會依時程的「地點」找這裡的資料，附在回覆裡。新球場就加一筆（在 GitHub 網頁直接編輯）：
+
+```json
+{
+  "name": "大漢B球場",
+  "map": "",
+  "parking": "https://maps.app.goo.gl/…",
+  "meet": "球場後方草皮",
+  "note": "球場無飲水機與販賣機，請準備充足飲水",
+  "area": "新北市板橋區"
+}
+```
+
+- `name` 要和時程的地點**一模一樣**
+- `map`：留空白就用球場名稱自動產生 Google 地圖連結；想要短一點的連結，可以貼 Google 地圖「分享」的短網址
+- `area`：縣市＋鄉鎮區，降雨機率用前三個字（縣市）查
+- 其他欄位留空白就不顯示那一行
+
+### 第一次設定（只要做一次）
+
+1. **球隊 Google 信箱**：申請一個球隊專用的 Gmail（信箱地址不要寫進 repo）
+2. **LINE 官方帳號**：用這個信箱到 LINE Official Account Manager 註冊「LINE Business ID」，建立官方帳號，名稱「龍安虛擬球隊經理」、頭像用隊徽
+3. **官方帳號後台設定**：
+   - 「設定 → 帳號設定」：**允許被加入群組**
+   - 「設定 → 回應設定」：**關掉「自動回應訊息」和「歡迎訊息」**、**打開 Webhook**
+   - 「設定 → Messaging API」：啟用 Messaging API（建立或選擇 Provider）
+   - 「設定 → 權限管理」：加入一位幹部當管理者（備援）
+4. **LINE Developers**（同一個帳號登入 developers.line.biz）→ 選這個 Channel：
+   - 「Basic settings」的 **Channel secret**、「Messaging API」頁最下面發行的 **Channel access token（long-lived）**
+   - 「Messaging API → Webhook URL」：貼上正式 GAS 的網址（`.../exec`，和 `site.js` 裡的 `PROD_GAS_URL` 相同），打開 **Use webhook**
+   - 「Verify」按鈕：GAS 會回應，但 LINE 偶爾顯示失敗也沒關係，以實際在群組打 `#說明` 有回覆為準
+5. **中央氣象署金鑰**（降雨機率用，可以晚點再做）：到中央氣象署開放資料平台註冊會員，取得「API 授權碼」
+6. **Apps Script「專案設定 ⚙️ → 指令碼屬性」**新增（**不要貼給任何人、不要放進 repo**）：
+   - `LINE_CHANNEL_ACCESS_TOKEN`＝Channel access token
+   - `LINE_CHANNEL_SECRET`＝Channel secret（目前 GAS 讀不到 LINE 的簽章，先存著備用）
+   - `CWA_API_KEY`＝氣象署授權碼（沒有就不顯示降雨機率）
+7. **部署 GAS**：貼上 `Line.gs`、`SeasonStats`（＝`season-stats.js`）、更新 `Code.gs` →「部署 → 管理部署作業 → 編輯 → 新版本」
+8. **測試**：先建一個只有你和機器人的 LINE 群組，邀官方帳號進去 → 會自我介紹 → 打 `#說明`、`#下一場`…都有回覆，再邀進球隊群組
+
+### 本機測試
+
+`node dev/server.js` 後打開 http://localhost:8080/dev/line ：模擬群組，打「#下一場」等就看到機器人的回覆（資料讀 repo 裡的 `data/`，不會真的送到 LINE、不查天氣）。
+
+### 安全
+
+- GAS 讀不到 LINE 附在請求上的簽章，沒辦法確認請求真的來自 LINE；機器人只回答官網上本來就公開的資訊，假冒的請求也拿不到能回覆群組的權杖，影響不大
+- 群組裡每一則訊息都會送到 GAS，程式只處理「#」開頭的，其他不存、不記錄
 
 ## 比賽文字紀錄 → 文字轉播（2026-09-29 起）
 

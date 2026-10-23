@@ -25,7 +25,7 @@ const DATA_DIR = path.join(__dirname, 'data');
 const DATA_FILE = path.join(DATA_DIR, 'sheets.json');
 const CONFIG_FILE = path.join(__dirname, 'config.json');
 const ROSTER_FILE = path.join(__dirname, 'roster.json');
-const GAS_FILES = ['gas/Code.gs', 'gas/Auth.gs', 'gas/Pitchers.gs', 'gas/Backup.gs'];
+const GAS_FILES = ['gas/Code.gs', 'gas/Auth.gs', 'gas/Pitchers.gs', 'gas/Backup.gs', 'season-stats.js', 'gas/Line.gs'];
 
 const MIME = {
   '.html': 'text/html; charset=utf-8', '.css': 'text/css; charset=utf-8', '.js': 'text/javascript; charset=utf-8',
@@ -88,16 +88,69 @@ function saveSpreadsheet(ss) {
   fs.writeFileSync(DATA_FILE, JSON.stringify(out, null, 1), 'utf8');
 }
 
+// 本機的對外連線：官網資料檔讀 repo 裡的檔案；LINE 回覆記下來；氣象署不連（不顯示降雨機率）
+const LINE_SITE = 'https://a24627622-dev.github.io/LongAn_baseball_roster';
+let lineOutbox = [];
+function devFetch(url, params) {
+  if (url === 'https://api.line.me/v2/bot/message/reply') {
+    lineOutbox.push(JSON.parse(params.payload).messages[0].text);
+    return { code: 200, body: '{}' };
+  }
+  if (url.startsWith(LINE_SITE + '/')) {
+    const file = path.join(ROOT, decodeURIComponent(url.slice(LINE_SITE.length + 1)));
+    if (!file.startsWith(ROOT) || !fs.existsSync(file)) return { code: 404, body: '' };
+    return { code: 200, body: fs.readFileSync(file, 'utf8') };
+  }
+  return { code: 404, body: '' };
+}
+
 function runGas(fn, arg) {
   const cfg = loadConfig();
   propsStore.TEAM_PASSCODE = cfg.TEAM_PASSCODE;
   propsStore.AUTH_ENFORCED = cfg.AUTH_ENFORCED;
   const ss = loadSpreadsheet();
-  const { ctx, logs } = createGasContext({ files: GAS_FILES, spreadsheet: ss, propsStore, cacheStore });
+  propsStore.LINE_CHANNEL_ACCESS_TOKEN = 'dev';   // 本機：LINE 回覆不真的送出，記在 lineOutbox（/dev/line 看）
+  const { ctx, logs } = createGasContext({ files: GAS_FILES, spreadsheet: ss, propsStore, cacheStore, fetch: devFetch });
   const output = ctx[fn](arg);
   saveSpreadsheet(ss);
   logs.forEach(l => console.log('   [Logger] ' + l));
   return output.getContent();
+}
+
+// ---------- LINE 機器人模擬頁 ----------
+function devLinePage() {
+  return `<!doctype html><html lang="zh-TW"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>LINE 機器人模擬</title><style>
+body{font-family:system-ui,sans-serif;margin:0;background:#8cabd8;min-height:100vh}
+.top{background:#2b3a55;color:#fff;padding:12px 16px;font-weight:700}
+.top small{font-weight:400;opacity:.8;margin-left:8px}
+#log{padding:12px 16px 120px;max-width:640px;margin:0 auto}
+.me,.bot{margin:8px 0;display:flex}.me{justify-content:flex-end}
+.me div,.bot div{max-width:80%;padding:10px 12px;border-radius:16px;white-space:pre-wrap;word-break:break-all;font-size:15px;line-height:1.5}
+.me div{background:#a6e860}.bot div{background:#fff}.sys{text-align:center;font-size:12px;color:#334155;margin:8px 0}
+form{position:fixed;left:0;right:0;bottom:0;background:#fff;padding:10px;display:flex;gap:8px;box-sizing:border-box}
+input{flex:1;font-size:16px;padding:10px;border:1px solid #cbd5e1;border-radius:20px}
+button{font-size:15px;padding:0 14px;border:none;border-radius:20px;background:#06c755;color:#fff;font-weight:700}
+.chips{display:flex;gap:6px;flex-wrap:wrap;padding:0 16px;max-width:640px;margin:8px auto 0}
+.chips button{background:#fff;color:#2b3a55;font-weight:600;padding:6px 10px}
+</style></head><body>
+<div class="top">龍安球隊群組（模擬）<small>資料讀 repo 裡的 data/，不會真的送到 LINE</small></div>
+<div class="chips"><button data-t="#下一場">#下一場</button><button data-t="#練球">#練球</button><button data-t="#公告">#公告</button><button data-t="#戰績">#戰績</button><button data-t="#上一場">#上一場</button><button data-t="#陳奕瑋">#陳奕瑋</button><button data-t="#說明">#說明</button><button data-join="1">邀進群組</button></div>
+<div id="log"></div>
+<form id="f"><input id="t" placeholder="輸入訊息，例：#下一場" autocomplete="off"><button>送出</button></form>
+<script>
+const log = document.getElementById('log');
+const add = (cls, text) => { const d = document.createElement('div'); d.className = cls; if (cls === 'sys') d.textContent = text; else { const b = document.createElement('div'); b.textContent = text; d.appendChild(b); } log.appendChild(d); window.scrollTo(0, document.body.scrollHeight); };
+async function send(text, join) {
+  if (!join) add('me', text); else add('sys', '（把機器人邀進群組）');
+  const r = await (await fetch('/dev/line/send', { method: 'POST', body: JSON.stringify({ text, join }) })).json();
+  if (r.error) add('sys', '錯誤：' + r.error);
+  else if (!r.replies.length) add('sys', '（機器人沒有回應）');
+  r.replies && r.replies.forEach((x) => add('bot', x));
+}
+document.getElementById('f').addEventListener('submit', (e) => { e.preventDefault(); const t = document.getElementById('t'); if (t.value.trim()) send(t.value); t.value = ''; });
+document.querySelectorAll('.chips button').forEach((b) => b.addEventListener('click', () => send(b.dataset.t, !!b.dataset.join)));
+</script></body></html>`;
 }
 
 // ---------- 檢視頁 ----------
@@ -142,6 +195,7 @@ td.f{color:#94a3b8;text-align:center}
 <div class="bar">
   <a href="/tools/lineup.html" target="_blank">開啟陣容調度助手</a>
   <a href="/index.html" target="_blank">開啟首頁</a>
+  <a href="/dev/line" target="_blank">LINE 機器人模擬</a>
   <button onclick="location.reload()">重新整理</button>
   <form method="post" action="/dev/reset" onsubmit="return confirm('確定清空所有假比賽資料？（球員名單不受影響）')"><button class="danger">清空假資料</button></form>
 </div>
@@ -194,6 +248,22 @@ const server = http.createServer((req, res) => {
   }
 
   if (pathname === '/dev' || pathname === '/dev/') return send(res, 200, devPage(), 'text/html; charset=utf-8');
+  // LINE 機器人模擬（V01.14.00）：打「#下一場」等，看「龍安虛擬球隊經理」會回什麼（資料讀 repo 裡的 data/）
+  if (pathname === '/dev/line') return send(res, 200, devLinePage(), 'text/html; charset=utf-8');
+  if (pathname === '/dev/line/send' && req.method === 'POST') {
+    const chunks = [];
+    req.on('data', c => chunks.push(c));
+    req.on('end', () => {
+      const { text, join } = JSON.parse(Buffer.concat(chunks).toString('utf8') || '{}');
+      const ev = join ? { type: 'join', replyToken: 'dev' } : { type: 'message', replyToken: 'dev', source: { type: 'group', groupId: 'dev' }, message: { type: 'text', text: String(text || '') } };
+      lineOutbox = [];
+      try { runGas('doPost', { postData: { contents: JSON.stringify({ destination: 'Udev', events: [ev] }) } }); }
+      catch (e) { return send(res, 500, JSON.stringify({ error: e.message }), 'application/json; charset=utf-8'); }
+      console.log(`LINE 模擬  ${join ? '（進群組）' : text} → ${lineOutbox.length ? '回覆 ' + lineOutbox.length + ' 則' : '不回覆'}`);
+      send(res, 200, JSON.stringify({ replies: lineOutbox }), 'application/json; charset=utf-8');
+    });
+    return;
+  }
   if (pathname === '/dev/reset' && req.method === 'POST') {
     try { fs.unlinkSync(DATA_FILE); } catch (e) { /* 本來就沒有 */ }
     console.log('🧹 已清空假試算表資料');

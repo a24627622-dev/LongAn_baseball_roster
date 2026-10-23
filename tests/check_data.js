@@ -11,7 +11,7 @@
 // 只有「警告」不會失敗。
 const fs = require('fs');
 const path = require('path');
-const { checkSchedule, checkAnnouncements, checkPlayers, checkGame, checkGameRoster } = require('../data-check');
+const { checkSchedule, checkAnnouncements, checkPlayers, checkGame, checkGameRoster, checkVenues } = require('../data-check');
 
 const ROOT = path.resolve(__dirname, '..');
 const arg = (name) => {
@@ -24,6 +24,9 @@ const FILES = [
   { label: 'data/announcements.json', file: arg('--announcements') || path.join(ROOT, 'data/announcements.json'), check: checkAnnouncements },
   { label: 'data/players.json', file: arg('--players') || path.join(ROOT, 'data/players.json'), check: checkPlayers },
 ];
+// 球場資訊（V01.14.00，LINE 機器人用）：有這個檔才檢查（測試用的 --schedule 指定檔案時不檢查）
+const VENUES = arg('--venues') || (arg('--schedule') ? null : path.join(ROOT, 'data/venues.json'));
+if (VENUES && fs.existsSync(VENUES)) FILES.push({ label: 'data/venues.json', file: VENUES, check: checkVenues });
 // 每一場比賽的文字轉播資料；檔名（去掉 .json）必須等於裡面的 id，公開頁靠檔名找檔案
 const GAMES_DIR = arg('--games') || path.join(ROOT, 'data/games');
 if (fs.existsSync(GAMES_DIR)) {

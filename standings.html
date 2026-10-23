@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>戰績 - 龍安棒球隊</title>
+  <meta name="description" content="龍安棒球隊各賽事的戰績、每場比分與整季打擊、投手成績。">
+  <link rel="icon" href="logo-192.png">
+  <link rel="stylesheet" href="site.css">
+</head>
+<body>
+
+  <header class="site-header">
+    <div class="wrap">
+      <a class="brand" href="index.html">
+        <img src="logo-192.png" alt="龍安棒球隊隊徽" onerror="this.style.display='none'">
+        <span>龍安棒球隊</span>
+      </a>
+      <nav class="site-nav">
+        <a href="index.html">首頁</a>
+        <a href="news.html">公告</a>
+        <a href="schedule.html">賽事時程</a>
+        <a href="standings.html" class="active">戰績</a>
+      </nav>
+    </div>
+  </header>
+
+  <main class="wrap page-body" id="app">
+    <div class="empty-note" style="margin-top:20px">載入中…</div>
+  </main>
+
+  <footer class="site-footer">
+    <div class="wrap">
+      <span>龍安棒球隊</span>
+      <a href="tools/">球隊管理</a>
+    </div>
+  </footer>
+
+  <script src="data-check.js"></script>
+  <script src="site.js"></script>
+  <script src="season-stats.js"></script>
+  <script>
+    /* 戰績（V01.13.02）：時程裡有標「賽事」、有連到賽事成績的比賽，依「年份＋賽事」加總（season-stats.js）。
+       欄位和單場賽事成績頁相同，打擊多算打擊率、上壘率、長打率；依背號排、不排名 */
+    const $app = document.getElementById('app');
+    const esc = (s) => escapeHtml(s == null ? '' : String(s));
+    let groups = [];
+    const cache = {};   // 比賽 ID → 賽事成績（讀過就不再讀）
+
+    async function loadGames(entries) {
+      await Promise.all(entries.map(async (e) => {
+        if (e.id in cache) return;
+        try { cache[e.id] = await loadJSON(`data/games/${encodeURIComponent(e.id)}.json`); }
+        catch (err) { console.error(err); cache[e.id] = null; }
+      }));
+    }
+
+    const RESULT = { W: ['win', '勝'], L: ['lose', '敗'], T: ['tie', '和'] };
+    const BAT_COLS = ['AB', 'R', 'H', '2B', '3B', 'HR', 'RBI', 'BB', 'HBP', 'K', 'SB', 'E', 'AVG', 'OBP', 'SLG'];
+    const PIT_COLS = ['IP', 'H', 'R', 'ER', 'BB', 'HBP', 'SO', 'HR'];
+    const who = (r) => (r.number ? `#${esc(r.number)} ${esc(r.name)}` : esc(r.name));
+    const table = (first, cols, rows, total) => `
+      <div class="gv-table-wrap"><table class="gv-stats">
+        <thead><tr><th class="l">${first}</th>${cols.map((c) => `<th>${c}</th>`).join('')}</tr></thead>
+        <tbody>${rows.map((r) => `<tr><td class="l">${who(r)}</td>${cols.map((c) => `<td>${esc(r[c])}</td>`).join('')}</tr>`).join('')}
+          ${rows.length ? `<tr class="total"><td class="l">合計</td>${cols.map((c) => `<td>${esc(total[c])}</td>`).join('')}</tr>` : ''}</tbody>
+      </table></div>`;
+
+    async function show(key) {
+      const gp = groups.find((x) => x.key === key) || groups[0];
+      history.replaceState(null, '', `?s=${encodeURIComponent(gp.key)}`);
+      const chips = `<div class="st-comp">${groups.map((x) => `<button type="button" data-k="${esc(x.key)}" class="${x.key === gp.key ? 'on' : ''}">${esc(x.label)}</button>`).join('')}</div>`;
+      $app.innerHTML = chips + '<div class="empty-note">載入中…</div>';
+      await loadGames(gp.entries);
+      const s = SeasonStats.summarize(gp.entries, cache);
+      const rec = s.record;
+      $app.innerHTML = `${chips}
+        <div class="section-head" style="margin-top:14px"><h2>本季戰績</h2></div>
+        <div class="st-record">
+          <div><b>${rec.played}</b><span>出賽</span></div>
+          <div class="w"><b>${rec.win}</b><span>勝</span></div>
+          <div class="l"><b>${rec.loss}</b><span>敗</span></div>
+          <div><b>${rec.tie}</b><span>和</span></div>
+        </div>
+        ${s.missing.length ? `<p class="st-note">有 ${s.missing.length} 場的賽事成績暫時讀不到，請稍後再試。</p>` : ''}
+
+        <div class="section-head"><h2>每場比賽</h2></div>
+        <div class="st-games">${s.games.map((g) => `<a href="${esc(g.href)}"><span class="d">${esc(fmtDate(g.date))}</span><span class="o">vs ${esc(g.opponent)}</span><span class="sched-score ${RESULT[g.result][0]}">${g.us} : ${g.opp} ${RESULT[g.result][1]}</span><span class="go">➔</span></a>`).join('')}</div>
+
+        <div class="section-head"><h2>打擊成績</h2></div>
+        ${table('球員', BAT_COLS, s.batting, s.battingTotal)}
+        <p class="st-note">依背號排列，不排名。AVG 打擊率、OBP 上壘率、SLG 長打率。</p>
+
+        <div class="section-head"><h2>投手成績</h2></div>
+        ${table('投手', PIT_COLS, s.pitching, s.pitchingTotal)}
+        <p class="st-note">依背號排列，不排名。IP 2.1 ＝ 2 又 1/3 局。${s.erIncomplete ? 'ER「-」：有比賽的自責分還沒填。' : ''}</p>`;
+    }
+
+    $app.addEventListener('click', (e) => {
+      const b = e.target.closest('[data-k]');
+      if (b) show(b.dataset.k);
+    });
+
+    (async function init() {
+      try {
+        const { items } = await loadChecked('data/schedule.json', 'schedule');
+        groups = SeasonStats.groups(items);
+      } catch (e) {
+        console.error(e);
+        $app.innerHTML = '<div class="empty-note" style="margin-top:20px">暫時讀不到，請稍後再試。</div>';
+        return;
+      }
+      if (!groups.length) {
+        $app.innerHTML = '<div class="empty-note" style="margin-top:20px">還沒有戰績。發布賽事成績、在時程標上賽事後，這裡就會出現。</div>';
+        return;
+      }
+      show(new URLSearchParams(location.search).get('s'));
+    })();
+  </script>
+
+</body>
+</html>

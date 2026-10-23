@@ -12,7 +12,7 @@
 (function (root) {
   const SCHEDULE_TYPES = ['game', 'practice'];
   const SCHEDULE_FIELDS = {
-    game: ['type', 'date', 'gatherTime', 'startTime', 'venue', 'opponent', 'score', 'resultUrl', 'cancelled', 'note'],
+    game: ['type', 'date', 'gatherTime', 'startTime', 'venue', 'opponent', 'score', 'resultUrl', 'cancelled', 'note', 'league'],
     practice: ['type', 'date', 'startTime', 'endTime', 'venue', 'cancelled', 'note'],
   };
   const ANNOUNCEMENT_FIELDS = ['date', 'title', 'body', 'pinned', 'link'];
@@ -89,6 +89,10 @@
         const s = item.score;
         const ok = isObject(s) && Number.isInteger(s.longan) && Number.isInteger(s.opponent) && s.longan >= 0 && s.opponent >= 0;
         if (!ok) r.warnings.push({ where: w, msg: `score 格式不對：${JSON.stringify(s)}（應為 null 或 { "longan": 7, "opponent": 3 }）` });
+      }
+      // 賽事（V01.13.02，戰績頁依「年份＋賽事」分組）：可以不填
+      if ('league' in item && item.league !== null && typeof item.league !== 'string') {
+        r.warnings.push({ where: w, msg: `league（賽事）應為文字，例如 "大漢聯盟"，實際是 ${JSON.stringify(item.league)}（戰績頁不會算進這場）` });
       }
       if ('cancelled' in item && typeof item.cancelled !== 'boolean') {
         r.warnings.push({ where: w, msg: `cancelled 應該是 true 或 false，實際是 ${JSON.stringify(item.cancelled)}` });

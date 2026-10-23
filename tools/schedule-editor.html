@@ -99,6 +99,7 @@
           resultUrl: it.resultId && it.resultId.trim() ? `game.html?id=${encodeURIComponent(it.resultId.trim())}` : null,
           cancelled: !!it.cancelled,
           note: it.note || '',
+          league: it.league && it.league.trim() ? it.league.trim() : undefined,   // 沒填就不寫這個欄位
         });
       }
       return Object.assign(base, {
@@ -122,6 +123,7 @@
         gatherTime: raw.gatherTime || '',
         cancelled: !!raw.cancelled,
         note: raw.note || '',
+        league: typeof raw.league === 'string' ? raw.league : '',
         scoreLongan: raw.score && typeof raw.score.longan === 'number' ? String(raw.score.longan) : '',
         scoreOpp: raw.score && typeof raw.score.opponent === 'number' ? String(raw.score.opponent) : '',
         resultId: typeof raw.resultUrl === 'string' && raw.resultUrl.startsWith('game.html?id=')
@@ -157,6 +159,9 @@
         return `
           <label>對手</label>
           <input type="text" data-i="${i}" data-f="opponent" value="${escapeHtml(it.opponent)}" placeholder="例：ZERO">
+
+          <label>賽事（戰績頁依「年份＋賽事」分開統計；友誼賽留空白就不列入戰績）</label>
+          <input type="text" list="league-list" data-i="${i}" data-f="league" value="${escapeHtml(it.league || '')}" placeholder="例：大漢聯盟">
 
           <div class="two-col">
             <div>
@@ -237,6 +242,9 @@
       el.innerHTML = items.length
         ? items.map(rowHTML).join('')
         : '<div class="hint">目前沒有任何活動。用下面的「新增一筆活動」加。</div>';
+      // 賽事欄位的下拉選項：用過的賽事＋大漢聯盟
+      const leagues = [...new Set(['大漢聯盟', ...items.map((x) => (x.league || '').trim()).filter(Boolean)])];
+      el.insertAdjacentHTML('beforeend', `<datalist id="league-list">${leagues.map((x) => `<option value="${escapeHtml(x)}">`).join('')}</datalist>`);
       refreshOutput();
     }
 

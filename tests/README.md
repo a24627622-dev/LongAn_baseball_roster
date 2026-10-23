@@ -35,9 +35,10 @@ node tests/check_data.js                   # 檢查 data/*.json
   LINE 打單（`lineText`）：先發版、比賽中「N局 調度後」、最終版、DH 制投手行。
   調度紀錄（`umpireReport`、`umpireHalves`）：使用者確認的 14 個範例（一般、DH、取消 DH、代打代跑），同一批換兩次、守位空著、依半局分批
   自責分建議值（規則 9.16，期望值手算，見 `docs/自責分建議值說明.md`）：失誤／妨礙／不死三振上壘、重建半局、暴投與捕逸、承繼跑者、靠失誤推進（全壘打例外）、9.16(i) 後援投手、野選封殺失誤跑者、8/30 驗收（ER 0、0）、不變條件 0 ≤ ER ≤ R、sheetFinal 帶 ER／toGame 不帶。
-- `test_check_data.js`（58 項）：資料檔檢查規則（根目錄 `data-check.js`）的測試，含 2026-09-21 兩次貼錯事故的重現、球員名單的背號檢查、
-  比賽資料檔（`data/games/*.json`）的格式與檔名檢查、時程 `resultUrl` 格式、公告 `link`（只接受比賽與三個站內頁，錯了只警告）、比賽資料的我方背號要對得上 `data/players.json`（`checkGameRoster`，2026-10-01）、賽事成績發布時在時程裡找這場並檢查連結與比分（`publishStatus`，2026-10-14：還沒連結、已連結、連到別場、比分一致或不一致、測試比賽找不到、雙重賽、取消與練球不算、對手前後空白、中文比賽 ID 的連結和 repo 裡 8/30 的時程一字不差、異常輸入）、投手 ER（可不填，有填要 0～R 的整數）與 `applySheetER`（套上試算表的 ER、沒填與黃色的提醒）。
+- `test_check_data.js`（60 項）：資料檔檢查規則（根目錄 `data-check.js`）的測試，含 2026-09-21 兩次貼錯事故的重現、球員名單的背號檢查、
+  比賽資料檔（`data/games/*.json`）的格式與檔名檢查、時程 `resultUrl` 格式、公告 `link`（只接受比賽與三個站內頁，錯了只警告）、比賽資料的我方背號要對得上 `data/players.json`（`checkGameRoster`，2026-10-01）、賽事成績發布時在時程裡找這場並檢查連結與比分（`publishStatus`，2026-10-14：還沒連結、已連結、連到別場、比分一致或不一致、測試比賽找不到、雙重賽、取消與練球不算、對手前後空白、中文比賽 ID 的連結和 repo 裡 8/30 的時程一字不差、異常輸入）、投手 ER（可不填，有填要 0～R 的整數）與 `applySheetER`（套上試算表的 ER、沒填與黃色的提醒）、時程的賽事欄位 `league`（可不填，不是文字只警告）。
 - `test_gate.js`（5 項）：球隊管理密碼 `tools/gate.js` 的通行證到期判斷（沒過期放行、過期與剛好到期擋、壞掉的通行證擋、base64url 讀得懂、GAS 實際發的通行證）。
+- `test_season_stats.js`（10 項）：戰績頁的整季加總（根目錄 `season-stats.js`，V01.13.02），期望值手算：依「年份＋賽事」分組（沒標賽事、沒連結、取消、練球不算）、勝敗和、打擊跨場相加（名字用最新的、依背號數字排序）、打擊率／上壘率／長打率與合計、打數 0 顯示「-」、投手 IP 用出局數相加、ER 有一場沒填顯示「-」、讀不到的場次。
 - `check_data.js`：不是測試，是檢查 `data/schedule.json`、`data/announcements.json` 的指令；
   GitHub 自動檢查（`.github/workflows/check-data.yml`）也是跑這兩支。
 - `test_scenarios.js`（26 項）：三大調度情境（A×6、B×5、C×7）、規則守門（G×3）、DH 規則引導（D×5），見下。

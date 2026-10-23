@@ -180,6 +180,7 @@ node tests/test_record_engine.js
 node tests/test_check_data.js
 node tests/test_game_core.js
 node tests/test_gate.js
+node tests/test_season_stats.js
 node tests/check_data.js
 ```
 
@@ -549,6 +550,7 @@ git pull origin main
 - `venue` 留空白 → 網站顯示「地點未定，請留意公告」
 - `gatherTime` 慣例是開賽前一小時；存下來是為了保留例外的彈性
 - 比賽結束後手動填 `"score": { "longan": 7, "opponent": 3 }`，時程頁會自動判斷勝敗和
+- `league`（賽事，V01.13.02 起，可省略）：例 `"大漢聯盟"`。有標賽事、有連到賽事成績（`resultUrl`）、沒取消的比賽才會算進**戰績頁**（`standings.html`，依「年份＋賽事」分開）。時程編輯器比賽欄位的「賽事」可以從下拉選、也能輸入新的；友誼賽留空白
 - **`resultUrl`**：`null`，或 `"game.html?id=比賽ID"`（2026-09-29 起）。有值時時程頁顯示「賽事成績 ➔」連結。
   用時程編輯器比賽欄位的「文字轉播」填比賽 ID 即可，不用手寫；格式不對時自動檢查會警告、時程頁不顯示連結
 - **取消**：把該筆改成 `"cancelled": true`，在 `note` 寫原因。時程頁會顯示灰底刪除線和紅色

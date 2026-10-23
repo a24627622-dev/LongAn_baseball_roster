@@ -399,6 +399,19 @@ test('CLI：比賽資料對不上名單 → exit 1', () => {
   assert.match(out, /#93 黃宥憬/);
 });
 
+console.log('\n時程的賽事欄位 league（V01.13.02：戰績頁依賽事分組）');
+
+test('league 可以不填；填文字 → 沒有警告', () => {
+  const r = checkSchedule([game('2026-11-15', { league: '大漢聯盟' }), game('2026-11-29')]);
+  assert.deepStrictEqual([r.errors, r.warnings.filter((w) => /league|不認得/.test(w.msg))], [[], []]);
+});
+
+test('league 不是文字（數字、陣列）→ 警告「應為文字」，不擋上線', () => {
+  const r = checkSchedule([game('2026-11-15', { league: 1 }), game('2026-11-22', { league: ['a'] })]);
+  assert.deepStrictEqual(r.errors, []);
+  assert.strictEqual(r.warnings.filter((w) => /league.*文字/.test(w.msg)).length, 2);
+});
+
 console.log('\n投手 ER（自責分，V01.13.00：官網投手表加 ER 欄，ER 以試算表為準）');
 {
   const pit = (extra = {}) => ({ number: '56', name: '蘇垣華', IP: '3.0', H: 7, R: 6, BB: 1, HBP: 0, SO: 7, HR: 0, ...extra });

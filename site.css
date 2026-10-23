@@ -553,3 +553,19 @@ details.past-box > div { margin-top: 12px; }
 .gv-bases .b1 { left: 20px; top: 9px; }
 .gv-score { margin-left: auto; font-size: 1.15rem; font-weight: 900; color: var(--dark-color); }
 
+
+/* ---------- 戰績頁（standings.html，V01.13.02） ---------- */
+.st-comp { display: flex; gap: 8px; flex-wrap: wrap; margin: 18px 0 4px; }
+.st-comp button { font: inherit; font-weight: 700; border: 2px solid var(--border); background: #fff; color: var(--dark-color); border-radius: 999px; padding: 8px 16px; cursor: pointer; }
+.st-comp button.on { background: var(--dark-color); border-color: var(--dark-color); color: #fff; }
+.st-record { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin: 10px 0 6px; }
+.st-record div { background: var(--card-bg); border: 1px solid var(--border); border-radius: 12px; padding: 12px 8px; text-align: center; }
+.st-record b { display: block; font-size: 1.8rem; line-height: 1.1; }
+.st-record span { font-size: .8rem; color: var(--text-muted); }
+.st-record .w b { color: #166534; }
+.st-record .l b { color: #991b1b; }
+.st-games a { display: flex; align-items: center; gap: 10px; padding: 12px; background: var(--card-bg); border: 1px solid var(--border); border-radius: 12px; margin: 8px 0; text-decoration: none; color: inherit; }
+.st-games .d { font-weight: 700; min-width: 5.5em; }
+.st-games .o { flex: 1; }
+.st-games .go { color: var(--text-muted); font-size: .85rem; }
+.st-note { font-size: .8rem; color: var(--text-muted); margin: 6px 0 0; }

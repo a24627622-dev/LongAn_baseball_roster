@@ -21,7 +21,7 @@
 
 | 要走 TDD（邏輯） | 不走 TDD（改完列出人工檢查項目） |
 |---|---|
-| `record-engine.js`、`game-core.js`、`data-check.js`、`gas/*.gs`、`tools/lineup.html` 的 `setup()` 邏輯、`tools/gate.js`，以及之後新增的共用模組 | `docs/`、CSS 與版面、`data/*.json` 的內容、畫面外觀、試算表底色與粗體 |
+| `record-engine.js`、`game-core.js`、`data-check.js`、`gas/*.gs`、`tools/lineup.html` 的 `setup()` 邏輯、`tools/gate.js`、`season-stats.js`，以及之後新增的共用模組 | `docs/`、CSS 與版面、`data/*.json` 的內容、畫面外觀、試算表底色與粗體 |
 
 - 測試清單（邊界值、分類、異常輸入、狀態順序、不變條件）**放進問完需求後的規格摘要**，使用者回「開工」＝規格和測試清單一起批准。
 - 修 bug：先寫重現它的測試並看它失敗，再修；測試名稱加 `【修正】` 前綴。
@@ -38,13 +38,14 @@ node tests/test_lineup_logic.js        # 40 項：點名→先發→開始比賽
 node tests/test_scenarios.js           # 26 項：三大調度情境、規則守門、DH 引導
 node tests/test_scenarios.js --repeat 5
 node tests/test_record_engine.js       # 39 項：比賽文字紀錄轉換引擎
-node tests/test_check_data.js          # 58 項：資料檔檢查規則、公告連結、比賽資料對名單、賽事成績發布狀態、投手 ER
+node tests/test_check_data.js          # 60 項：資料檔檢查規則、公告連結、比賽資料對名單、賽事成績發布狀態、投手 ER、時程的賽事欄位
 node tests/test_game_core.js           # 117 項：實況賽事紀錄的計算核心（漏洞清單、8/30 驗收、雲端備份表格列、比賽分頁最終名單與成績、承繼跑者、LINE 打單、調度紀錄換人／換位置、自責分建議值、最終板凳）
 node tests/test_gate.js               # 5 項：球隊管理密碼（tools/gate.js 通行證到期判斷）
+node tests/test_season_stats.js       # 10 項：戰績頁的整季加總（season-stats.js：分組、勝敗、打擊與比率、投手 IP／ER、讀不到的場次）
 node tests/check_data.js               # 不是測試：檢查 data/*.json 與 data/games/*.json
 ```
 
-基準（2026-10-24，V01.13.01 開發中）：68＋40＋26＋39＋58＋117＋5（gate），`check_data` 沒有錯誤。測試數量有增減時，這裡、`tests/README.md`、`docs/測試報告_調度三情境.md` 一起更新。
+基準（2026-10-24，V01.13.02 開發中）：68＋40＋26＋39＋60＋117＋5（gate）＋10（season_stats），`check_data` 沒有錯誤。測試數量有增減時，這裡、`tests/README.md`、`docs/測試報告_調度三情境.md` 一起更新。
 
 ### 測試放哪裡
 

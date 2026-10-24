@@ -63,17 +63,13 @@
     "note": "因颱風取消"
   },
   {
-    "type": "game",
+    "type": "practice",
     "date": "2026-11-01",
-    "gatherTime": "07:00",
     "startTime": "08:00",
-    "venue": "大漢B球場",
-    "opponent": "演練",
-    "score": null,
-    "resultUrl": null,
+    "endTime": "12:00",
+    "venue": "",
     "cancelled": false,
-    "note": "",
-    "league": "大漢聯盟"
+    "note": ""
   },
   {
     "type": "practice",

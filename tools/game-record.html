@@ -5,7 +5,7 @@
   <script src="../moved.js"></script>  <!-- 舊網址（GitHub Pages）自動轉到新網址（V01.14.01） -->
   <script src="gate.js"></script>  <!-- 球隊管理密碼（V01.13.01） -->
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
-  <title>實況賽事紀錄 - 龍安棒球隊</title>
+  <title>龍安調度與紀錄工具 - 比賽紀錄</title>
   <link rel="icon" href="../logo-192.png">
   <link rel="stylesheet" href="../site.css">
   <style>
@@ -13,6 +13,16 @@
     body { background: var(--bg-color); }
     .gr { max-width: 520px; margin: 0 auto; padding: 0 12px 120px; }
     .gr h2 { font-size: 1.05rem; margin: 18px 0 8px; }
+    /* 和陣容調度共用的頁首與步驟列（V01.16.00 龍安調度與紀錄工具） */
+    .tool-head { display: flex; align-items: center; gap: 8px; background: var(--dark-color); color: #fff; margin: 0 -12px; padding: 10px 14px; border-bottom: 3px solid #d97706; }
+    .tool-head img { width: 30px; height: 30px; border-radius: 50%; background: #fff; }
+    .tool-head b { flex: 1; font-size: 1rem; }
+    .tool-head a { color: #cbd5e1; font-size: .8rem; text-decoration: none; }
+    .steps3 { display: flex; align-items: center; gap: 4px; background: #fff; border: 1px solid var(--border); border-radius: 14px; padding: 6px; margin: 12px 0; font-weight: 700; font-size: .9rem; }
+    .steps3 a, .steps3 b { flex: 1; text-align: center; padding: 9px 0; border-radius: 10px; text-decoration: none; }
+    .steps3 a { color: #64748b; }
+    .steps3 b { background: #b91c1c; color: #fff; }
+    .steps3 span { color: #cbd5e1; }
     .gr-card { background: var(--card-bg); border: 1px solid var(--border); border-radius: 12px; padding: 12px; margin: 10px 0; }
     .gr label { display: block; font-size: .85rem; color: var(--text-muted); margin: 8px 0 4px; }
     .gr input, .gr select { width: 100%; padding: 10px; font-size: 1rem; border: 1px solid #cbd5e1; border-radius: 8px; background: #fff; }
@@ -387,7 +397,8 @@
       }
       const spareOpen = !!(pre.cloudMsg && !pre.cloudOk);
       return `
-        <div class="row" style="justify-content:space-between"><h2>實況賽事紀錄</h2><span><a href="lineup.html" class="hint">← 回陣容調度</a>　<a href="index.html" class="hint">球隊管理</a></span></div>
+        <div class="tool-head"><img src="../logo-192.png" alt="" onerror="this.style.display='none'"><b>龍安調度與紀錄工具</b><a href="index.html">球隊管理</a></div>
+        <nav class="steps3"><a href="lineup.html">① 點名</a><span>›</span><a href="lineup.html">② 先發</a><span>›</span><b>③ 比賽紀錄</b></nav>
         ${resume}
         <div class="gr-card">
           ${folded ? `<div class="picked"><div><b>${esc(pre.date)} ${esc(pre.gameNum)} vs ${esc(pre.opponent)}</b><div class="ok">✓ 已讀取先發</div></div>

@@ -3,7 +3,7 @@
 // - 只處理「#」（或全形「＃」）開頭的文字訊息，其他訊息不理、不記錄；回覆用 reply（不計入推播則數）
 // - 資料一律讀官網的資料檔（時程、公告、球員名單、球場資訊、賽事成績），和官網同步，不另外維護
 // - 戰績、球員成績用 season-stats.js（部署時貼成 SeasonStats.gs，和官網戰績頁同一套算法）
-// - 指令碼屬性：LINE_CHANNEL_ACCESS_TOKEN（必填）、CWA_API_KEY（氣象署，沒有就不顯示降雨機率）、
+// - 指令碼屬性：LINE_CHANNEL_ACCESS_TOKEN（必填）、CWA_API_KEY（氣象署，沒有就不顯示天氣）、
 //   LINE_SITE_URL（官網網址，可省略）
 // - GAS 讀不到 LINE 附在請求上的簽章：機器人只回答官網上本來就公開的資訊，假冒的請求也拿不到能回覆群組的 replyToken
 // 測試：tests/test_line.js
@@ -151,8 +151,7 @@ function lineEvent_(type, L, today) {
     if (v && v.note) out.push('⚠️ ' + v.note);
   }
   if (it.note) out.push('📝 ' + it.note);
-  var pop = v && v.area ? lineRain_(v.area, it.date, it.startTime || '12:00') : null;
-  if (pop !== null) out.push('☔ 降雨機率 ' + pop + '%');
+  if (v && v.area) out = out.concat(lineWeather_(v.area, it.date, it.startTime || '12:00'));
   var n = lineDays_(today, it.date);
   if (isGame) out.push(n === 0 ? '就是今天！大家加油！💪' : n === 1 ? '就是明天，大家加油！💪' : '還有 ' + n + ' 天，大家加油！💪');
   else out.push(n === 0 ? '就是今天！' : n === 1 ? '就是明天！' : '還有 ' + n + ' 天');
@@ -166,34 +165,72 @@ function lineVenue_(L, name) {
   return null;
 }
 
-// 降雨機率：氣象署「一般天氣預報－今明 36 小時」（F-C0032-001，縣市）。活動在 36 小時內才查；
-// 沒有金鑰、讀不到、時段對不上都回 null（不顯示這一行）
-function lineRain_(area, date, time) {
+// 天氣（V01.15.02）：氣象署「各縣市一週預報」（F-D0047-091），用球場所在縣市查；開賽在 7 天內才查。
+// 取開賽時間所在的那一段（06 開始＝白天、18＝晚上、00＝凌晨），回傳要加進回覆的幾行：
+//   🌦️ 11/15（日）白天 新北市
+//   多雲短暫陣雨｜23～27°C｜降雨機率 30%    ← 沒有的項目省略（第 4～7 天的降雨機率是「-」）
+//   💡 提醒（雨、熱／紫外線、涼；規則見下面）
+// 沒有金鑰、讀不到、格式不對、找不到縣市或時段、三項都沒有 → 回空陣列（不顯示天氣段）
+var LINE_CWA_ELEMENTS = ['天氣現象', '最高溫度', '最低溫度', '最高體感溫度', '最低體感溫度', '12小時降雨機率', '紫外線指數'];
+function lineWeather_(area, date, time) {
   var key = lineProp_('CWA_API_KEY');
   var county = String(area).slice(0, 3);
   var start = Date.parse(date + 'T' + (time || '12:00') + ':00+08:00');
-  if (!key || !county || isNaN(start) || start < Date.now() - 3 * 3600 * 1000 || start > Date.now() + 36 * 3600 * 1000) return null;
+  if (!key || !county || isNaN(start) || start < Date.now() - 3 * 3600 * 1000 || start > Date.now() + 7 * 24 * 3600 * 1000) return [];
   try {
-    var url = 'https://opendata.cwa.gov.tw/api/v1/rest/datastore/F-C0032-001?Authorization=' + encodeURIComponent(key) + '&locationName=' + encodeURIComponent(county);
+    var url = 'https://opendata.cwa.gov.tw/api/v1/rest/datastore/F-D0047-091?Authorization=' + encodeURIComponent(key)
+      + '&LocationName=' + encodeURIComponent(county) + '&ElementName=' + encodeURIComponent(LINE_CWA_ELEMENTS.join(','));
     var r = UrlFetchApp.fetch(url, { muteHttpExceptions: true });
-    if (r.getResponseCode() !== 200) return null;
-    var pick = function (o, k) { return o ? (o[k] !== undefined ? o[k] : o[k.charAt(0).toUpperCase() + k.slice(1)]) : undefined; };
-    var locs = pick(pick(JSON.parse(r.getContentText()), 'records'), 'location') || [];
-    var loc = locs.filter(function (x) { return pick(x, 'locationName') === county; })[0];
-    var el = loc && (pick(loc, 'weatherElement') || []).filter(function (x) { return pick(x, 'elementName') === 'PoP'; })[0];
-    var slots = (el && pick(el, 'time')) || [];
-    for (var i = 0; i < slots.length; i++) {
-      var a = Date.parse(String(pick(slots[i], 'startTime')).replace(' ', 'T') + '+08:00');
-      var b = Date.parse(String(pick(slots[i], 'endTime')).replace(' ', 'T') + '+08:00');
-      if (start >= a && start < b) {
-        var p = Number(pick(pick(slots[i], 'parameter'), 'parameterName'));
-        return isNaN(p) ? null : p;
+    if (r.getResponseCode() !== 200) return [];
+    var groups = (((JSON.parse(r.getContentText()) || {}).records || {}).Locations) || [];
+    var loc = null;
+    groups.forEach(function (g) { (g.Location || []).forEach(function (x) { if (!loc && x.LocationName === county) loc = x; }); });
+    if (!loc) return [];
+    var slot = null;   // 開賽時間所在那一段的開始時間
+    var val = function (name, field) {   // 這個欄位在開賽那一段的值；沒有、「-」、空白 → null
+      var el = (loc.WeatherElement || []).filter(function (e) { return e.ElementName === name; })[0];
+      var ts = (el && el.Time) || [];
+      for (var i = 0; i < ts.length; i++) {
+        var a = Date.parse(ts[i].StartTime);
+        var b = Date.parse(ts[i].EndTime);
+        if (start >= a && start < b) {
+          if (slot === null) slot = ts[i].StartTime;
+          var v = ((ts[i].ElementValue || [])[0] || {})[field];
+          return v === undefined || v === null || v === '' || v === '-' ? null : String(v);
+        }
       }
-    }
+      return null;
+    };
+    var num = function (v) { return v === null || isNaN(Number(v)) ? null : Number(v); };
+    var wx = val('天氣現象', 'Weather');
+    var maxT = num(val('最高溫度', 'MaxTemperature'));
+    var minT = num(val('最低溫度', 'MinTemperature'));
+    var maxAT = num(val('最高體感溫度', 'MaxApparentTemperature'));
+    var minAT = num(val('最低體感溫度', 'MinApparentTemperature'));
+    var pop = num(val('12小時降雨機率', 'ProbabilityOfPrecipitation'));
+    var uv = num(val('紫外線指數', 'UVIndex'));
+    var parts = [];
+    if (wx) parts.push(wx);
+    if (minT !== null && maxT !== null) parts.push(minT === maxT ? maxT + '°C' : minT + '～' + maxT + '°C');
+    else if (minT !== null || maxT !== null) parts.push((minT !== null ? minT : maxT) + '°C');
+    if (pop !== null) parts.push('降雨機率 ' + pop + '%');
+    if (!parts.length || slot === null) return [];
+    var hour = Number(String(slot).slice(11, 13));
+    var when = hour >= 6 && hour < 18 ? '白天' : hour >= 18 ? '晚上' : '凌晨';
+    var out = ['🌦️ ' + lineMD_(date) + when + ' ' + county, parts.join('｜')];
+    if (pop !== null && pop >= 70) out.push('💡 降雨機率高，請留意群組通知（可能延賽）');
+    else if (pop !== null && pop >= 50) out.push('💡 可能下雨，記得帶雨具');
+    var hot = maxAT !== null && maxAT >= 32;
+    var sun = uv !== null && uv >= 8;
+    if (hot && sun) out.push('💡 體感偏熱、紫外線很強，記得防曬、多補充水分');
+    else if (hot) out.push('💡 體感偏熱，記得防曬、多補充水分');
+    else if (sun) out.push('💡 紫外線很強，記得防曬');
+    if (minAT !== null && minAT <= 15) out.push('💡 天氣偏涼，注意保暖、多做熱身');
+    return out;
   } catch (e) {
     Logger.log('氣象署讀取失敗：' + e);
   }
-  return null;
+  return [];
 }
 
 // #上一場：最近一場有賽事成績（resultUrl）的比賽

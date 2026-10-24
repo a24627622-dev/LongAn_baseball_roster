@@ -183,6 +183,7 @@ node tests/test_gate.js
 node tests/test_season_stats.js
 node tests/test_line.js
 node tests/test_moved.js
+node tests/test_publish.js
 node tests/check_data.js
 ```
 
@@ -441,6 +442,31 @@ git pull origin main
 **比賽完成**（V01.11.00 起）：按「比賽完成」時，最終名單、打者與投手成績、逐局比分會寫進陣容調度建立的比賽分頁（陣容調度要先上傳過先發）。工具的成績會覆蓋手填值；自責分（ER）V01.13.00 起寫入建議值（判斷不準的塗黃，人在試算表確認，改過的重新寫入時保留）；比賽超過 5 局時，第 6 局以後的逐局比分請手動補。寫入失敗時按「重新寫入比賽分頁」。
 
 換手機或手機上的紀錄不見時：開始畫面選好同一場比賽 → 最下面「備用」→「從雲端備份載入」，從最後一次備份接著記（最多重記還沒備份的那半局）。「下載備份檔」仍可當最後保險。
+
+## 賽事成績一鍵發布（V01.15.00 起）
+
+賽後用「賽事成績發布」選比賽 → 確認 ER → 選賽事、勾公告 → 按「🚀 一鍵發布」。GAS 會一次做完：
+
+- 確認過的 ER 寫回比賽分頁的投手表，黃色清掉
+- 成績檔 `data/games/<比賽ID>.json`、時程那場的比分／成績連結／賽事、戰報公告（有勾的話），**合成 GitHub 上的一次修改**（修改說明例：「發布賽事成績：2026-11-15 vs RELOOC 8:2」）
+- 約 1～2 分鐘後官網生效；LINE 的 `#上一場`、`#戰績` 也跟著更新
+
+規則：時程裡要剛好有一場「同一天、同對手、沒取消」的比賽（測試比賽不會被誤發布）；已經發布過的按鈕變「🔄 更新發布」（不重複發公告）；「撤回這場的發布」會刪成績檔、清空時程那場的比分與連結（賽事保留）、刪連到這場的公告。舊的複製貼上收在「🧰 備用：手動發布」，金鑰過期或 GitHub 出問題時用。
+
+### 第一次設定（只要做一次）
+
+1. **GitHub 金鑰**（用 repo 擁有者帳號登入 GitHub）：右上頭像 → **Settings** → 最下面 **Developer settings** → **Personal access tokens → Fine-grained tokens → Generate new token**
+   - Token name：`龍安一鍵發布`；Expiration：選最長的（到期前 GitHub 會寄信，到期後工具會顯示「GitHub 金鑰無效或過期」，重新產生一把換上）
+   - Repository access：**Only select repositories** → `LongAn_baseball_roster`
+   - Permissions → Repository permissions → **Contents：Read and write**（其他都不要動）
+   - 按 Generate token，**馬上複製**（只顯示一次，開頭 `github_pat_`）
+2. **Apps Script「專案設定 ⚙️ → 指令碼屬性」**新增 `GITHUB_TOKEN`＝剛剛那串（**不要貼給任何人、不要放進 repo、截圖要遮住值**）
+3. **部署 GAS**：新增三個檔案並整份貼上——`GitHub`（＝`gas/GitHub.gs`）、`PublishCore`（＝根目錄 `publish-core.js`）、`DataCheck`（＝根目錄 `data-check.js`）；更新 `程式碼.gs`（＝`gas/Code.gs`）→「部署 → 管理部署作業 → 編輯 → 新版本」
+4. 金鑰外流時：回到 GitHub 同一頁按 **Delete**，立刻失效；再產生一把新的換上
+
+### 本機測試
+
+`node dev/server.js` 後，發布會寫進**假的 GitHub**（記憶體裡，終端機會印出「[假 GitHub] 發布賽事成績：…」，伺服器重開就回到 repo 現在的時程與公告），不會碰到正式的 GitHub。
 
 ## LINE「龍安虛擬球隊經理」（V01.14.00 起）
 

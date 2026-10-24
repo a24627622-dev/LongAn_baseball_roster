@@ -103,6 +103,12 @@ function doPost(e) {
     if (action === 'loadRecordBackup') return jsonOut(loadRecordBackup_(ss, data.gameId));
     if (action === 'listRecordBackups') return jsonOut(listRecordBackups_(ss));
 
+    // 一鍵發布、撤回（GitHub.gs，V01.15.00）：在寫「調度紀錄」流水簿之前就回應
+    if (action === 'publishGame' || action === 'unpublishGame') {
+      if (typeof publishGame_ !== 'function') return jsonOut({ success: false, code: 'NO_GITHUB_GS', message: "GAS 還沒貼 GitHub.gs（和 PublishCore.gs、DataCheck.gs），請先用「備用：手動發布」" });
+      return jsonOut(action === 'publishGame' ? publishGame_(ss, data) : unpublishGame_(data));
+    }
+
     // action = getGameER：賽事成績發布（電腦）讀投手表的 ER（人確認過的自責分）
     if (action === 'getGameER') {
       var erSheet = gameIdStr && gameIdStr !== "__" ? ss.getSheetByName(gameIdStr) : null;
@@ -641,6 +647,26 @@ function readGameER_(sheet) {
     });
   }
   return out;
+}
+
+// 一鍵發布（V01.15.00）：發布時確認過的 ER 寫回投手表、清掉黃色（＝人確認過）。
+// pitching：[{ number, ER }]；回傳試算表裡找不到的背號
+function writeGameER_(sheet, pitching) {
+  var missing = pitching.map(function (p) { return String(p.number); });
+  var headerRow = findHeaderRowByLabel(sheet, "順序", 300);
+  var lastRow = sheet.getLastRow();
+  if (headerRow === -1 || lastRow <= headerRow) return missing;
+  var rows = sheet.getRange(headerRow + 1, 1, lastRow - headerRow, PITCHER_WIDTH).getValues();
+  for (var i = 0; i < rows.length; i++) {
+    var label = (rows[i][4] || "").toString();
+    if (label !== "先發投手" && label !== "後援投手") break;
+    var num = String(rows[i][2]);
+    var p = pitching.filter(function (x) { return String(x.number) === num; })[0];
+    if (!p) continue;
+    sheet.getRange(headerRow + 1 + i, PITCHER_ER_COL).setValue(p.ER).setBackground(COLOR_ROW_WHITE_BG);
+    missing = missing.filter(function (n) { return n !== num; });
+  }
+  return missing;
 }
 
 // 板凳名單（V01.13.01）：投手表合計列下面空一列，「板凳（有到沒上場）｜背號｜球員姓名」，一人一列。

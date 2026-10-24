@@ -39,6 +39,23 @@
     .kv button { flex: 0 0 auto; }
     .gh-link.disabled { pointer-events: none; opacity: .4; }
     .is-hidden { display: none !important; }
+    /* 一鍵發布（V01.15.00） */
+    .er-table { width: 100%; border-collapse: collapse; font-size: .95rem; }
+    .er-table th, .er-table td { padding: 8px 6px; border-bottom: 1px solid #e2e8f0; text-align: center; }
+    .er-table th:first-child, .er-table td:first-child { text-align: left; }
+    .er-table input { width: 4.5em; text-align: center; font-size: 1.05rem; padding: 6px; margin: 0; }
+    .er-table input.pending { background: #fff2cc; border-color: #f59e0b; }
+    .pub-grid { display: grid; grid-template-columns: 6em 1fr; gap: 10px 12px; align-items: center; margin: 4px 0 12px; }
+    .pub-grid .k { font-weight: 700; }
+    .pub-grid select, .pub-grid input, .pub-grid textarea { margin: 0; }
+    .pub-grid textarea { min-height: 70px; }
+    @media (max-width: 480px) { .pub-grid { grid-template-columns: 1fr; gap: 4px; } .pub-grid .k { margin-top: 8px; } }
+    .ann-on { display: flex; gap: 8px; align-items: center; font-weight: 700; }
+    .ann-on input { width: auto; margin: 0; }
+    .btn-big { width: 100%; min-height: 54px; font-size: 1.1rem; font-weight: 800; }
+    .btn-undo { background: #fff; color: #b91c1c; border: 2px solid #fca5a5; }
+    .manual > summary { cursor: pointer; padding: 14px 16px; border-radius: 12px; background: #fff; border: 1px dashed #94a3b8; color: #334155; font-weight: 700; margin-top: 24px; }
+    .manual[open] > summary { margin-bottom: 4px; }
   </style>
 </head>
 <body>
@@ -114,12 +131,38 @@
     <div class="section-head"><h2>3. 預覽（官網的賽事成績頁會長這樣）</h2></div>
     <div id="preview"><div class="hint">選好比賽後，這裡會出現預覽。</div></div>
 
-    <div class="section-head"><h2>4. 發布到官網</h2></div>
+    <div class="section-head"><h2>4. 自責分（ER）確認</h2></div>
+    <div class="form-card" id="er-box"><div class="hint" style="margin-top:0">選好比賽後，這裡會列出每位投手的 ER。</div></div>
+
+    <div class="section-head"><h2>5. 一鍵發布到官網</h2></div>
     <div class="form-card">
       <div class="confirm-line" id="confirm-line" style="display:none">
         <input type="checkbox" id="confirm-warn">
         <label for="confirm-warn">上面的 ⚠️ 我都看過了，確定沒問題（或已經在紀錄裡修正）</label>
       </div>
+      <div id="pub-sched"></div>
+      <div class="pub-grid" id="pub-form">
+        <span class="k">賽事</span>
+        <div>
+          <select id="pub-league"></select>
+          <input type="text" id="pub-league-new" class="is-hidden" placeholder="新的賽事名稱，例：台北市長盃" style="margin-top:6px">
+        </div>
+        <span class="k">公告</span>
+        <label class="ann-on"><input type="checkbox" id="ann-on"> 同時發一則戰報公告</label>
+        <span class="k ann-f">標題</span><input type="text" id="ann-title" class="ann-f">
+        <span class="k ann-f">內文</span><textarea id="ann-body" class="ann-f"></textarea>
+      </div>
+      <div id="pub-msg"></div>
+      <button id="btn-publish" class="btn-big" type="button" disabled>🚀 一鍵發布</button>
+      <div class="hint" id="pub-block" style="color:#b91c1c;font-weight:700"></div>
+      <div class="btn-row" id="undo-row" style="display:none"><button id="btn-unpublish" class="btn-undo" type="button">撤回這場的發布</button></div>
+      <div class="hint">按下去會一次寫好：賽事成績、時程那場的比分與連結、公告（有勾的話），ER 也會寫回試算表。約 1～2 分鐘後官網生效。</div>
+    </div>
+
+    <details class="manual" id="manual">
+    <summary>🧰 備用：手動發布（GitHub 金鑰過期或出問題時）</summary>
+    <div class="section-head"><h2>手動 1. 產生資料檔、貼到 GitHub</h2></div>
+    <div class="form-card">
       <div id="exist-box"></div>
       <ol class="steps" id="steps">
         <li>按「產生資料檔」，再按「複製全部內容」</li>
@@ -137,7 +180,7 @@
       <div class="flash" id="copy-flash"></div>
     </div>
 
-    <div class="section-head"><h2>5. 到時程編輯器填連結和比分</h2></div>
+    <div class="section-head"><h2>手動 2. 到時程編輯器填連結和比分</h2></div>
     <div class="form-card">
       <div id="sched-box"></div>
       <div class="kv"><span class="k">比賽 ID</span><code id="rid">—</code><button class="secondary tiny" type="button" data-copy="rid">複製</button></div>
@@ -149,12 +192,13 @@
       </ol>
       <div class="btn-row"><a class="gh-link" id="sched-link" href="schedule-editor.html" target="_blank" rel="noopener">打開時程編輯器的這一場 ↗</a></div>
     </div>
+    </details>
 
   </main>
 
   <footer class="site-footer">
     <div class="wrap">
-      <span>賽事成績發布｜只會「讀」試算表（雲端備份、陣容、ER），不會寫入任何資料</span>
+      <span>賽事成績發布｜讀試算表的雲端備份與陣容；一鍵發布時把 ER 寫回試算表、把成績寫進 GitHub</span>
     </div>
   </footer>
 
@@ -163,11 +207,13 @@
   <script src="../record-engine.js"></script>
   <script src="../game-core.js"></script>
   <script src="../game-view.js"></script>
+  <script src="../publish-core.js"></script>
   <script>
     /* 賽事成績發布（電腦用，V01.13.00 起；原「文字紀錄轉換」）
        來源：① 實況賽事紀錄的雲端備份（GameCore.toGame）② 貼文字紀錄（RecordEngine，備援）
        ER 一律讀比賽分頁投手表（人確認過的，GAS getGameER → DataCheck.applySheetER）；
-       時程有沒有這場、連結和比分對不對：DataCheck.publishStatus */
+       時程有沒有這場、連結和比分對不對：DataCheck.publishStatus
+       一鍵發布（V01.15.00）：ER 在這頁確認、時程與公告用 PublishCore 預覽，按下去由 GAS（GitHub.gs）寫進 GitHub；舊的複製貼上收進「備用：手動發布」 */
     const REPO = 'a24627622-dev/LongAn_baseball_roster';
     const AUTH_TOKEN_KEY = 'longan_auth_token';   // 和陣容調度工具共用，登入一次兩邊都有效
     const DRAFT_KEY = 'longan_record_draft';
@@ -184,6 +230,8 @@
     let result = null;      // 文字紀錄的轉換結果
     let cloudGame = null;   // 雲端備份產出的賽事成績（{ game, finished }）
     let sheetER = { id: null, list: undefined };   // 比賽分頁的 ER（list：陣列；null＝讀不到）
+    let erEdits = {};       // 這頁改過的 ER（背號 → 數字或 null）；換比賽時清掉
+    let announcements = []; // data/announcements.json（這場有沒有公告了）
 
     const store = {
       get(k) { try { return localStorage.getItem(k); } catch (e) { return null; } },
@@ -249,6 +297,7 @@
 
     async function pickCloud() {
       cloudGame = null;
+      erEdits = {};
       const g = backups[Number($('g-sel').value)];
       if (!$('g-sel').value || !g) { refresh(); return; }
       flash('load-flash', `讀取 ${g.gameId} 的雲端備份…`, true);
@@ -265,6 +314,7 @@
 
     /* 比賽分頁投手表的 ER（人確認過的） */
     async function loadER(g, id) {
+      if (sheetER.id !== id) erEdits = {};
       sheetER = { id, list: null };
       try {
         const r = await post({ action: 'getGameER', gameInfo: g });
@@ -368,11 +418,11 @@
         base = textGame(result);
         needConfirm = result.warnings.length > 0;
       }
-      const er = DataCheck.applySheetER(base, sheetER.id === base.id ? sheetER.list : null);
+      const er = DataCheck.applySheetER(base, sheetER.id === base.id ? mergedER() : null);
       const game = er.game;
       const chk = DataCheck.checkGame(game);
       const roster = DataCheck.checkGameRoster(game, sitePlayers);
-      warns = warns.concat(er.warnings, DataCheck.publishStatus(schedule, { ...game, score: game.score }).warnings,
+      warns = warns.concat(er.warnings.filter((w) => !/還沒填 ER/.test(w)), DataCheck.publishStatus(schedule, { ...game, score: game.score }).warnings,
         chk.warnings.map((x) => x.msg), roster.warnings.map((x) => x.msg), roster.errors.map((x) => x.msg));
       return { game, warnings: warns, errors: chk.errors.map((x) => x.msg), needConfirm };
     }
@@ -403,6 +453,8 @@
         $('check-box').innerHTML = '';
         $('preview').innerHTML = `<div class="hint">${source === 'cloud' ? '先選比賽。' : (!lineup ? '先載入陣容。' : '貼上紀錄後會自動轉換。')}</div>`;
         showPublish(null);
+        renderER(null);
+        renderOneClick(null);
         return;
       }
       $('check-box').innerHTML = (current.errors.length ? box('err', ['資料格式檢查沒過，不能發布：', ...current.errors]) : box('ok', ['✅ 資料格式檢查通過']))
@@ -410,6 +462,174 @@
       $('preview').innerHTML = GameView.renderGame(current.game, GameView.photoMap(sitePlayers, '../'));
       $('btn-build').disabled = !!current.errors.length || current.needConfirm;
       showPublish(current.game);
+      renderER(current.game);
+      renderOneClick(current.game);
+    }
+
+    /* ---------- 一鍵發布（V01.15.00） ---------- */
+    /* 試算表的 ER ＋ 這頁改過的（改過或確認過的都不再算黃色） */
+    function mergedER() {
+      if (!Array.isArray(sheetER.list)) return null;
+      return sheetER.list.map((x) => (String(x.number) in erEdits ? { ...x, ER: erEdits[String(x.number)], pending: false } : { ...x, pending: false }));
+    }
+    function erList(game) {   // 送給 GAS 的 [{ number, ER }]
+      return (game.pitching || []).map((p) => ({ number: String(p.number), ER: Number.isInteger(p.ER) ? p.ER : null }));
+    }
+    let erKey = '';
+    function renderER(game) {
+      const key = game ? `${game.id}|${JSON.stringify(sheetER.list)}` : '';
+      if (key === erKey) return;   // 打字時不重畫，游標才不會跑掉
+      erKey = key;
+      if (!game) { $('er-box').innerHTML = '<div class="hint" style="margin-top:0">選好比賽後，這裡會列出每位投手的 ER。</div>'; return; }
+      if (!Array.isArray(sheetER.list) || sheetER.id !== game.id) {
+        $('er-box').innerHTML = box('err', ['讀不到試算表的比賽分頁（分頁不存在或沒有網路），沒辦法確認 ER，也不能一鍵發布']);
+        return;
+      }
+      const sheetBy = {};
+      sheetER.list.forEach((x) => { sheetBy[String(x.number)] = x; });
+      $('er-box').innerHTML = `<table class="er-table"><thead><tr><th>投手</th><th>局數</th><th>失分</th><th>自責分 ER</th></tr></thead><tbody>${
+        (game.pitching || []).map((p) => {
+          const s = sheetBy[String(p.number)];
+          const v = String(p.number) in erEdits ? erEdits[String(p.number)] : (s ? s.ER : null);
+          return `<tr><td>#${esc(p.number)} ${esc(p.name)}</td><td>${esc(p.IP)}</td><td>${esc(p.R)}</td>
+            <td><input type="number" inputmode="numeric" min="0" max="${esc(p.R)}" step="1" data-er="${esc(p.number)}" value="${v === null || v === undefined ? '' : esc(v)}" class="${s && s.pending ? 'pending' : ''}"></td></tr>`;
+        }).join('')}</tbody></table>
+        <div class="hint">數字是工具算的建議值（比賽完成時寫進試算表）。<b style="background:#fff2cc">黃色</b>＝工具沒把握，請確認；可以直接改。發布時 ER 會寫回試算表、黃色清掉。</div>`;
+    }
+
+    function leagueValue() {
+      const v = $('pub-league').value;
+      if (v === '__new') return $('pub-league-new').value.trim() || null;
+      if (v === '__pick') return null;
+      return v;   // '' ＝友誼賽
+    }
+    let pubKey = '';
+    function renderOneClick(game) {
+      const key = game ? game.id : '';
+      const btn = $('btn-publish');
+      if (!game) {
+        pubKey = '';
+        $('pub-sched').innerHTML = ''; $('pub-msg').innerHTML = '';
+        $('undo-row').style.display = 'none';
+        btn.disabled = true; btn.textContent = '🚀 一鍵發布';
+        $('pub-block').textContent = '';
+        return;
+      }
+      const r = PublishCore.applyPublish(schedule, game, {});
+      const item = r.ok ? schedule[r.index] : null;
+      if (key !== pubKey) {   // 換了比賽：重設賽事與公告草稿
+        pubKey = key;
+        $('pub-msg').innerHTML = '';
+        const ls = PublishCore.leagues(schedule);
+        const cur = item && typeof item.league === 'string' ? item.league.trim() : '';
+        if (cur && ls.indexOf(cur) === -1) ls.unshift(cur);
+        $('pub-league').innerHTML = (cur ? '' : '<option value="__pick">— 請選擇賽事 —</option>')
+          + ls.map((l) => `<option value="${esc(l)}">${esc(l)}</option>`).join('')
+          + '<option value="">友誼賽（不計戰績）</option><option value="__new">新增賽事…</option>';
+        $('pub-league').value = cur || '__pick';
+        $('pub-league-new').classList.add('is-hidden');
+        const had = PublishCore.hasAnnouncement(announcements, game.id);
+        const d = PublishCore.draftAnnouncement(game, todayStr());
+        $('ann-on').checked = !had;
+        $('ann-title').value = d.title;
+        $('ann-body').value = d.body;
+        annToggle();
+      }
+      const lines = [];
+      if (!r.ok) {
+        $('pub-sched').innerHTML = box('err', ['不能一鍵發布：' + r.error]) + `<div class="btn-row" style="margin-top:-4px;margin-bottom:12px"><a class="gh-link" href="schedule-editor.html?date=${encodeURIComponent(game.date)}" target="_blank" rel="noopener">打開時程編輯器的這一天 ↗</a></div>`;
+      } else {
+        lines.push(`時程：${fmtDate(item.date)} vs ${item.opponent} → 比分 ${game.score.us}:${game.score.opp}、連到這場的賽事成績${r.mode === 'update' ? '（已經發布過，這次是更新）' : ''}`);
+        if (PublishCore.hasAnnouncement(announcements, game.id)) lines.push('這場已經有戰報公告了，預設不再發');
+        $('pub-sched').innerHTML = box('ok', lines);
+      }
+      updatePublishButton();
+    }
+    function annToggle() {
+      document.querySelectorAll('.ann-f').forEach((el) => el.classList.toggle('is-hidden', !$('ann-on').checked));
+    }
+    function publishBlockers() {
+      const out = [];
+      if (!current) return ['先選比賽'];
+      if (current.errors.length) out.push('資料格式檢查沒過');
+      if (current.needConfirm && !$('confirm-warn').checked) out.push('請先勾選「上面的 ⚠️ 我都看過了」');
+      if (!PublishCore.applyPublish(schedule, current.game, {}).ok) out.push('時程要先處理');
+      if (!Array.isArray(sheetER.list) || sheetER.id !== current.game.id) out.push('讀不到試算表的 ER');
+      else {
+        const miss = erList(current.game).filter((x) => x.ER === null);
+        if (miss.length) out.push('還有投手沒填 ER：' + miss.map((x) => '#' + x.number).join('、'));
+      }
+      if (leagueValue() === null) out.push('請選擇賽事');
+      if ($('ann-on').checked && !$('ann-title').value.trim()) out.push('公告標題不能空白');
+      return out;
+    }
+    function updatePublishButton() {
+      if (!current) return;
+      const done = publishedCache[current.game.id] === true;
+      const block = publishBlockers();
+      const btn = $('btn-publish');
+      btn.disabled = !!block.length;
+      btn.textContent = done ? '🔄 更新發布' : '🚀 一鍵發布';
+      $('pub-block').textContent = block.length ? '還不能發布：' + block.join('、') : '';
+      $('undo-row').style.display = done ? '' : 'none';
+    }
+
+    async function publishNow() {
+      if (!current) return;
+      const block = publishBlockers();
+      if (block.length) { $('pub-msg').innerHTML = box('err', block); return; }
+      const game = { ...current.game, generatedAt: new Date().toISOString() };
+      const league = leagueValue();
+      const ann = $('ann-on').checked ? { title: $('ann-title').value.trim(), body: $('ann-body').value } : null;
+      const ok = confirm(`確定發布到官網？\n\n${game.date} vs ${game.opponent}　${game.score.us}:${game.score.opp}\n賽事：${league || '友誼賽（不計戰績）'}\n公告：${ann ? ann.title : '不發'}`);
+      if (!ok) return;
+      const btn = $('btn-publish');
+      btn.disabled = true; btn.textContent = '發布中…';
+      $('pub-msg').innerHTML = box('warn', ['發布中，請稍候（約 5～10 秒）…']);
+      try {
+        const r = await post({ action: 'publishGame', game, er: erList(game), league, announcement: ann });
+        if (needLogin(r)) { $('pub-msg').innerHTML = box('err', ['需要隊務登入，請在上方輸入密碼後再按一次']); return; }
+        if (!r || !r.success) { $('pub-msg').innerHTML = box('err', ['發布失敗：' + ((r && r.message) || '沒有回應')]); return; }
+        publishedCache[game.id] = true;
+        $('ann-on').checked = false; annToggle();   // 公告發過了，再按「更新發布」不重複發
+        // 這頁的時程、公告跟著更新（官網要等 1～2 分鐘）
+        const p = PublishCore.buildPublish({ game, schedule, announcements, league, announcement: ann, today: todayStr() });
+        if (p.ok) {
+          schedule = p.schedule;
+          if (p.announced) announcements = PublishCore.addAnnouncement(announcements, { ...PublishCore.draftAnnouncement(game, todayStr()), ...ann }).announcements;
+        }
+        sheetER = { id: sheetER.id, list: erList(game).map((x) => ({ number: x.number, ER: x.ER, pending: false })) };
+        erEdits = {};
+        const url = `../game.html?id=${encodeURIComponent(game.id)}`;
+        $('pub-msg').innerHTML = `<div class="msg ok">✅ ${esc(r.message)}${r.announced ? '（含公告）' : ''}<br>約 1～2 分鐘後官網生效：<a href="${url}" target="_blank" rel="noopener">賽事成績頁 ↗</a>　<a href="../standings.html" target="_blank" rel="noopener">戰績 ↗</a>　<a href="../news.html" target="_blank" rel="noopener">公告 ↗</a></div>`;
+      } catch (e) {
+        $('pub-msg').innerHTML = box('err', ['發布失敗：' + e.message]);
+      } finally {
+        pubKey = current ? current.game.id : '';   // 不重設賽事、公告與結果訊息
+        refresh();
+      }
+    }
+
+    async function unpublishNow() {
+      if (!current) return;
+      const id = current.game.id;
+      if (!confirm(`確定撤回 ${id}？\n\n會刪掉官網上這場的賽事成績、清空時程那場的比分與連結、刪掉連到這場的公告。\n雲端備份和試算表不受影響，之後可以再發布。`)) return;
+      $('btn-unpublish').disabled = true;
+      try {
+        const r = await post({ action: 'unpublishGame', gameId: id });
+        if (needLogin(r)) { $('pub-msg').innerHTML = box('err', ['需要隊務登入，請在上方輸入密碼後再按一次']); return; }
+        if (!r || !r.success) { $('pub-msg').innerHTML = box('err', ['撤回失敗：' + ((r && r.message) || '沒有回應')]); return; }
+        publishedCache[id] = false;
+        const u = PublishCore.applyUnpublish(schedule, announcements, id);
+        schedule = u.schedule; announcements = u.announcements;
+        pubKey = '';
+        refresh();
+        $('pub-msg').innerHTML = box('ok', ['✅ ' + r.message + '（約 1～2 分鐘後官網生效）']);
+      } catch (e) {
+        $('pub-msg').innerHTML = box('err', ['撤回失敗：' + e.message]);
+      } finally {
+        $('btn-unpublish').disabled = false;
+      }
     }
 
     /* 官網上已經有這場的檔案嗎（剛 commit 的要等約一分鐘 GitHub Pages 才更新） */
@@ -447,6 +667,7 @@
       gh.href = exists ? `https://github.com/${REPO}/edit/main/data/games/${encodeURIComponent(fname)}`
         : `https://github.com/${REPO}/new/main/data/games?filename=${encodeURIComponent(fname)}`;
       gh.classList.toggle('disabled', !!current.errors.length);
+      updatePublishButton();
     }
 
     function build() {
@@ -482,7 +703,22 @@
       saveDraft();
       if (lineup) { lineup = null; $('lineup-box').innerHTML = ''; flash('load-flash', '比賽資訊改了，請重新載入陣容。'); refresh(); }
     }));
-    $('confirm-warn').addEventListener('change', (e) => { $('btn-build').disabled = !e.target.checked || !current || !!current.errors.length; });
+    $('confirm-warn').addEventListener('change', (e) => { $('btn-build').disabled = !e.target.checked || !current || !!current.errors.length; updatePublishButton(); });
+    $('er-box').addEventListener('input', (e) => {
+      const n = e.target.getAttribute('data-er');
+      if (n === null) return;
+      const v = e.target.value.trim();
+      erEdits[n] = v === '' ? null : Number(v);
+      e.target.classList.remove('pending');
+      current = currentGame();
+      updatePublishButton();
+    });
+    $('pub-league').addEventListener('change', () => { $('pub-league-new').classList.toggle('is-hidden', $('pub-league').value !== '__new'); updatePublishButton(); });
+    $('pub-league-new').addEventListener('input', updatePublishButton);
+    $('ann-on').addEventListener('change', () => { annToggle(); updatePublishButton(); });
+    $('ann-title').addEventListener('input', updatePublishButton);
+    $('btn-publish').addEventListener('click', publishNow);
+    $('btn-unpublish').addEventListener('click', unpublishNow);
     $('btn-build').addEventListener('click', build);
     $('btn-copy').addEventListener('click', async () => {
       const ta = $('output');
@@ -515,6 +751,7 @@
       } catch (e) { /* 草稿壞了就從空白開始 */ }
       try { sitePlayers = (await loadChecked('../data/players.json', 'players')).items; } catch (e) { console.error(e); }
       try { schedule = (await loadChecked('../data/schedule.json', 'schedule')).items; } catch (e) { console.error(e); }
+      try { announcements = (await loadChecked('../data/announcements.json', 'announcements')).items; } catch (e) { console.error(e); }
       setSource(store.get(SRC_KEY) === 'text' ? 'text' : 'cloud');
     })();
   </script>

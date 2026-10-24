@@ -19,13 +19,14 @@ const fs = require('fs');
 const path = require('path');
 const os = require('os');
 const { createGasContext, MockSheet, MockSpreadsheet } = require('../tests/gas_mock');
+const { createFakeGitHub } = require('../tests/github_fake');
 
 const ROOT = path.resolve(__dirname, '..');
 const DATA_DIR = path.join(__dirname, 'data');
 const DATA_FILE = path.join(DATA_DIR, 'sheets.json');
 const CONFIG_FILE = path.join(__dirname, 'config.json');
 const ROSTER_FILE = path.join(__dirname, 'roster.json');
-const GAS_FILES = ['gas/Code.gs', 'gas/Auth.gs', 'gas/Pitchers.gs', 'gas/Backup.gs', 'season-stats.js', 'gas/Line.gs'];
+const GAS_FILES = ['gas/Code.gs', 'gas/Auth.gs', 'gas/Pitchers.gs', 'gas/Backup.gs', 'season-stats.js', 'gas/Line.gs', 'data-check.js', 'publish-core.js', 'gas/GitHub.gs'];
 
 const MIME = {
   '.html': 'text/html; charset=utf-8', '.css': 'text/css; charset=utf-8', '.js': 'text/javascript; charset=utf-8',
@@ -91,7 +92,17 @@ function saveSpreadsheet(ss) {
 // 本機的對外連線：官網資料檔讀 repo 裡的檔案；LINE 回覆記下來；氣象署不連（不顯示降雨機率）
 const LINE_SITE = 'https://longan-baseball.pages.dev';
 let lineOutbox = [];
+// 一鍵發布：假的 GitHub（記憶體裡，伺服器重開就回到 repo 現在的時程、公告；不會碰到正式的 GitHub）
+const fakeGitHub = createFakeGitHub({
+  'data/schedule.json': fs.readFileSync(path.join(ROOT, 'data/schedule.json'), 'utf8'),
+  'data/announcements.json': fs.readFileSync(path.join(ROOT, 'data/announcements.json'), 'utf8'),
+}, { token: 'dev' });
 function devFetch(url, params) {
+  if (url.startsWith('https://api.github.com/')) {
+    const r = fakeGitHub.handler(url, params);
+    if (r.code === 200 && fakeGitHub.commits.length && /\/git\/refs\//.test(url)) console.log('   [假 GitHub] ' + fakeGitHub.commits[fakeGitHub.commits.length - 1].message);
+    return r;
+  }
   if (url === 'https://api.line.me/v2/bot/message/reply') {
     lineOutbox.push(JSON.parse(params.payload).messages[0].text);
     return { code: 200, body: '{}' };
@@ -109,7 +120,8 @@ function runGas(fn, arg) {
   propsStore.TEAM_PASSCODE = cfg.TEAM_PASSCODE;
   propsStore.AUTH_ENFORCED = cfg.AUTH_ENFORCED;
   const ss = loadSpreadsheet();
-  propsStore.LINE_CHANNEL_ACCESS_TOKEN = 'dev';   // 本機：LINE 回覆不真的送出，記在 lineOutbox（/dev/line 看）
+  propsStore.LINE_CHANNEL_ACCESS_TOKEN = 'dev';
+  propsStore.GITHUB_TOKEN = 'dev';                // 本機：一鍵發布寫進假的 GitHub（fakeGitHub）   // 本機：LINE 回覆不真的送出，記在 lineOutbox（/dev/line 看）
   const { ctx, logs } = createGasContext({ files: GAS_FILES, spreadsheet: ss, propsStore, cacheStore, fetch: devFetch });
   const output = ctx[fn](arg);
   saveSpreadsheet(ss);

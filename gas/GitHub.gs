@@ -137,6 +137,17 @@ function publishGame_(ss, data) {
   return ghFail_('剛好有人同時在改 GitHub，請過一下再按一次');
 }
 
+// action = publishState：{ gameId } → { published }（V01.15.01，只讀）
+// 發布頁判斷按鈕要寫「一鍵發布」還是「更新發布」、要不要出現「撤回」；直接問 GitHub，不讀官網（Cloudflare 或瀏覽器可能留著已刪除檔案的舊副本）
+function publishState_(data) {
+  var notReady = ghReady_();
+  if (notReady) return notReady;
+  if (!PublishCore.validId(data.gameId)) return ghFail_('比賽 ID 不合格式：' + JSON.stringify(data.gameId));
+  var f = ghRead_(PublishCore.gamePath(data.gameId));
+  if (!f.ok) return ghFail_(f.error);
+  return { success: true, published: f.text !== null };
+}
+
 // action = unpublishGame：{ gameId }
 function unpublishGame_(data) {
   var notReady = ghReady_();

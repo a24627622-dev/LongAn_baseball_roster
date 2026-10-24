@@ -202,4 +202,17 @@ test('賽事選項：時程裡出現過的賽事，不重複、照第一次出�
   assert.deepStrictEqual(P.leagues(s), ['大漢聯盟', '台北市長盃']);
 });
 
+console.log('\npublish-core.js 讀官網判斷發布過了沒（V01.15.01：問不到 GitHub 時的備援）');
+
+test('【修正】官網讀到的內容要真的是這場的成績資料才算：首頁（HTML）、別場、壞掉的 JSON、沒有 id 都不算', () => {
+  const id = '2026-11-01_G1_演練';
+  assert.strictEqual(P.isGameFile(JSON.stringify({ id, score: { us: 0, opp: 0 } }), id), true);
+  assert.strictEqual(P.isGameFile('<!DOCTYPE html><html><head><title>龍安棒球隊</title>', id), false);
+  assert.strictEqual(P.isGameFile(JSON.stringify({ id: '2026-08-30_G4_雨人' }), id), false);
+  assert.strictEqual(P.isGameFile('{"id": "2026-11-01_G1_演練", ', id), false);
+  assert.strictEqual(P.isGameFile(JSON.stringify({ score: {} }), id), false);
+  assert.strictEqual(P.isGameFile('', id), false);
+  assert.strictEqual(P.isGameFile(null, id), false);
+});
+
 console.log(`\n共 ${passed} 項通過` + (process.exitCode ? '（有失敗）' : ''));

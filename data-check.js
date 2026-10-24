@@ -314,7 +314,31 @@
     return out;
   }
 
-  const api = { checkSchedule, checkAnnouncements, checkPlayers, checkGame, checkGameRoster, isValidDate, announcementLink, publishStatus, applySheetER };
+  /* 球場資訊（data/venues.json，V01.14.00：LINE 機器人的 #下一場、#練球 附上停車、集合點、降雨機率）。
+     name 要和時程的 venue 一模一樣；area 是縣市＋鄉鎮區（查天氣用，取前三個字當縣市） */
+  const VENUE_FIELDS = ['name', 'map', 'parking', 'meet', 'note', 'area'];
+  function checkVenues(data) {
+    const r = newResult();
+    if (!Array.isArray(data)) {
+      r.fatal = `最外層應該是陣列 [ ]，實際是${describe(data)}`;
+      return r;
+    }
+    const seen = {};
+    data.forEach((v, i) => {
+      const w = `第 ${i + 1} 筆` + (isObject(v) && typeof v.name === 'string' ? `（${v.name}）` : '');
+      if (!isObject(v)) { r.errors.push({ where: w, msg: `應該是一筆 { } 物件，實際是${describe(v)}` }); r.badCount++; return; }
+      if (typeof v.name !== 'string' || !v.name.trim()) { r.errors.push({ where: w, msg: '缺少 name（球場名稱，要和時程的地點一模一樣）' }); r.badCount++; return; }
+      if (seen[v.name.trim()]) { r.errors.push({ where: w, msg: `球場名稱和第 ${seen[v.name.trim()]} 筆重複` }); r.badCount++; return; }
+      seen[v.name.trim()] = i + 1;
+      r.valid.push(v);
+      Object.keys(v).filter((k) => !VENUE_FIELDS.includes(k)).forEach((k) => r.warnings.push({ where: w, msg: `不認得的欄位「${k}」（可用的欄位：${VENUE_FIELDS.join('、')}），是不是打錯字？` }));
+      VENUE_FIELDS.filter((k) => k in v && typeof v[k] !== 'string').forEach((k) => r.warnings.push({ where: w, msg: `${k} 應為文字，實際是 ${JSON.stringify(v[k])}` }));
+      if (typeof v.area === 'string' && v.area && !/^.{2}[市縣]/.test(v.area)) r.warnings.push({ where: w, msg: `area 看不出縣市：${JSON.stringify(v.area)}（例：新北市板橋區），降雨機率會查不到` });
+    });
+    return r;
+  }
+
+  const api = { checkVenues, checkSchedule, checkAnnouncements, checkPlayers, checkGame, checkGameRoster, isValidDate, announcementLink, publishStatus, applySheetER };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   else root.DataCheck = api;
 })(this);

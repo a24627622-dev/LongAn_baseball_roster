@@ -84,6 +84,7 @@ function createGasContext(opts = {}) {
   const props = opts.propsStore || Object.assign({}, opts.props || {});
   const cache = opts.cacheStore || {};
   const logs = [];
+  const fetches = [];
   let now = opts.now || null;
 
   const ctx = {
@@ -128,12 +129,21 @@ function createGasContext(opts = {}) {
     },
     Logger: { log: m => logs.push(String(m)) },
     SpreadsheetApp: { getActiveSpreadsheet: () => opts.spreadsheet },
+    // 對外連線（LINE、官網資料檔、氣象署）：opts.fetch(url, params) 回傳 { code, body }；每一次呼叫記在 fetches
+    UrlFetchApp: {
+      fetch: (url, params) => {
+        fetches.push({ url, params: params || {} });
+        if (!opts.fetch) throw new Error('測試沒有提供 fetch：' + url);
+        const r = opts.fetch(url, params || {}) || { code: 404, body: '' };
+        return { getResponseCode: () => r.code, getContentText: () => (typeof r.body === 'string' ? r.body : JSON.stringify(r.body)) };
+      },
+    },
   };
   vm.createContext(ctx);
   for (const f of opts.files || []) {
     vm.runInContext(fs.readFileSync(path.resolve(__dirname, '..', f), 'utf8'), ctx, { filename: f });
   }
-  return { ctx, props, cache, logs };
+  return { ctx, props, cache, logs, fetches };
 }
 
 module.exports = { createGasContext, MockSheet, MockSpreadsheet };

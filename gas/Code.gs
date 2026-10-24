@@ -83,6 +83,9 @@ function doPost(e) {
     var ss = SpreadsheetApp.getActiveSpreadsheet();
     var data = JSON.parse(e.postData.contents);
 
+    // LINE「龍安虛擬球隊經理」（Line.gs）：LINE 傳來的群組訊息，不需要隊務登入、不寫流水簿
+    if (typeof isLineWebhook_ === 'function' && isLineWebhook_(data)) return lineHandle_(data);   // 沒貼 Line.gs 也不影響隊務功能
+
     // 隊務登入驗證（Auth.gs）：login／authStatus 在這裡直接回應；沒通過驗證的請求在這裡被擋下
     var gate = authGate_(data);
     if (gate) return gate;

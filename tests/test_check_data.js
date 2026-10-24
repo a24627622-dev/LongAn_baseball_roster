@@ -5,7 +5,7 @@ const fs = require('fs');
 const os = require('os');
 const path = require('path');
 const { execFileSync } = require('child_process');
-const { checkSchedule, checkAnnouncements, checkPlayers, checkGame, checkGameRoster, announcementLink, publishStatus, applySheetER } = require('../data-check');
+const { checkSchedule, checkAnnouncements, checkPlayers, checkGame, checkGameRoster, announcementLink, publishStatus, applySheetER, checkVenues } = require('../data-check');
 
 let passed = 0;
 const test = (name, fn) => {
@@ -519,6 +519,26 @@ console.log('\n賽事成績發布 publishStatus（時程裡找這場、連結和
     assert.deepStrictEqual(publishStatus([game('2026-10-25')], null).matches, []);
   });
 }
+
+console.log('\n球場資訊 checkVenues（V01.14.00：LINE 機器人回覆用）');
+
+test('正確的球場資訊：沒有錯誤也沒有警告；repo 裡的 data/venues.json 也通過', () => {
+  const v = [{ name: '大漢B球場', map: '', parking: 'https://maps.app.goo.gl/x', meet: '球場後方草皮', note: '', area: '新北市板橋區' }];
+  const r = checkVenues(v);
+  assert.deepStrictEqual([r.fatal, r.errors, r.warnings], [null, [], []]);
+  const real = checkVenues(JSON.parse(fs.readFileSync(path.join(__dirname, '../data/venues.json'), 'utf8')));
+  assert.deepStrictEqual([real.fatal, real.errors], [null, []]);
+});
+
+test('不是陣列 → fatal；缺球場名稱、名稱重複 → 錯誤；欄位不是文字、打錯欄位名、縣市看不出來 → 警告', () => {
+  assert.match(checkVenues({}).fatal, /陣列/);
+  const r = checkVenues([{ map: '' }, { name: '甲' }, { name: '甲' }, { name: '乙', parking: 1, adress: 'x', area: '板橋' }]);
+  assert.match(msgs(r.errors), /缺少 name/);
+  assert.match(msgs(r.errors), /重複/);
+  assert.match(msgs(r.warnings), /parking 應為文字/);
+  assert.match(msgs(r.warnings), /不認得的欄位「adress」/);
+  assert.match(msgs(r.warnings), /area.*縣市/);
+});
 
 test('repo 裡現在的資料檔都通過', () => {
   const out = execFileSync('node', [CLI], { encoding: 'utf8' });

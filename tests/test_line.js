@@ -257,6 +257,66 @@ test('#練球：下一次練球取消 → 註明取消和備註', () => {
   assert.strictEqual(one('#練球', { now: TPE(2026, 11, 16, 9) }), '❌ 11/22（日）練球取消：因雨取消');
 });
 
+console.log('\n#行程（V01.15.03：今天起 7 天的練球與比賽）');
+
+const WEEK_SCHED = [
+  game('2026-11-01', 'ZERO', { league: '大漢聯盟', score: { longan: 14, opponent: 3 }, resultUrl: 'game.html?id=2026-11-01_G1_ZERO' }),
+  practice('2026-11-09', { startTime: '06:00', endTime: '08:00' }),
+  practice('2026-11-10', { startTime: '19:00', endTime: '21:00', venue: '大漢B球場' }),
+  practice('2026-11-12', { cancelled: true, note: '因雨取消' }),
+  game('2026-11-15', 'RELOOC', { league: '大漢聯盟' }),
+  practice('2026-11-16'),
+];
+const trip = (o = {}) => one('#行程', { now: TPE(2026, 11, 9, 9), data: { schedule: WEEK_SCHED }, ...o });
+
+test('一週內有練球也有比賽：日期、類型、時間、地點、賽事、天氣，依日期排序；今天的活動（時間已過）也列', () => {
+  assert.strictEqual(trip(), [
+    '📅 這週行程（11/9～11/15）',
+    '11/9（一）🏃 練球',
+    '　06:00～08:00｜地點未定',
+    '11/10（二）🏃 練球',
+    '　19:00～21:00｜大漢B球場',
+    '11/12（四）❌ 練球取消：因雨取消',
+    '11/15（日）⚾ 比賽 vs RELOOC｜大漢聯盟',
+    '　09:00 集合、10:00 開賽｜大漢B球場',
+    '　🌦️ 多雲短暫陣雨｜23～27°C｜降雨機率 30%',
+    '想看停車、集合點 👉 打 #下一場、#練球',
+  ].join('\n'));
+});
+
+test('範圍邊界：第 7 天（今天＋6）要列，第 8 天不列；時程沒排序也照日期排', () => {
+  const t = trip({ data: { schedule: WEEK_SCHED.slice().reverse() } });
+  assert.ok(t.includes('11/15（日）⚾ 比賽 vs RELOOC') && !t.includes('11/16'));
+  assert.ok(t.indexOf('11/9（一）') < t.indexOf('11/10（二）') && t.indexOf('11/10（二）') < t.indexOf('11/15（日）'));
+  const t2 = trip({ now: TPE(2026, 11, 10, 9) });   // 11/10～11/16：11/9 不列、11/16 列
+  assert.ok(t2.startsWith('📅 這週行程（11/10～11/16）') && !t2.includes('11/9（一）') && t2.includes('11/16（一）🏃 練球'));
+});
+
+test('取消的比賽也列：「❌ 比賽取消（vs 對手）：備註」', () => {
+  const sched = [game('2026-11-15', 'RELOOC', { cancelled: true, note: '颱風' })];
+  assert.strictEqual(trip({ data: { schedule: sched } }), ['📅 這週行程（11/9～11/15）', '11/15（日）❌ 比賽取消（vs RELOOC）：颱風', '想看停車、集合點 👉 打 #下一場、#練球'].join('\n'));
+});
+
+test('這週沒有活動 → 提示下一個（跳過取消的）；時程完全沒有之後的活動 → 另一句', () => {
+  const sched = [practice('2026-11-20', { cancelled: true }), game('2026-12-06', '猛虎'), practice('2026-12-13')];
+  assert.strictEqual(trip({ data: { schedule: sched } }), '這週沒有排活動，下一個是 12/6（日）比賽 vs 猛虎 📅');
+  assert.strictEqual(trip({ data: { schedule: [practice('2026-12-13')] } }), '這週沒有排活動，下一個是 12/13（日）練球 📅');
+  assert.strictEqual(trip({ data: { schedule: [WEEK_SCHED[0]] } }), '目前時程沒有排活動 📅');
+});
+
+test('天氣：提醒也縮排；沒有氣象署金鑰 → 不顯示天氣，其他照常', () => {
+  const t = trip({ weather: WEEK({ pop: '70' }) });
+  assert.ok(t.includes('　🌦️ 多雲短暫陣雨｜23～27°C｜降雨機率 70%\n　💡 降雨機率高，請留意群組通知（可能延賽）\n想看'));
+  const noKey = trip({ props: { CWA_API_KEY: '' } });
+  assert.strictEqual(noKey, trip().replace('\n　🌦️ 多雲短暫陣雨｜23～27°C｜降雨機率 30%', ''));
+});
+
+test('#行程、#本週、#這週、＃行程 都一樣；官網讀不到 → 資料暫時讀不到', () => {
+  const t = trip();
+  ['#本週', '#這週', '＃行程'].forEach((k) => assert.strictEqual(one(k, { now: TPE(2026, 11, 9, 9), data: { schedule: WEEK_SCHED } }), t, k));
+  assert.strictEqual(one('#行程', { siteDown: true }), '資料暫時讀不到，請稍後再試 🙏');
+});
+
 console.log('\n#公告、#戰績、#上一場');
 
 test('#公告：日期最新的一則（不是置頂那則），附公告頁連結', () => {
@@ -317,13 +377,14 @@ console.log('\n#說明、進群組、出錯');
 test('#說明（也接受 #help、#幫助）：列出用法', () => {
   const t = one('#說明');
   ['#下一場', '#練球', '#公告', '#戰績', '#上一場', '#陳奕瑋'].forEach((k) => assert.ok(t.includes(k), k));
+  assert.strictEqual(t.split('\n')[1], '#行程　這週的練球、比賽（今天起 7 天）');   // V01.15.03：放第一行
   assert.strictEqual(one('#help'), t);
   assert.strictEqual(one('#幫助'), t);
 });
 
 test('機器人被邀進群組 → 自我介紹', () => {
   const r = run(null, { events: [{ type: 'join', replyToken: 'j', source: { type: 'group', groupId: 'G1' } }] });
-  assert.strictEqual(r.replies[0], '大家好，我是龍安虛擬球隊經理 ⚾\n我可以回答比賽、練球、戰績、球員成績等問題，打「#說明」看用法。\n我只處理「#」開頭的訊息，其他聊天內容不會記錄。');
+  assert.strictEqual(r.replies[0], '大家好，我是龍安虛擬球隊經理 ⚾\n我可以回答比賽、練球、戰績、球員成績等問題，打「#說明」看用法。\n我只處理「#」開頭的訊息，其他聊天內容不會記錄。\n打「#行程」就知道這週要幹嘛 📅');
 });
 
 test('官網資料讀不到 → 回「資料暫時讀不到」，不會出錯中斷', () => {

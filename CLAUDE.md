@@ -42,13 +42,13 @@ node tests/test_check_data.js          # 62 項：資料檔檢查規則、公告
 node tests/test_game_core.js           # 117 項：實況賽事紀錄的計算核心（漏洞清單、8/30 驗收、雲端備份表格列、比賽分頁最終名單與成績、承繼跑者、LINE 打單、調度紀錄換人／換位置、自責分建議值、最終板凳）
 node tests/test_gate.js               # 5 項：球隊管理密碼（tools/gate.js 通行證到期判斷）
 node tests/test_season_stats.js       # 10 項：戰績頁的整季加總（season-stats.js：分組、勝敗、打擊與比率、投手 IP／ER、讀不到的場次）
-node tests/test_line.js               # 35 項：LINE「龍安虛擬球隊經理」（gas/Line.gs：觸發、各關鍵字的回覆、球場資訊、一週天氣與提醒、出錯、不影響隊務）
+node tests/test_line.js               # 41 項：LINE「龍安虛擬球隊經理」（gas/Line.gs：觸發、各關鍵字的回覆、球場資訊、一週天氣與提醒、#行程、出錯、不影響隊務）
 node tests/test_moved.js              # 5 項：舊網址轉址（moved.js：GitHub Pages → Cloudflare Pages 同一頁）
 node tests/test_publish.js            # 18 項：一鍵發布的計算核心（publish-core.js：時程比分與連結、賽事、公告草稿、撤回、要寫進 GitHub 的檔案、官網內容是不是這場）
 node tests/check_data.js               # 不是測試：檢查 data/*.json 與 data/games/*.json
 ```
 
-基準（2026-10-24，V01.15.02 開發中）：82＋40＋26＋39＋62＋117＋5（gate）＋10（season_stats）＋35（line）＋5（moved）＋18（publish），`check_data` 沒有錯誤。測試數量有增減時，這裡、`tests/README.md`、`docs/測試報告_調度三情境.md` 一起更新。
+基準（2026-10-24，V01.15.03 開發中）：82＋40＋26＋39＋62＋117＋5（gate）＋10（season_stats）＋41（line）＋5（moved）＋18（publish），`check_data` 沒有錯誤。測試數量有增減時，這裡、`tests/README.md`、`docs/測試報告_調度三情境.md` 一起更新。
 
 ### 測試放哪裡
 

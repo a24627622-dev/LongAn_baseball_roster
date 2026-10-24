@@ -11,9 +11,10 @@
 var LINE_SITE_DEFAULT = 'https://longan-baseball.pages.dev';   // 2026-10-24 搬到 Cloudflare Pages
 var LINE_REPLY_URL = 'https://api.line.me/v2/bot/message/reply';
 var LINE_WEEKDAYS = ['日', '一', '二', '三', '四', '五', '六'];
-var LINE_INTRO = '大家好，我是龍安虛擬球隊經理 ⚾\n我可以回答比賽、練球、戰績、球員成績等問題，打「#說明」看用法。\n我只處理「#」開頭的訊息，其他聊天內容不會記錄。';
+var LINE_INTRO = '大家好，我是龍安虛擬球隊經理 ⚾\n我可以回答比賽、練球、戰績、球員成績等問題，打「#說明」看用法。\n我只處理「#」開頭的訊息，其他聊天內容不會記錄。\n打「#行程」就知道這週要幹嘛 📅';
 var LINE_HELP = [
   '⚾ 龍安虛擬球隊經理 使用說明',
+  '#行程　這週的練球、比賽（今天起 7 天）',
   '#下一場　下一場比賽的時間、地點',
   '#練球　下一次練球的時間、地點',
   '#公告　最新一則公告',
@@ -65,7 +66,7 @@ function lineParse_(text) {
   if (t.charAt(0) !== '#' && t.charAt(0) !== '＃') return null;
   var body = t.slice(1).replace(/[（(][^）)]*[）)]/g, '').trim();
   if (!body) return null;
-  var map = { '下一場': 'next', '練球': 'practice', '公告': 'news', '戰績': 'record', '上一場': 'last', '說明': 'help', 'help': 'help', '幫助': 'help' };
+  var map = { '行程': 'week', '本週': 'week', '這週': 'week', '下一場': 'next', '練球': 'practice', '公告': 'news', '戰績': 'record', '上一場': 'last', '說明': 'help', 'help': 'help', '幫助': 'help' };
   var k = map[body] || map[body.toLowerCase()];
   return k ? { type: k } : { type: 'player', q: body };
 }
@@ -99,6 +100,7 @@ function lineMapUrl_(q) { return 'https://www.google.com/maps/search/?api=1&quer
 function lineAnswer_(cmd, L, site) {
   var today = lineToday_();
   if (cmd.type === 'next' || cmd.type === 'practice') return lineEvent_(cmd.type, L, today);
+  if (cmd.type === 'week') return lineWeek_(L, today);
   if (cmd.type === 'news') {
     var list = (L.json('announcements') || []).slice().sort(function (a, b) { return String(b.date).localeCompare(String(a.date)); });
     if (!list.length) return '目前沒有公告 📢';
@@ -118,6 +120,40 @@ function lineSeason_(gp, L) {
   var byId = {};
   gp.entries.forEach(function (e) { byId[e.id] = L.game(e.id); });
   return SeasonStats.summarize(gp.entries, byId);
+}
+
+// #行程（V01.15.03）：今天起 7 天（含今天）的練球與比賽，取消的也列；細節（停車、集合點）請打 #下一場、#練球
+function lineWeek_(L, today) {
+  var last = new Date(Date.parse(today + 'T00:00:00Z') + 6 * 86400000).toISOString().slice(0, 10);
+  var all = (L.json('schedule') || []).filter(function (x) { return x && (x.type === 'game' || x.type === 'practice') && String(x.date) >= today; })
+    .sort(function (a, b) { return String(a.date).localeCompare(String(b.date)); });
+  var md = function (d) { return lineMD_(d).replace(/（.）$/, ''); };
+  var what = function (x) { return x.type === 'game' ? '比賽 vs ' + (x.opponent || '未定') : '練球'; };
+  var list = all.filter(function (x) { return String(x.date) <= last; });
+  if (!list.length) {
+    var next = all.filter(function (x) { return !x.cancelled; })[0];
+    return next ? '這週沒有排活動，下一個是 ' + lineMD_(next.date) + what(next) + ' 📅' : '目前時程沒有排活動 📅';
+  }
+  var out = ['📅 這週行程（' + md(today) + '～' + md(last) + '）'];
+  list.forEach(function (x) {
+    var isGame = x.type === 'game';
+    if (x.cancelled) {
+      out.push(lineMD_(x.date) + '❌ ' + (isGame ? '比賽取消（vs ' + (x.opponent || '未定') + '）' : '練球取消') + (x.note ? '：' + x.note : ''));
+      return;
+    }
+    out.push(lineMD_(x.date) + (isGame ? '⚾ 比賽 vs ' + (x.opponent || '未定') + (typeof x.league === 'string' && x.league.trim() ? '｜' + x.league.trim() : '') : '🏃 練球'));
+    var time = isGame ? (x.gatherTime ? x.gatherTime + ' 集合、' : '') + (x.startTime || '時間未定') + ' 開賽'
+      : (x.startTime ? x.startTime + (x.endTime ? '～' + x.endTime : '') : '時間未定');
+    var venue = String(x.venue || '').trim();
+    out.push('　' + time + '｜' + (venue || '地點未定'));
+    var v = venue ? lineVenue_(L, venue) : null;
+    if (v && v.area) {
+      var w = lineWeather_(v.area, x.date, x.startTime || '12:00');
+      w.slice(1).forEach(function (l, i) { out.push('　' + (i === 0 ? '🌦️ ' : '') + l); });   // 不重複標題（日期已經寫了）
+    }
+  });
+  out.push('想看停車、集合點 👉 打 #下一場、#練球');
+  return out.join('\n');
 }
 
 // #下一場、#練球

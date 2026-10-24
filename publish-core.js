@@ -123,6 +123,18 @@
     return { ok: true, files, message: `撤回賽事成績：${opts.gameId}`, removedAnnouncements: r.removedAnnouncements, scheduleChanged: r.scheduleChanged };
   }
 
+  /* 問不到 GitHub 時，讀官網判斷發布過了沒（V01.15.01）：內容要真的是這場的成績資料。
+     Cloudflare 沒有 404.html 時會把首頁當成功回傳；也可能讀到別場或壞掉的檔 */
+  function isGameFile(text, id) {
+    if (typeof text !== 'string' || !text) return false;
+    try {
+      const g = JSON.parse(text);
+      return !!g && typeof g === 'object' && g.id === id;
+    } catch (e) {
+      return false;
+    }
+  }
+
   function leagues(schedule) {
     const out = [];
     (Array.isArray(schedule) ? schedule : []).forEach((x) => {
@@ -132,7 +144,7 @@
     return out;
   }
 
-  const api = { validId, linkOf, gamePath, applyPublish, draftAnnouncement, hasAnnouncement, addAnnouncement, applyUnpublish, buildPublish, buildUnpublish, leagues };
+  const api = { validId, linkOf, gamePath, isGameFile, applyPublish, draftAnnouncement, hasAnnouncement, addAnnouncement, applyUnpublish, buildPublish, buildUnpublish, leagues };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   else root.PublishCore = api;
 })(this);

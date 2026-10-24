@@ -33,7 +33,7 @@
 開工前全部跑一次當基準線，有失敗先停下來回報；改完再全部重跑，全綠才 commit。
 
 ```
-node tests/test_gas_modules.js         # 78 項：Auth.gs、Pitchers.gs、Backup.gs（含發布工具的比賽清單）、finishGame 帶成績與 ER 建議值、getGameER、板凳名單、投手表公式、一鍵發布（GitHub.gs，用假的 GitHub）
+node tests/test_gas_modules.js         # 82 項：Auth.gs、Pitchers.gs、Backup.gs（含發布工具的比賽清單）、finishGame 帶成績與 ER 建議值、getGameER、板凳名單、投手表公式、一鍵發布與發布過了沒（GitHub.gs，用假的 GitHub）
 node tests/test_lineup_logic.js        # 40 項：點名→先發→開始比賽（串接實況賽事紀錄）→調度→上傳→回讀→結案、板凳名單
 node tests/test_scenarios.js           # 26 項：三大調度情境、規則守門、DH 引導
 node tests/test_scenarios.js --repeat 5
@@ -44,11 +44,11 @@ node tests/test_gate.js               # 5 項：球隊管理密碼（tools/gate.
 node tests/test_season_stats.js       # 10 項：戰績頁的整季加總（season-stats.js：分組、勝敗、打擊與比率、投手 IP／ER、讀不到的場次）
 node tests/test_line.js               # 26 項：LINE「龍安虛擬球隊經理」（gas/Line.gs：觸發、各關鍵字的回覆、球場資訊、天氣、出錯、不影響隊務）
 node tests/test_moved.js              # 5 項：舊網址轉址（moved.js：GitHub Pages → Cloudflare Pages 同一頁）
-node tests/test_publish.js            # 17 項：一鍵發布的計算核心（publish-core.js：時程比分與連結、賽事、公告草稿、撤回、要寫進 GitHub 的檔案）
+node tests/test_publish.js            # 18 項：一鍵發布的計算核心（publish-core.js：時程比分與連結、賽事、公告草稿、撤回、要寫進 GitHub 的檔案、官網內容是不是這場）
 node tests/check_data.js               # 不是測試：檢查 data/*.json 與 data/games/*.json
 ```
 
-基準（2026-10-24，V01.15.00 開發中）：78＋40＋26＋39＋62＋117＋5（gate）＋10（season_stats）＋26（line）＋5（moved）＋17（publish），`check_data` 沒有錯誤。測試數量有增減時，這裡、`tests/README.md`、`docs/測試報告_調度三情境.md` 一起更新。
+基準（2026-10-24，V01.15.01 開發中）：82＋40＋26＋39＋62＋117＋5（gate）＋10（season_stats）＋26（line）＋5（moved）＋18（publish），`check_data` 沒有錯誤。測試數量有增減時，這裡、`tests/README.md`、`docs/測試報告_調度三情境.md` 一起更新。
 
 ### 測試放哪裡
 

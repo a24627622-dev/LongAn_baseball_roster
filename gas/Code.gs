@@ -104,8 +104,9 @@ function doPost(e) {
     if (action === 'listRecordBackups') return jsonOut(listRecordBackups_(ss));
 
     // 一鍵發布、撤回（GitHub.gs，V01.15.00）：在寫「調度紀錄」流水簿之前就回應
-    if (action === 'publishGame' || action === 'unpublishGame') {
+    if (action === 'publishGame' || action === 'unpublishGame' || action === 'publishState') {
       if (typeof publishGame_ !== 'function') return jsonOut({ success: false, code: 'NO_GITHUB_GS', message: "GAS 還沒貼 GitHub.gs（和 PublishCore.gs、DataCheck.gs），請先用「備用：手動發布」" });
+      if (action === 'publishState') return jsonOut(publishState_(data));   // V01.15.01：只讀
       return jsonOut(action === 'publishGame' ? publishGame_(ss, data) : unpublishGame_(data));
     }
 

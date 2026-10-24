@@ -946,4 +946,54 @@ console.log('\nGitHub.gs 一鍵發布（V01.15.00：成績檔、時程、公告�
   });
 }
 
+console.log('\nGitHub.gs 發布過了沒（V01.15.01：publishState 問 GitHub，不讀官網的舊副本）');
+{
+  const { createFakeGitHub } = require('./github_fake');
+  const files = ['gas/Code.gs', 'gas/Auth.gs', 'gas/Pitchers.gs', 'gas/Backup.gs', 'data-check.js', 'publish-core.js', 'gas/GitHub.gs'];
+  const ID = '2026-11-01_G1_演練';
+  const TOKEN = 'github_pat_test';
+  const json = (x) => JSON.stringify(x, null, 2) + '\n';
+  const make = (repo, o = {}) => {
+    const gh = createFakeGitHub({ 'data/schedule.json': '[]\n', 'data/announcements.json': '[]\n', ...repo }, { token: TOKEN, ...o.gh });
+    const ss = new MockSpreadsheet();
+    const c = createGasContext({ files, spreadsheet: ss, fetch: gh.handler, props: { GITHUB_TOKEN: TOKEN, ...o.props } });
+    return { gh, ss, ...c };
+  };
+  const post = (ctx, data) => out(ctx.doPost({ postData: { contents: JSON.stringify(data) } }));
+
+  test('【修正】GitHub 上有這場的成績檔 → 已發布；沒有 → 沒發布', () => {
+    const a = make({ ['data/games/' + ID + '.json']: json({ id: ID }) });
+    assert.deepStrictEqual(post(a.ctx, { action: 'publishState', gameId: ID }), { success: true, published: true });
+    const b = make({});
+    assert.deepStrictEqual(post(b.ctx, { action: 'publishState', gameId: ID }), { success: true, published: false });
+  });
+
+  test('沒登入 → AUTH_REQUIRED；沒設金鑰 → NO_GITHUB_TOKEN，完全沒呼叫 GitHub', () => {
+    const a = make({}, { props: { TEAM_PASSCODE: 'abc', AUTH_ENFORCED: 'true' } });
+    assert.strictEqual(post(a.ctx, { action: 'publishState', gameId: ID }).code, 'AUTH_REQUIRED');
+    const b = make({}, { props: { GITHUB_TOKEN: '' } });
+    const r = post(b.ctx, { action: 'publishState', gameId: ID });
+    assert.deepStrictEqual([r.success, r.code], [false, 'NO_GITHUB_TOKEN']);
+    assert.strictEqual(a.fetches.length + b.fetches.length, 0);
+  });
+
+  test('只讀：查完 GitHub 沒有任何修改、不寫試算表流水簿；比賽 ID 格式不對 → 拒絕', () => {
+    const a = make({ ['data/games/' + ID + '.json']: json({ id: ID }) });
+    post(a.ctx, { action: 'publishState', gameId: ID });
+    assert.strictEqual(a.gh.commits.length, 0);
+    assert.ok(a.gh.requests.every((q) => q.method === 'GET'));
+    assert.deepStrictEqual(a.ss.getSheets(), []);
+    const r = post(a.ctx, { action: 'publishState', gameId: '../../x' });
+    assert.strictEqual(r.success, false);
+    assert.match(r.message, /比賽 ID/);
+  });
+
+  test('GitHub 回 401 → 「GitHub 金鑰無效或過期」', () => {
+    const a = make({}, { props: { GITHUB_TOKEN: 'wrong' } });
+    const r = post(a.ctx, { action: 'publishState', gameId: ID });
+    assert.strictEqual(r.success, false);
+    assert.match(r.message, /GitHub 金鑰無效或過期/);
+  });
+}
+
 console.log(`\n共 ${passed} 項通過` + (process.exitCode ? '（有失敗）' : ''));

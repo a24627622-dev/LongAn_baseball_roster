@@ -155,6 +155,7 @@
       <div id="pub-msg"></div>
       <button id="btn-publish" class="btn-big" type="button" disabled>🚀 一鍵發布</button>
       <div class="hint" id="pub-block" style="color:#b91c1c;font-weight:700"></div>
+      <div class="hint" id="pub-via"></div>
       <div class="btn-row" id="undo-row" style="display:none"><button id="btn-unpublish" class="btn-undo" type="button">撤回這場的發布</button></div>
       <div class="hint">按下去會一次寫好：賽事成績、時程那場的比分與連結、公告（有勾的話），ER 也會寫回試算表。約 1～2 分鐘後官網生效。</div>
     </div>
@@ -565,11 +566,13 @@
     }
     function updatePublishButton() {
       if (!current) return;
-      const done = publishedCache[current.game.id] === true;
+      const st = publishedCache[current.game.id];   // 還沒問到：undefined
+      const done = !!(st && st.published);
       const block = publishBlockers();
       const btn = $('btn-publish');
-      btn.disabled = !!block.length;
-      btn.textContent = done ? '🔄 更新發布' : '🚀 一鍵發布';
+      btn.disabled = !!block.length || !st;
+      btn.textContent = !st ? '確認中…' : done ? '🔄 更新發布' : '🚀 一鍵發布';
+      $('pub-via').textContent = st && st.via === 'site' ? '無法向 GitHub 確認這場發布過了沒，以官網為準（官網可能留著舊資料）' : '';
       $('pub-block').textContent = block.length ? '還不能發布：' + block.join('、') : '';
       $('undo-row').style.display = done ? '' : 'none';
     }
@@ -590,7 +593,7 @@
         const r = await post({ action: 'publishGame', game, er: erList(game), league, announcement: ann });
         if (needLogin(r)) { $('pub-msg').innerHTML = box('err', ['需要隊務登入，請在上方輸入密碼後再按一次']); return; }
         if (!r || !r.success) { $('pub-msg').innerHTML = box('err', ['發布失敗：' + ((r && r.message) || '沒有回應')]); return; }
-        publishedCache[game.id] = true;
+        publishedCache[game.id] = { published: true, via: 'github' };
         $('ann-on').checked = false; annToggle();   // 公告發過了，再按「更新發布」不重複發
         // 這頁的時程、公告跟著更新（官網要等 1～2 分鐘）
         const p = PublishCore.buildPublish({ game, schedule, announcements, league, announcement: ann, today: todayStr() });
@@ -619,7 +622,7 @@
         const r = await post({ action: 'unpublishGame', gameId: id });
         if (needLogin(r)) { $('pub-msg').innerHTML = box('err', ['需要隊務登入，請在上方輸入密碼後再按一次']); return; }
         if (!r || !r.success) { $('pub-msg').innerHTML = box('err', ['撤回失敗：' + ((r && r.message) || '沒有回應')]); return; }
-        publishedCache[id] = false;
+        publishedCache[id] = { published: false, via: 'github' };
         const u = PublishCore.applyUnpublish(schedule, announcements, id);
         schedule = u.schedule; announcements = u.announcements;
         pubKey = '';
@@ -632,13 +635,25 @@
       }
     }
 
-    /* 官網上已經有這場的檔案嗎（剛 commit 的要等約一分鐘 GitHub Pages 才更新） */
-    const publishedCache = {};
+    /* 這場發布過了沒（V01.15.01）：問 GAS（publishState，直接查 GitHub）。
+       官網可能留著已刪除檔案的舊副本，所以只在問不到 GitHub（沒網路、沒金鑰、還沒登入）時才讀官網，
+       而且內容要真的是這場的成績資料才算（PublishCore.isGameFile） */
+    const publishedCache = {};   // 比賽 ID → { published, via: 'github' | 'site' }
     async function published(id) {
-      if (id in publishedCache) return publishedCache[id];
-      try { const r = await fetch(`../data/games/${encodeURIComponent(id)}.json`, { cache: 'no-store' }); publishedCache[id] = r.ok; }
-      catch (e) { publishedCache[id] = false; }
-      return publishedCache[id];
+      if (id in publishedCache) return publishedCache[id].published;
+      let st = null;
+      try {
+        const r = await post({ action: 'publishState', gameId: id });
+        if (r && r.success) st = { published: !!r.published, via: 'github' };
+      } catch (e) { /* 問不到就讀官網 */ }
+      if (!st) {
+        try {
+          const res = await fetch(`../data/games/${encodeURIComponent(id)}.json`, { cache: 'no-store' });
+          st = { published: res.ok && PublishCore.isGameFile(await res.text(), id), via: 'site' };
+        } catch (e) { st = { published: false, via: 'site' }; }
+      }
+      publishedCache[id] = st;
+      return st.published;
     }
 
     async function showPublish(game) {

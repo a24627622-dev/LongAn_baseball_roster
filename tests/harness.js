@@ -73,7 +73,8 @@ const ROSTER = [
 ].map(([n, name, isPitcher], i) => ({ id: i + 1, '背號': n, '球員姓名': name, isPitcher: !!isPitcher, isAttended: true }));
 
 // confirmAnswer：模擬使用者在確認視窗按「確定」(true) 或「取消」(false)；confirms 記下每次跳出的確認訊息
-function boot({ props = {}, draft = null, loginPasscode = null, token = null, roster = ROSTER, confirmAnswer = true } = {}) {
+// schedule：官網 data/schedule.json 的內容（V01.16.00 第一步的「📅 今天／下一場」按鈕用）；不給就當作讀不到
+function boot({ props = {}, draft = null, loginPasscode = null, token = null, roster = ROSTER, confirmAnswer = true, schedule = null } = {}) {
   const captured = { watchers: [] };
   const confirms = [];
   const backend = makeBackend(props);
@@ -86,6 +87,7 @@ function boot({ props = {}, draft = null, loginPasscode = null, token = null, ro
   let app;
   const ctx = {
     Vue: makeVue(captured),
+    GamePick: require('../game-pick'),
     console, JSON, Date, Math, Promise, Set, Array, Object, String, parseInt, Error, URLSearchParams,
     atob: (s) => Buffer.from(s, 'base64').toString('binary'),
     escape: (s) => s.replace(/[^\w@*_+\-./]/g, c => { const h = c.charCodeAt(0).toString(16).toUpperCase(); return c.charCodeAt(0) < 256 ? '%' + h.padStart(2, '0') : '%u' + h.padStart(4, '0'); }),
@@ -100,6 +102,10 @@ function boot({ props = {}, draft = null, loginPasscode = null, token = null, ro
     location: { reload() {} },
     navigator: { clipboard: { writeText: async () => {} } },
     fetch: async (url, opts) => {
+      // 讀官網的時程檔（GET，沒有 body）
+      if (/schedule\.json$/.test(String(url))) {
+        return { ok: !!schedule, json: async () => { if (!schedule) throw new Error('404'); return schedule; } };
+      }
       const data = JSON.parse(opts.body);
       const r = backend.handle(data);
       // 模擬使用者在登入視窗輸入密碼

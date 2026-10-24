@@ -5,7 +5,7 @@
     <script src="../moved.js"></script>  <!-- 舊網址（GitHub Pages）自動轉到新網址（V01.14.01） -->
     <script src="gate.js"></script>  <!-- 球隊管理密碼（V01.13.01） -->
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>龍安棒球隊點名與先發陣容助手</title>
+    <title>龍安調度與紀錄工具 - 龍安棒球隊</title>
     <meta name="robots" content="noindex, nofollow"><!-- 隊務工具頁，不讓搜尋引擎收錄 -->
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
@@ -14,51 +14,41 @@
         .bg-pitcher { backgroundColor: #ffd966; }
     </style>
     <link rel="stylesheet" href="../style.css">
+    <script src="../game-pick.js"></script>  <!-- 第一步「📅 今天／下一場」按鈕（V01.16.00） -->
 </head>
 <body class="bg-slate-100 min-h-screen text-slate-800 pb-16">
     <div class="mobile-container">
     <div id="app" v-cloak class="w-full max-w-4xl mx-auto px-4 py-6">
         
-     <!-- 頁首分兩列（手機版按鈕太多會把標題擠成直排）：第一列 logo＋標題，第二列按鈕 -->
-     <header class="app-header" style="flex-direction: column; align-items: stretch; gap: 8px;">
-      <div class="header-brand">
+     <!-- 頁首（V01.16.00）：只留名稱與登入狀態；「重置」「同步名單」移到第一步 -->
+     <header class="app-header" style="justify-content: space-between; gap: 8px;">
+      <div class="header-brand" style="min-width: 0;">
         <img src="../logo.png" alt="龍安隊徽" class="team-logo" onerror="this.style.display='none'">
-        <h1 style="font-size: 1rem; white-space: nowrap;">龍安點名與陣容助手</h1>
+        <h1 style="font-size: 1rem; line-height: 1.25;">龍安調度與紀錄工具</h1>
       </div>
-
-      <div style="display: flex; align-items: center; justify-content: flex-end; flex-wrap: wrap; gap: 8px;">
+      <div style="display: flex; align-items: center; gap: 6px; flex-shrink: 0;">
         <span v-if="apiModeLabel" :title="'後端：' + (apiModeLabel.includes('正式') ? '正式 Google 試算表' : '測試環境')"
-              :style="{ background: apiModeLabel.includes('正式') ? '#dc2626' : '#7c3aed', color: 'white', padding: '4px 8px', borderRadius: '8px', fontSize: '0.75rem', whiteSpace: 'nowrap' }">
+              :style="{ background: apiModeLabel.includes('正式') ? '#dc2626' : '#7c3aed', color: 'white', padding: '3px 6px', borderRadius: '8px', fontSize: '0.7rem', whiteSpace: 'nowrap' }">
           {{ apiModeLabel }}
         </span>
-        <button v-if="isLoggedIn" @click="logout" title="已登入隊務權限，點擊登出" style="background: #065f46; color: white; border: none; padding: 4px 8px; border-radius: 8px; font-size: 0.75rem; cursor: pointer;">
-          🔓 隊務
-        </button>
-        <button v-else @click="openLogin" title="隊務登入" style="background: #7f1d1d; color: white; border: none; padding: 4px 8px; border-radius: 8px; font-size: 0.75rem; cursor: pointer;">
-          🔒 登入
-        </button>
-        <button @click="clearDraft" style="background: #4b5563; color: white; border: none; padding: 4px 8px; border-radius: 8px; font-size: 0.75rem; cursor: pointer;">
-          🗑️ 重置
-        </button>
-        <button @click="fetchData(true)" :disabled="loading" style="background: #374151; color: white; border: 1px solid var(--gold-color); padding: 4px 10px; border-radius: 8px; font-size: 0.75rem; cursor: pointer; display: flex; align-items: center; gap: 4px;">
-          <span :class="{'animate-spin': loading}">🔄</span> 同步名單
-        </button>
+        <button v-if="isLoggedIn" @click="logout" title="已登入隊務權限，點擊登出" style="background: transparent; color: #86efac; border: 1px solid #166534; padding: 3px 8px; border-radius: 8px; font-size: 0.75rem; cursor: pointer; white-space: nowrap;">🔓 已登入</button>
+        <button v-else @click="openLogin" title="隊務登入" style="background: #7f1d1d; color: white; border: none; padding: 3px 8px; border-radius: 8px; font-size: 0.75rem; cursor: pointer; white-space: nowrap;">🔐 登入</button>
       </div>
     </header>
 
-        <div class="bg-white rounded-2xl p-4 shadow-sm border border-slate-200 mb-6 flex justify-between items-center text-xs sm:text-sm font-bold">
-            <div :class="['flex-1 text-center py-2 rounded-xl transition cursor-pointer', currentStep === 1 ? 'bg-blue-600 text-white shadow' : 'text-slate-400']" @click="goToStep(1)">
-                1. 賽事與點名 ({{ attendedCount }}人)
-            </div>
-            <div class="px-1 text-slate-300">➔</div>
-            <div :class="['flex-1 text-center py-2 rounded-xl transition cursor-pointer', currentStep === 2 ? 'bg-blue-600 text-white shadow' : 'text-slate-400']" @click="goToStep(2)">
-                2. 先發陣容
-            </div>
-            <div class="px-1 text-slate-300">➔</div>
-            <div :class="['flex-1 text-center py-2 rounded-xl transition cursor-pointer', currentStep === 3 ? 'bg-blue-600 text-white shadow' : 'text-slate-400']" @click="goToStep(3)">
-                3. 調度（備援）
-            </div>
-        </div>
+        <!-- 步驟列（V01.16.00，和實況賽事紀錄共用）：① 點名 → ② 先發 → ③ 比賽紀錄（先發上傳後才能進） -->
+        <nav class="bg-white rounded-2xl p-2 shadow-sm border border-slate-200 mb-4 flex items-center gap-1 text-sm font-bold">
+            <button type="button" :class="['flex-1 text-center py-2.5 rounded-xl transition', currentStep === 1 ? 'bg-blue-600 text-white shadow' : 'text-slate-500']" @click="goToStep(1)">
+                ① 點名<span class="font-normal">（{{ attendedCount }}）</span>
+            </button>
+            <span class="text-slate-300">›</span>
+            <button type="button" :class="['flex-1 text-center py-2.5 rounded-xl transition', currentStep === 2 ? 'bg-blue-600 text-white shadow' : 'text-slate-500']" @click="goToStep(2)">
+                ② 先發
+            </button>
+            <span class="text-slate-300">›</span>
+            <a v-if="canStartGame" :href="gameRecordUrl" class="flex-1 text-center py-2.5 rounded-xl text-red-700 hover:bg-red-50">③ 比賽紀錄</a>
+            <span v-else class="flex-1 text-center py-2.5 text-slate-300" title="先發上傳後才能進入">③ 比賽紀錄</span>
+        </nav>
 
         <div v-if="loading" class="text-center py-12 bg-white rounded-2xl shadow">
             <div class="inline-block animate-spin rounded-full h-12 w-12 border-4 border-blue-600 border-t-transparent mb-4"></div>
@@ -68,11 +58,23 @@
         <div v-else>
             
             <section v-if="currentStep === 1" class="bg-white rounded-2xl p-6 shadow-sm border border-slate-200 space-y-4">
+                <!-- 從時程帶入（V01.16.00，game-pick.js）：對手名稱和時程一致，賽後一鍵發布才對得到 -->
+                <button v-if="scheduleSuggestion" type="button" @click="applySuggestion"
+                        :class="['w-full text-left px-4 py-3 rounded-2xl border-2 transition', (gameInfo.date === scheduleSuggestion.date && gameInfo.opponent === scheduleSuggestion.opponent) ? 'border-emerald-400 bg-emerald-50' : 'border-blue-500 bg-blue-50 hover:bg-blue-100']">
+                    <div class="text-base font-bold text-slate-800">📅 {{ scheduleSuggestion.label }}</div>
+                    <div class="text-xs mt-0.5" :class="(gameInfo.date === scheduleSuggestion.date && gameInfo.opponent === scheduleSuggestion.opponent) ? 'text-emerald-700 font-bold' : 'text-blue-700'">
+                        {{ (gameInfo.date === scheduleSuggestion.date && gameInfo.opponent === scheduleSuggestion.opponent) ? '✓ 已帶入日期和對手' : '點一下帶入日期和對手（和時程一樣，賽後發布才對得到）' }}
+                    </div>
+                </button>
+
                 <div class="flex justify-between items-center flex-wrap gap-2">
-                    <h2 class="text-xl font-bold flex items-center gap-2"><span>📅</span> 賽事資訊與今日點名</h2>
-                    <button @click="loadFromGAS" :disabled="saving" class="bg-sky-600 hover:bg-sky-500 text-white text-xs px-3 py-1.5 rounded-lg shadow font-bold flex items-center gap-1 transition">
-                        ☁️ 回讀雲端歷史紀錄
-                    </button>
+                    <h2 class="text-lg font-bold flex items-center gap-2"><span>📋</span> 比賽資訊與點名</h2>
+                    <div class="flex gap-1.5">
+                        <button @click="clearDraft" class="text-xs bg-slate-100 hover:bg-slate-200 border px-2.5 py-1 rounded-lg">🗑️ 重置</button>
+                        <button @click="fetchData(true)" :disabled="loading" class="text-xs bg-slate-100 hover:bg-slate-200 border px-2.5 py-1 rounded-lg">
+                            <span :class="{'animate-spin inline-block': loading}">🔄</span> 同步名單
+                        </button>
+                    </div>
                 </div>
                 
                 <div class="grid grid-cols-1 gap-3 p-4 bg-slate-50 rounded-xl border">
@@ -92,6 +94,10 @@
                     <div>
                         <label class="block text-xs font-bold text-slate-600 mb-1">對手名稱 *</label>
                         <input type="text" v-model="gameInfo.opponent" placeholder="例: 同樂" class="w-full px-3 py-1.5 border rounded-lg text-sm focus:ring-2 focus:ring-blue-500">
+                    </div>
+                    <div class="text-xs text-slate-500">
+                        <button type="button" @click="loadFromGAS" :disabled="saving" class="text-sky-700 underline disabled:opacity-50">讀回已上傳的先發</button>
+                        （換手機或重新整理後用）
                     </div>
                 </div>
 
@@ -129,12 +135,6 @@
                     </div>
                 </div>
 
-                <div class="pt-4 flex justify-end">
-                    <button @click="goToStep(2)" :disabled="!gameInfo.date || !gameInfo.opponent || attendedCount === 0" 
-                            class="bg-blue-600 hover:bg-blue-500 disabled:bg-slate-300 text-white px-6 py-2.5 rounded-xl font-bold shadow">
-                        進入先發欄位 ➔
-                    </button>
-                </div>
             </section>
 
             <section v-if="currentStep === 2" class="bg-white rounded-2xl p-6 shadow-sm border border-slate-200 space-y-4">
@@ -189,230 +189,50 @@
                     </div>
                 </div>
 
-                <div class="pt-4 flex justify-between items-center">
-                    <button @click="goToStep(1)" class="text-slate-600 text-sm font-medium border px-4 py-2 rounded-xl">⬅ 返回點名</button>
-                    
-                    <button @click="uploadStartersToGAS" 
-                            :disabled="saving || filledLineupCount < 9 || positionConflicts.length > 0 || missingPositions.length > 0 || (hasDHInLineup && !independentPitcherId)" 
-                            class="bg-emerald-600 hover:bg-emerald-500 disabled:bg-slate-300 disabled:cursor-not-allowed text-white px-6 py-2.5 rounded-xl font-bold shadow flex items-center gap-2 transition">
-                        <span>📤</span> 
-                        <span v-if="positionConflicts.length > 0">⚠️ 守位重複無法上傳</span>
-                        <span v-else-if="missingPositions.length > 0">⚠️ 尚有守位未安排</span>
-                        <span v-else-if="hasDHInLineup && !independentPitcherId">⚠️ 請選擇先發投手</span>
-                        <span v-else>{{ saving ? '上傳中...' : (canStartGame ? '重新上傳先發' : '確認先發並上傳 GAS ➔') }}</span>
+                <!-- 板凳（V01.16.00）：點名的人扣掉先發、再扣掉 DH 制的先發投手 -->
+                <div class="p-3 bg-slate-50 rounded-xl border text-sm">
+                    <span class="font-bold text-slate-700">🛋️ 板凳（{{ starterBench.length }} 人）：</span>
+                    <span v-if="starterBench.length === 0" class="text-slate-400">沒有</span>
+                    <span v-else class="text-slate-700">{{ starterBench.map(p => '#' + (p['背號'] || '?') + ' ' + p['球員姓名']).join('、') }}</span>
+                </div>
+
+                <!-- 上傳成功（V01.16.00 起不跳視窗）：先發上傳、之後沒改過才出現 -->
+                <div v-if="canStartGame" class="p-4 rounded-2xl bg-emerald-50 border border-emerald-300">
+                    <div class="text-base font-bold text-emerald-800">✅ 先發已上傳</div>
+                    <div class="text-sm text-emerald-900 mt-0.5">{{ gameInfo.date }} {{ gameInfo.gameNum }} vs {{ gameInfo.opponent }}</div>
+                    <p class="text-xs text-slate-500 mt-2">按下面的「開始比賽」進入比賽紀錄；比賽中的換人都在那裡記。改了先發要重新上傳。</p>
+                </div>
+            </section>
+
+            <!-- 第三步「調度（備援）」的畫面 V01.16.00 拿掉；換人邏輯（setup() 裡的函式）保留，見 docs/換人邏輯.md -->
+
+            <!-- 固定在底部的操作列（V01.16.00）：下一步永遠在手指旁邊 -->
+            <div class="sticky z-30 -mx-4 mt-4 px-4 pt-2 pb-3 bg-slate-100/95 backdrop-blur border-t border-slate-200" style="bottom: 62px;">
+                <div v-if="currentStep === 1" class="flex items-center gap-3">
+                    <div class="text-sm text-slate-600 whitespace-nowrap">已點名 <b class="text-lg text-slate-900">{{ attendedCount }}</b> 人</div>
+                    <button @click="goToStep(2)" :disabled="!gameInfo.date || !gameInfo.opponent || attendedCount === 0"
+                            class="flex-1 bg-blue-600 hover:bg-blue-500 disabled:bg-slate-300 text-white py-3 rounded-xl font-bold shadow">
+                        {{ !gameInfo.opponent ? '請先填對手' : (attendedCount === 0 ? '請先點名' : '下一步：排先發 ➔') }}
                     </button>
                 </div>
-
-                <!-- 串接實況賽事紀錄（V01.12.00）：先發上傳成功、之後沒改過才出現 -->
-                <div v-if="canStartGame" class="mt-2 p-4 rounded-2xl bg-emerald-50 border border-emerald-300 space-y-3">
-                    <div class="text-sm font-bold text-emerald-800">✅ 先發已上傳（{{ gameInfo.date }} {{ gameInfo.gameNum }} vs {{ gameInfo.opponent }}）</div>
-                    <div class="flex gap-2">
-                        <button @click="copyLineup" class="flex-none bg-blue-600 hover:bg-blue-500 text-white font-bold px-4 py-3.5 rounded-xl shadow">
-                            複製 LINE 打單
-                        </button>
-                        <a :href="gameRecordUrl" class="flex-1 text-center bg-red-700 hover:bg-red-600 text-white text-lg font-bold py-3.5 rounded-xl shadow">
-                            ⚾ 開始比賽 ➔ 實況賽事紀錄
-                        </a>
-                    </div>
-                    <p class="text-xs text-slate-500">比賽中的換人請在實況賽事紀錄記。改了先發要重新上傳，這個按鈕才會再出現。</p>
+                <div v-else-if="currentStep === 2 && !canStartGame" class="flex items-center gap-2">
+                    <button @click="goToStep(1)" class="text-slate-600 text-sm border bg-white px-3 py-3 rounded-xl whitespace-nowrap">⬅ 點名</button>
+                    <button @click="uploadStartersToGAS"
+                            :disabled="saving || filledLineupCount < 9 || positionConflicts.length > 0 || missingPositions.length > 0 || (hasDHInLineup && !independentPitcherId)"
+                            class="flex-1 bg-emerald-600 hover:bg-emerald-500 disabled:bg-slate-300 disabled:cursor-not-allowed text-white py-3 rounded-xl font-bold shadow">
+                        <span v-if="saving">上傳中...</span>
+                        <span v-else-if="filledLineupCount < 9">還差 {{ 9 - filledLineupCount }} 棒沒選人</span>
+                        <span v-else-if="positionConflicts.length > 0">⚠️ 守位重複</span>
+                        <span v-else-if="missingPositions.length > 0">⚠️ 還有守位沒排</span>
+                        <span v-else-if="hasDHInLineup && !independentPitcherId">⚠️ 請選先發投手</span>
+                        <span v-else>📤 上傳先發 ➔</span>
+                    </button>
                 </div>
-            </section>
-
-            <section v-if="currentStep === 3" class="bg-white rounded-2xl p-6 shadow-sm border border-slate-200 space-y-6">
-                <div class="p-3 rounded-xl bg-amber-50 border border-amber-300 text-sm font-bold text-amber-900">
-                    ⚠️ 比賽中的換人請在「實況賽事紀錄」記，這裡只在工具故障時使用（備援）。
+                <div v-else-if="currentStep === 2" class="flex items-center gap-2">
+                    <button @click="copyLineup" class="bg-white border border-blue-300 text-blue-700 font-bold px-3 py-3 rounded-xl whitespace-nowrap text-sm">複製 LINE 打單</button>
+                    <a :href="gameRecordUrl" class="flex-1 text-center bg-red-700 hover:bg-red-600 text-white text-lg font-bold py-3 rounded-xl shadow">⚾ 開始比賽 ➔</a>
                 </div>
-                <div class="flex justify-between items-center flex-wrap gap-2">
-                    <div>
-                        <h2 class="text-xl font-bold flex items-center gap-2"><span>🔄</span> 比賽動態更換與更新</h2>
-                        <p class="text-xs text-slate-500 mt-1">對齊 Baseball Savant 規範，更換後點擊上傳同步至 Google Sheet</p>
-                    </div>
-                    <div class="flex gap-2">
-                        <button v-if="uploadedBatches.length > 0" @click="unlockLastBatch" class="bg-amber-500 hover:bg-amber-600 text-white text-xs px-3 py-2 rounded-xl font-bold shadow">
-                            🔓 解鎖上一批次(重修)
-                        </button>
-                        <button @click="copyLineup" class="bg-blue-600 text-white text-xs px-3 py-2 rounded-xl font-bold shadow">
-                            複製 LINE 打單
-                        </button>
-                    </div>
-                </div>
-
-                <div v-if="isDHCancelled" class="p-3 bg-red-50 border border-red-200 rounded-xl text-red-700 text-xs font-bold flex items-center gap-2">
-                    <span>⚠️</span> 比賽進行中已取消 DH 指定打擊（回歸投手需要打擊模式），後續不可再選 DH 守位！
-                </div>
-
-                <div v-if="pitcherNotBattingAfterDH" class="p-3 bg-red-50 border border-red-200 rounded-xl text-red-700 text-xs font-bold flex items-center gap-2">
-                    <span>⚠️</span> DH 已取消，投手尚未進入打序。請把投手安排進打線（可以先上傳，之後再補）。
-                </div>
-
-                <div :class="['p-3.5 rounded-xl text-xs space-y-1 border transition', 
-                             activeDefenseNotice.isComplete ? 'bg-emerald-50 border-emerald-200 text-emerald-800' : 'bg-amber-50 border-amber-200 text-amber-900']">
-                    <div class="font-bold flex items-center gap-1 text-sm">
-                        <span>{{ activeDefenseNotice.isComplete ? '✅' : '⚠️' }}</span> 
-                        目前場上守備配置狀態 (代打/代跑/DH不佔野手守位)：
-                    </div>
-                    <div v-if="activeDefenseNotice.isComplete" class="font-medium text-emerald-700">
-                        九個標準守備位置均已妥善安排球員。
-                    </div>
-                    <div v-else class="space-y-0.5">
-                        <div v-if="activeDefenseNotice.conflicts.length > 0" class="text-red-600 font-bold">
-                            • 重複守位：{{ activeDefenseNotice.conflicts.join(', ') }}
-                        </div>
-                        <div v-if="activeDefenseNotice.missing.length > 0" class="text-amber-800 font-semibold">
-                            • 尚缺守位 (需安排守備)：{{ activeDefenseNotice.missing.join(', ') }}
-                        </div>
-                    </div>
-                </div>
-
-                <div class="space-y-3">
-                    <div v-for="(slot, index) in activeLineup" :key="index" class="bg-slate-50 p-3 rounded-xl border space-y-2">
-                        <div class="flex items-center justify-between">
-                            <div class="flex items-center gap-2">
-                                <span class="px-2 py-0.5 rounded-full bg-slate-800 text-white text-xs font-bold flex items-center justify-center">
-                                    第 {{ index + 1 }} 棒
-                                </span>
-                                <span class="bg-blue-100 text-blue-800 font-bold px-2 py-0.5 rounded text-xs">{{ slot.starter.posLabel }}</span>
-                                <span class="font-bold text-slate-800">#{{ slot.starter.number }} {{ slot.starter.name }}</span>
-                            </div>
-                            <button @click="openSubModal(index + 1)" class="text-xs bg-white hover:bg-slate-100 border border-slate-300 font-bold text-blue-700 px-3 py-1 rounded-lg shadow-sm">
-                                + 更換/調守位
-                            </button>
-                        </div>
-
-                        <div v-for="(sub, subIdx) in slot.substitutes" :key="sub.timestamp" class="ml-6 flex items-center justify-between text-sm bg-amber-50/80 p-2 rounded-lg border border-amber-200/80">
-                            <div class="flex items-center gap-2">
-                                <span class="text-amber-600 font-bold">↳</span>
-                                <span :class="['font-bold px-1.5 py-0.5 rounded text-xs', 
-                                              ['PH','PR'].includes(sub.pos) ? 'bg-purple-100 text-purple-800' : 'bg-amber-100 text-amber-800']">
-                                    {{ sub.posLabel }}
-                                </span>
-                                <span class="font-bold text-slate-700">#{{ sub.number }} {{ sub.name }}</span>
-                                <span class="text-xs text-slate-400">({{ sub.reason }})</span>
-                            </div>
-                            <button v-if="!sub.isUploaded" @click="removeSubstitute(index, subIdx)" title="取消此筆更換紀錄" class="text-red-500 hover:text-red-700 hover:bg-red-100 font-bold text-xs px-2 py-0.5 rounded transition">
-                                ✕ 復原
-                            </button>
-                        </div>
-                    </div>
-                </div>
-
-                <div class="bg-blue-900 text-white rounded-2xl p-4 space-y-3 shadow-md">
-                    <div class="flex justify-between items-center border-b border-blue-800 pb-2">
-                        <h3 class="font-bold text-sm text-blue-100 flex items-center gap-2">
-                            <span>⚾</span> 投手調度列表 (共 {{ activePitchers.length }} 位)
-                        </h3>
-                        <div class="flex items-center gap-2">
-                            <button v-if="hasDHInLineup && !isDHCancelled" @click="pitcherModal.open = true" class="text-xs bg-amber-400 hover:bg-amber-300 text-blue-950 font-bold px-3 py-1 rounded-lg shadow transition">
-                                + 更換投手 (DH制)
-                            </button>
-                            <span class="text-[11px] text-blue-300">守位 P(1) 連動</span>
-                        </div>
-                    </div>
-
-                    <div v-if="activePitchers.length === 0" class="text-xs text-blue-300 py-2 text-center">
-                        目前尚未指定先發投手
-                    </div>
-
-                    <div v-else class="space-y-1.5">
-                        <div v-for="(p, idx) in activePitchers" :key="idx" 
-                             class="bg-blue-800/80 border border-blue-700/80 rounded-xl p-2.5 flex justify-between items-center text-xs">
-                            <div class="flex items-center gap-2.5">
-                                <span class="w-5 h-5 rounded-md bg-blue-600 text-white font-bold flex items-center justify-center text-[11px]">
-                                    {{ idx + 1 }}
-                                </span>
-                                <span class="bg-amber-400 text-blue-950 font-extrabold px-1.5 py-0.5 rounded text-[10px]">
-                                    {{ p.posLabel || 'P (1)' }}
-                                </span>
-                                <span class="font-bold">#{{ p.number }} {{ p.name }}</span>
-                            </div>
-                            <div class="flex items-center gap-2">
-                                <span class="text-blue-300 text-[11px]">{{ idx === 0 ? (hasDHInLineup ? '先發投手 (DH制)' : '先發投手') : (p.reason || '中繼/後援') }}</span>
-                                <button v-if="p.isIndependentSub && !p.isUploaded" @click="removeIndependentPitcher(p.timestamp)" class="text-red-300 hover:text-red-100 font-bold text-xs px-1">✕</button>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                <div class="bg-slate-50 border border-slate-200 rounded-2xl p-4 space-y-2">
-                    <div class="flex justify-between items-center">
-                        <h3 class="font-bold text-sm text-slate-700 flex items-center gap-1.5">
-                            <span>🛋️</span> 目前板凳預備球員 ({{ benchPlayers.length }} 人)
-                        </h3>
-                        <span class="text-xs text-slate-400">當前尚未上場之出席成員</span>
-                    </div>
-                    <div v-if="benchPlayers.length === 0" class="text-xs text-slate-400 py-3 text-center bg-white rounded-xl border border-dashed">
-                        目前板凳無預備球員
-                    </div>
-                    <div v-else class="grid grid-cols-2 gap-2">
-                        <div v-for="bp in benchPlayers" :key="bp.id" 
-                             :style="{ backgroundColor: bp.isPitcher ? '#ffd966' : '#ffffff' }"
-                             class="border rounded-xl p-2 text-xs flex items-center justify-between shadow-sm">
-                            <span class="font-bold text-slate-800">
-                                #{{ bp['背號'] || '?' }} {{ bp['球員姓名'] }}
-                                <span v-if="bp.isPitcher" class="text-[10px] text-amber-900 font-extrabold">⚾</span>
-                            </span>
-                            <span class="text-[10px] text-slate-500">{{ getPlayerPositionsText(bp) }}</span>
-                        </div>
-                    </div>
-                </div>
-
-                <div v-if="currentBatchPending.length > 0" class="bg-amber-50 border border-amber-300 rounded-2xl p-4 space-y-2 shadow-sm">
-                    <div class="flex justify-between items-center">
-                        <h3 class="font-bold text-xs text-amber-900 flex items-center gap-1.5">
-                            <span>📢</span> 第 {{ uploadedBatches.length + 1 }} 次更換報備單 (待上傳 {{ currentBatchPending.length }} 筆)
-                        </h3>
-                        <button @click="copyText(currentLeagueReportText, '當前報備單')" class="text-xs bg-amber-600 hover:bg-amber-500 text-white font-bold px-3 py-1 rounded-lg shadow">
-                            複製本次報備單
-                        </button>
-                    </div>
-                    <pre class="bg-white p-3 rounded-xl border text-xs text-slate-800 font-mono whitespace-pre-wrap leading-relaxed">{{ currentLeagueReportText }}</pre>
-                </div>
-
-                <div v-if="uploadedBatches.length > 0" class="space-y-2 pt-2">
-                    <h4 class="text-xs font-bold text-slate-500">📜 歷史已上傳報備紀錄：</h4>
-                    <div v-for="batch in uploadedBatches" :key="batch.batchId" class="bg-purple-50 border border-purple-200 rounded-2xl overflow-hidden transition shadow-sm">
-                        <div @click="batch.isCollapsed = !batch.isCollapsed" class="p-3.5 flex justify-between items-center cursor-pointer select-none bg-purple-100/70 hover:bg-purple-100">
-                            <div class="flex items-center gap-2">
-                                <span class="text-xs">📋</span>
-                                <h3 class="font-bold text-xs text-purple-900">
-                                    第 {{ batch.batchId }} 次變更報備紀錄 (已同步 GAS)
-                                </h3>
-                            </div>
-                            <div class="flex items-center gap-2">
-                                <button @click.stop="copyText(batch.text, `第 ${batch.batchId} 次報備單`)" class="text-[11px] bg-purple-600 hover:bg-purple-500 text-white font-bold px-2.5 py-0.5 rounded shadow">
-                                    複製此單
-                                </button>
-                                <span class="text-purple-700 font-bold text-xs">{{ batch.isCollapsed ? '▼ 展開' : '▲ 折疊' }}</span>
-                            </div>
-                        </div>
-
-                        <div v-show="!batch.isCollapsed" class="p-3 border-t border-purple-200/60 bg-white">
-                            <pre class="text-xs text-slate-800 font-mono whitespace-pre-wrap leading-relaxed">{{ batch.text }}</pre>
-                        </div>
-                    </div>
-                </div>
-
-                <div class="pt-4 flex justify-between items-center flex-wrap gap-3">
-                    <button @click="goToStep(2)" class="text-slate-600 text-sm font-medium border px-4 py-2 rounded-xl">⬅ 檢視先發</button>
-
-                    <div class="flex items-center gap-2 flex-wrap">
-                        <button @click="uploadSubstitutionsToGAS"
-                                :disabled="saving || currentBatchPending.length === 0 || activeDefenseNotice.conflicts.length > 0"
-                                class="bg-purple-600 hover:bg-purple-500 disabled:bg-slate-300 disabled:cursor-not-allowed text-white px-6 py-2.5 rounded-xl font-bold shadow flex items-center gap-2 transition">
-                            <span>📤</span>
-                            <span v-if="saving">更新上傳中...</span>
-                            <span v-else-if="activeDefenseNotice.conflicts.length > 0">⚠️ 守位重複無法上傳</span>
-                            <span v-else-if="currentBatchPending.length > 0">更換確認並更新上傳 GAS ➔</span>
-                            <span v-else>無新更換需上傳</span>
-                        </button>
-
-                        <button @click="finishGame" :disabled="saving"
-                                class="bg-emerald-600 hover:bg-emerald-500 disabled:bg-slate-300 disabled:cursor-not-allowed text-white px-6 py-2.5 rounded-xl font-bold shadow flex items-center gap-2 transition">
-                            <span>🏁</span> {{ saving ? '處理中...' : '比賽完成' }}
-                        </button>
-                    </div>
-                </div>
-            </section>
+            </div>
 
         </div>
 
@@ -742,7 +562,7 @@
                         // 24 小時內的草稿直接回復，不再詢問（V01.12.01：按「取消」會讓點名、先發全部消失，要重來請按「重置」）
                         if (Date.now() - draft.timestamp < 24 * 60 * 60 * 1000) {
                             gameInfo.value = draft.gameInfo || gameInfo.value;
-                            currentStep.value = draft.currentStep || 1;
+                            currentStep.value = Math.min(draft.currentStep || 1, 2);   // V01.16.00：第三步拿掉，舊草稿停在第三步的回到第二步
                             lineup.value = draft.lineup || lineup.value;
                             activeLineup.value = draft.activeLineup || [];
                             currentBatchPending.value = draft.currentBatchPending || [];
@@ -867,8 +687,10 @@
                             (Array.isArray(res.data.bench) ? res.data.bench : []).forEach(matchPlayer);
                             currentBatchPending.value = [];
                             uploadedBatches.value = [];
-                            alert('✅ 已成功從雲端回讀該場比賽的完整先發與調度紀錄！');
-                            goToStep(3);
+                            // V01.16.00：讀回的就是已上傳的先發，直接可以「開始比賽」（第三步拿掉，停在第二步）
+                            uploadedStarters.value = startersSignature.value;
+                            alert('✅ 已讀回這場已上傳的先發，可以按「開始比賽」繼續記錄。');
+                            goToStep(2);
                         } else {
                             alert('⚠️ 找到該場比賽分頁，但目前還沒有先發陣容資料可以回讀。');
                         }
@@ -879,7 +701,21 @@
                     }
                 };
 
+                // 📅 第一步的「今天／下一場」按鈕（V01.16.00，game-pick.js）：讀官網時程，對手名稱和時程一致，賽後一鍵發布才對得到
+                const scheduleSuggestion = ref(null);
+                const todayLocal = () => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`; };
+                const loadSchedule = () => fetch('../data/schedule.json', { cache: 'no-store' })
+                    .then(r => (r.ok ? r.json() : null))
+                    .then(list => { scheduleSuggestion.value = list && typeof GamePick !== 'undefined' ? GamePick.suggest(list, todayLocal()) : null; })
+                    .catch(() => { scheduleSuggestion.value = null; });
+                const applySuggestion = () => {
+                    const s = scheduleSuggestion.value;
+                    if (!s) return;
+                    gameInfo.value = { ...gameInfo.value, date: s.date, gameNum: 'G1', opponent: s.opponent };
+                };
+
                 onMounted(() => {
+                    loadSchedule();
                     const cached = localStorage.getItem('longan_player_list');
                     if (cached) {
                         try {
@@ -967,7 +803,8 @@
                     return pos.length > 0 ? `(${pos.join('/')})` : '';
                 };
 
-                const goToStep = (step) => currentStep.value = step;
+                // V01.16.00：只有第一、二步；第三步「調度（備援）」的畫面拿掉（換人邏輯保留，見 docs/換人邏輯.md），③ 比賽紀錄是另一頁
+                const goToStep = (step) => { if (step === 1 || step === 2) currentStep.value = step; };
 
                 const positionConflicts = computed(() => {
                     const counts = {};
@@ -991,6 +828,14 @@
                 });
 
                 const positionNotice = computed(() => positionConflicts.value.length > 0 || missingPositions.value.length > 0);
+
+                // 第二步的板凳（V01.16.00）：點名的人扣掉先發 9 人、再扣掉 DH 制的先發投手，依背號排（和上傳時的板凳一樣）
+                const starterBench = computed(() => {
+                    const used = new Set(lineup.value.map(s => String(s.playerId || '')).filter(Boolean));
+                    if (independentPitcherId.value) used.add(String(independentPitcherId.value));
+                    const num = (p) => { const n = parseInt(p['背號'], 10); return isNaN(n) ? 9999 : n; };
+                    return attendedPlayers.value.filter(p => !used.has(String(p.id))).sort((a, b) => num(a) - num(b));
+                });
 
                 const benchPlayers = computed(() => {
                     const usedIds = [];
@@ -1288,8 +1133,7 @@
                         uploadedBatches.value = [];
                         extraPitchersHistory.value = [];
                         uploadedStarters.value = startersSignature.value;
-                        goToStep(2);   // 留在第二步：出現「開始比賽 ➔ 實況賽事紀錄」（第三步改成備援）
-                        alert('✅ 先發陣容與先發投手已成功上傳至 Google Sheet！\n按「開始比賽 ➔ 實況賽事紀錄」開始記錄比賽。');
+                        goToStep(2);   // 留在第二步：頁面上出現「✅ 先發已上傳」與「開始比賽」（V01.16.00 起不跳視窗）
                     }).catch(err => {
                         alert('⚠️ 上傳失敗：' + err.message);
                     }).finally(() => {
@@ -1569,7 +1413,7 @@
                     players, loading, saving, searchQuery, currentStep, gameInfo, subModal, pitcherModal, independentPitcherId, hasDHInLineup, nonStartingBenchCandidates, isDHCancelled,
                     positionOptions, lineup, activeLineup, activePitchers, currentBatchPending, uploadedBatches,
                     positionConflicts, missingPositions, positionNotice,
-                    attendedPlayers, attendedCount, filledLineupCount, filteredPlayers, benchPlayers, activeDefenseNotice,
+                    attendedPlayers, attendedCount, filledLineupCount, filteredPlayers, benchPlayers, starterBench, scheduleSuggestion, applySuggestion, activeDefenseNotice,
                     currentLeagueReportText, isSamePositionSelected, copyText, loadFromGAS, clearDraft,
                     fetchData, selectAll, resetAttendance, isPlayerInLineup, getPlayerPositionsText,
                     goToStep, uploadStartersToGAS, openSubModal, confirmSubstitution, confirmIndependentPitcherChange,
@@ -1588,7 +1432,7 @@
         </a>
         <a href="lineup.html" class="nav-item active">
           <span style="font-size: 1.2rem;">📋</span>
-          <span>陣容調度</span>
+          <span>調度與紀錄</span>
         </a>
     </nav>
 

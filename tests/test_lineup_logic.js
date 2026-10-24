@@ -100,11 +100,10 @@ test('B5 【修正】DH 制換投後重新整理，草稿能還原後援投手',
   setStarters(first.app, DH9);
   first.app.independentPitcherId.value = byName(first.app, '陳一');
   await first.app.uploadStartersToGAS(); await tick();
-  first.app.goToStep(3);                    // 第三步（備援）要自己點進去
-  dhPitcherChange(first.app, '許投');
+  dhPitcherChange(first.app, '許投');     // V01.16.00 起第三步沒有畫面，換人函式直接呼叫
   first.saveDraft();
   const second = boot({ draft: JSON.parse(first.storage.longan_lineup_draft) });
-  assert.strictEqual(second.app.currentStep.value, 3);
+  assert.strictEqual(second.app.currentStep.value, 2);   // V01.16.00：第三步拿掉，停在第二步
   assert.strictEqual(pitcherNames(second.app), '陳一,許投');
   assert.strictEqual(second.app.currentBatchPending.value.length, 1);
   assert.ok(!second.app.benchPlayers.value.some(p => p['球員姓名'] === '許投'));
@@ -216,7 +215,7 @@ test('D4 雲端回讀（全場DH 含換投）：還原先發表、DH 狀態、�
   other.app.players.value.forEach(p => { p.isAttended = false; });
   await other.app.loadFromGAS(); await tick();
   const o = other.app;
-  assert.strictEqual(o.currentStep.value, 3);
+  assert.strictEqual(o.currentStep.value, 2);   // V01.16.00：回讀後停在第二步（第三步拿掉）
   assert.strictEqual(o.hasDHInLineup.value, true);
   assert.strictEqual(pitcherNames(o), '陳一,許投');
   assert.strictEqual(o.activeLineup.value[0].substitutes[0].name, '謝替');
@@ -358,7 +357,7 @@ test('F5 回讀（另一支手機）：DH 比賽的先發投手、後援投手�
   other.app.players.value.forEach(p => { p.isAttended = false; });
   await other.app.loadFromGAS(); await tick();
   const o = other.app;
-  assert.strictEqual(o.currentStep.value, 3);
+  assert.strictEqual(o.currentStep.value, 2);   // V01.16.00：回讀後停在第二步（第三步拿掉）
   assert.strictEqual(o.hasDHInLineup.value, true);
   assert.strictEqual(o.isDHCancelled.value, false);
   assert.strictEqual(pitcherNames(o), '陳一,許投');
@@ -476,12 +475,12 @@ test('G6 重新整理（草稿還原）：先發沒改過，按鈕仍在', async
   assert.strictEqual(second.app.canStartGame.value, true);
 });
 
-test('G7 第三步（備援）照樣能進去調度、上傳', async () => {
+test('G7 【規格變更 V01.16.00】第三步畫面拿掉：換人函式直接呼叫照樣能調度、上傳（換人邏輯保留給之後合併用）', async () => {
   const { app, backend } = boot();
   setStarters(app, NINE);
   await app.uploadStartersToGAS(); await tick();
   app.goToStep(3);
-  assert.strictEqual(app.currentStep.value, 3);
+  assert.strictEqual(app.currentStep.value, 2);
   sub(app, 9, '謝替', 'PH');
   await app.uploadSubstitutionsToGAS(); await tick();
   assert.ok(batterNames(backend).some(x => x.includes('謝替')));
@@ -545,6 +544,64 @@ test('H3 回讀（另一支手機、還沒點名）：點名用「先發＋板�
   await other.app.loadFromGAS(); await tick();
   const attended = other.app.players.value.filter(p => p.isAttended).map(p => p['球員姓名']).sort().join(',');
   assert.strictEqual(attended, ['林二', '黃三', '張四', '李五', '王六', '陳一', '吳七', '劉八', '蔡九', '楊十', '許投', '鄭投', '謝替'].sort().join(','));
+});
+
+// ============ 情境 I：龍安調度與紀錄工具（V01.16.00）============
+const todayLocal = () => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`; };
+const addDays = (iso, n) => new Date(Date.parse(iso + 'T00:00:00Z') + n * 86400000).toISOString().slice(0, 10);
+const G = (date, opponent, o = {}) => ({ type: 'game', date, startTime: '10:00', venue: '', opponent, score: null, resultUrl: null, cancelled: false, note: '', ...o });
+
+test('I1 點「📅 今天」按鈕：日期、對手照時程填好，場次 G1；時程讀不到 → 沒有按鈕', async () => {
+  const today = todayLocal();
+  const { app } = boot({ schedule: [G(addDays(today, -7), '舊隊'), G(today, 'RELOOC', { league: '大漢聯盟' })] });
+  await tick();
+  assert.strictEqual(app.scheduleSuggestion.value.isToday, true);
+  assert.match(app.scheduleSuggestion.value.label, /^今天：.*vs RELOOC｜大漢聯盟$/);
+  app.gameInfo.value = { date: '2000-01-01', gameNum: 'G3', opponent: '打錯' };
+  app.applySuggestion();
+  assert.deepStrictEqual({ ...app.gameInfo.value }, { date: today, gameNum: 'G1', opponent: 'RELOOC' });
+  const none = boot();
+  await tick();
+  assert.strictEqual(none.app.scheduleSuggestion.value, null);
+});
+
+test('I2 第二步的板凳：點名的人扣掉先發 9 人、再扣掉 DH 制的先發投手，依背號排', async () => {
+  const { app } = boot();
+  app.players.value.find(p => p['球員姓名'] === '郭替').isAttended = false;
+  setStarters(app, DH9);
+  app.independentPitcherId.value = byName(app, '鄭投');
+  assert.deepStrictEqual(app.starterBench.value.map(p => p['球員姓名']), ['陳一', '許投', '謝替']);
+  setStarters(app, NINE);
+  app.independentPitcherId.value = '';
+  assert.deepStrictEqual(app.starterBench.value.map(p => p['背號']), ['10', '11', '12', '13']);
+});
+
+test('I3 上傳成功：不跳視窗，直接出現「開始比賽」', async () => {
+  const { app, alerts } = boot();
+  setStarters(app, NINE);
+  await app.uploadStartersToGAS(); await tick();
+  assert.deepStrictEqual(alerts, []);
+  assert.strictEqual(app.canStartGame.value, true);
+});
+
+test('I4 第三步進不去：點了停在原本那一步；舊草稿停在第三步 → 打開回到第二步；讀回已上傳的先發 → 第二步、可以開始比賽', async () => {
+  const { app, backend } = boot();
+  app.goToStep(3);
+  assert.strictEqual(app.currentStep.value, 1);
+  app.goToStep(2);
+  app.goToStep(3);
+  assert.strictEqual(app.currentStep.value, 2);
+  app.gameInfo.value.opponent = '猛虎';
+  setStarters(app, NINE);
+  await app.uploadStartersToGAS(); await tick();
+  const old = boot({ draft: { ...JSON.parse(JSON.stringify({ gameInfo: app.gameInfo.value, lineup: app.lineup.value, attendedIds: [] })), currentStep: 3, timestamp: Date.now() } });
+  assert.strictEqual(old.app.currentStep.value, 2);
+  const other = boot();
+  other.backend.handle = backend.handle;
+  other.app.gameInfo.value = { ...app.gameInfo.value };
+  await other.app.loadFromGAS(); await tick();
+  assert.strictEqual(other.app.currentStep.value, 2);
+  assert.strictEqual(other.app.canStartGame.value, true);
 });
 
 (async () => {

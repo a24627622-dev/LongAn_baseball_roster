@@ -44,11 +44,41 @@ const bat = (number, name, o) => ({ number, name, AB: 0, R: 0, H: 0, '2B': 0, '3
 const GAME_1101 = { id: '2026-11-01_G1_ZERO', date: '2026-11-01', opponent: 'ZERO', score: { us: 14, opp: 3 },
   batting: [bat('5', '陳奕瑋', { AB: 4, R: 2, H: 2, '2B': 1, HR: 1, RBI: 3, BB: 1 }), bat('18', '江佑霖', { AB: 3, H: 1 })],
   pitching: [{ number: '18', name: '江佑霖', IP: '5.1', H: 4, R: 3, ER: 2, BB: 1, HBP: 0, SO: 3, HR: 0 }] };
-// 氣象署 F-C0032-001（縣市 36 小時預報）的格式
-const WEATHER = { records: { location: [{ locationName: '新北市', weatherElement: [{ elementName: 'PoP', time: [
-  { startTime: '2026-11-14 18:00:00', endTime: '2026-11-15 06:00:00', parameter: { parameterName: '20' } },
-  { startTime: '2026-11-15 06:00:00', endTime: '2026-11-15 18:00:00', parameter: { parameterName: '60' } },
-] }] }] } };
+// 氣象署 F-D0047-091（各縣市一週預報）的格式（V01.15.02；2026-10-24 使用者用正式金鑰讀過、確認欄位名稱）
+// 一段：{ s: 開始, e: 結束, wx, minT, maxT, minAT, maxAT, pop, uv }，沒給的欄位整筆不放（例：晚上沒有紫外線）
+const iso = (t) => t.replace(' ', 'T') + ':00+08:00';
+const ELEMENTS = [
+  ['天氣現象', 'wx', (v) => ({ Weather: v, WeatherCode: '08' })],
+  ['最高溫度', 'maxT', (v) => ({ MaxTemperature: v })],
+  ['最低溫度', 'minT', (v) => ({ MinTemperature: v })],
+  ['最高體感溫度', 'maxAT', (v) => ({ MaxApparentTemperature: v })],
+  ['最低體感溫度', 'minAT', (v) => ({ MinApparentTemperature: v })],
+  ['12小時降雨機率', 'pop', (v) => ({ ProbabilityOfPrecipitation: v })],
+  ['紫外線指數', 'uv', (v) => ({ UVIndex: v, UVExposureLevel: Number(v) >= 8 ? '過量級' : '中量級' })],
+];
+const LOC = (county, slots) => ({ LocationName: county, Geocode: '65000', WeatherElement: ELEMENTS.map(([name, k, f]) => ({
+  ElementName: name, Time: slots.filter((x) => x[k] !== undefined).map((x) => ({ StartTime: iso(x.s), EndTime: iso(x.e), ElementValue: [f(x[k])] })),
+})) });
+const DAY_1115 = { s: '2026-11-15 06:00', e: '2026-11-15 18:00', wx: '多雲短暫陣雨', minT: '23', maxT: '27', minAT: '24', maxAT: '29', pop: '30', uv: '5' };
+const SLOTS = (day = {}) => [
+  { s: '2026-11-14 18:00', e: '2026-11-15 06:00', wx: '晴時多雲', minT: '20', maxT: '22', minAT: '20', maxAT: '22', pop: '10' },
+  { ...DAY_1115, ...day },
+  { s: '2026-11-15 18:00', e: '2026-11-16 06:00', wx: '陰天', minT: '19', maxT: '21', minAT: '14', maxAT: '20', pop: '80' },
+];
+const WEEK = (day, extra = []) => ({ success: 'true', records: { Locations: [{ DatasetDescription: '臺灣各縣市鄉鎮未來1週天氣預報', LocationsName: '臺灣', Location: [
+  LOC('連江縣', SLOTS()), LOC('新北市', SLOTS(day)), LOC('基隆市', [...SLOTS({ wx: '短暫陣雨', minT: '18', maxT: '20', minAT: '15', maxAT: '19', pop: '60', uv: '2' }), ...extra]),
+] }] } });
+const WEATHER = WEEK();
+// 回覆裡的天氣段：🌦️ 標題、下一行（天氣｜溫度｜降雨機率）、接著的 💡 提醒
+const wRange = (lines) => {
+  const i = lines.findIndex((l) => l.startsWith('🌦️'));
+  if (i === -1) return [0, 0];
+  let j = i + 2;
+  while (j < lines.length && lines[j].startsWith('💡')) j++;
+  return [i, j];
+};
+const wBlock = (t) => { const ls = t.split('\n'); const [i, j] = wRange(ls); return ls.slice(i, j); };
+const noWeather = (t) => { const ls = t.split('\n'); const [i, j] = wRange(ls); return ls.filter((_, k) => k < i || k >= j).join('\n'); };
 
 // 跑一次：群組裡有人打 text。回傳 { replies：送出的回覆文字, fetches, logs, res }
 function run(texts, { now = TPE(2026, 11, 12, 20), props = {}, data = {}, events = null, siteDown = false, weather = WEATHER } = {}) {
@@ -98,7 +128,7 @@ test('「#陳奕瑋（啦啦隊風格）」→ 括號裡的風格忽略，照「
 
 console.log('\n#下一場、#練球（時程＋球場資訊＋天氣）');
 
-test('#下一場：跳過已過的比賽；日期、對手、賽事、集合／開賽、球場、地圖、停車、集合點、注意事項、降雨機率、倒數', () => {
+test('#下一場：跳過已過的比賽；日期、對手、賽事、集合／開賽、球場、地圖、停車、集合點、注意事項、天氣、倒數', () => {
   const t = one('#下一場', { now: TPE(2026, 11, 14, 20) });
   assert.strictEqual(t, [
     '📣 下一場比賽來囉！',
@@ -109,7 +139,8 @@ test('#下一場：跳過已過的比賽；日期、對手、賽事、集合／�
     '🅿️ 停車：https://maps.app.goo.gl/tqgDazJYBsFsLc12A',
     '🚩 集合：球場後方草皮',
     '⚠️ 球場無飲水機與販賣機，請準備充足飲水',
-    '☔ 降雨機率 60%',
+    '🌦️ 11/15（日）白天 新北市',
+    '多雲短暫陣雨｜23～27°C｜降雨機率 30%',
     '就是明天，大家加油！💪',
   ].join('\n'));
 });
@@ -131,19 +162,90 @@ test('#下一場：時程沒有下一場 → 「目前時程沒有下一場比�
   assert.strictEqual(one('#下一場', { now: TPE(2026, 12, 7, 9) }), '目前時程沒有下一場比賽，有新賽程會再公告 📅');
 });
 
-test('天氣：超過預報範圍、沒有氣象署金鑰、氣象署讀不到 → 不顯示降雨機率，其他照常', () => {
-  const far = one('#下一場', { now: TPE(2026, 11, 12, 20) });
-  assert.ok(!/降雨機率/.test(far) && /還有 3 天/.test(far));
-  const noKey = run('#下一場', { now: TPE(2026, 11, 14, 20), props: { CWA_API_KEY: '' } });
-  assert.ok(!/降雨機率/.test(noKey.replies[0]));
-  assert.ok(!noKey.fetches.some((f) => f.url.includes('cwa.gov.tw')));
-  assert.ok(!/降雨機率/.test(one('#下一場', { now: TPE(2026, 11, 14, 20), weather: null })));
+// ---- 天氣（V01.15.02：一週預報 F-D0047-091，7 天內；溫度、降雨機率、提醒）----
+const W = (day, o = {}) => wBlock(one('#下一場', { now: TPE(2026, 11, 12, 20), weather: WEEK(day), ...o }));
+
+test('比賽前約 3 天、降雨機率 30%：標題＋「天氣｜溫度｜降雨機率」，沒有提醒', () => {
+  assert.deepStrictEqual(W({}), ['🌦️ 11/15（日）白天 新北市', '多雲短暫陣雨｜23～27°C｜降雨機率 30%']);
 });
 
-test('天氣：查的是球場所在縣市（大漢B球場 → 新北市），網址帶金鑰', () => {
-  const r = run('#下一場', { now: TPE(2026, 11, 14, 20) });
-  const w = r.fetches.find((f) => f.url.includes('cwa.gov.tw'));
-  assert.strictEqual(w.url, 'https://opendata.cwa.gov.tw/api/v1/rest/datastore/F-C0032-001?Authorization=cwa&locationName=%E6%96%B0%E5%8C%97%E5%B8%82');
+test('降雨提醒的邊界：70% → 可能延賽；50% → 帶雨具；49% → 沒有', () => {
+  assert.deepStrictEqual(W({ pop: '70' }).slice(1), ['多雲短暫陣雨｜23～27°C｜降雨機率 70%', '💡 降雨機率高，請留意群組通知（可能延賽）']);
+  assert.deepStrictEqual(W({ pop: '69' }).slice(2), ['💡 可能下雨，記得帶雨具']);
+  assert.deepStrictEqual(W({ pop: '50' }).slice(2), ['💡 可能下雨，記得帶雨具']);
+  assert.deepStrictEqual(W({ pop: '49' }).slice(2), []);
+});
+
+test('溫度提醒的邊界：最高體感 32 → 偏熱、31 → 沒有；最低體感 15 → 偏涼、16 → 沒有', () => {
+  assert.deepStrictEqual(W({ maxAT: '32' }).slice(2), ['💡 體感偏熱，記得防曬、多補充水分']);
+  assert.deepStrictEqual(W({ maxAT: '31' }).slice(2), []);
+  assert.deepStrictEqual(W({ minAT: '15' }).slice(2), ['💡 天氣偏涼，注意保暖、多做熱身']);
+  assert.deepStrictEqual(W({ minAT: '16' }).slice(2), []);
+});
+
+test('紫外線：8 以上且不熱 → 紫外線那行；又熱又 8 以上 → 合併一行；7 → 沒有；提醒照順序（雨、熱、涼）', () => {
+  assert.deepStrictEqual(W({ uv: '8' }).slice(2), ['💡 紫外線很強，記得防曬']);
+  assert.deepStrictEqual(W({ uv: '9', maxAT: '34' }).slice(2), ['💡 體感偏熱、紫外線很強，記得防曬、多補充水分']);
+  assert.deepStrictEqual(W({ uv: '7' }).slice(2), []);
+  assert.deepStrictEqual(W({ pop: '80', maxAT: '33', minAT: '10' }).slice(2),
+    ['💡 降雨機率高，請留意群組通知（可能延賽）', '💡 體感偏熱，記得防曬、多補充水分', '💡 天氣偏涼，注意保暖、多做熱身']);
+});
+
+test('第 4～7 天降雨機率是「-」：不寫降雨機率，溫度提醒照常；最低最高一樣只寫一個；天氣現象沒有就省略', () => {
+  assert.deepStrictEqual(W({ pop: '-', maxAT: '32' }, { now: TPE(2026, 11, 10, 20) }), ['🌦️ 11/15（日）白天 新北市', '多雲短暫陣雨｜23～27°C', '💡 體感偏熱，記得防曬、多補充水分']);
+  assert.deepStrictEqual(W({ pop: '-', minT: '25', maxT: '25', wx: '' }).slice(1), ['25°C']);
+});
+
+test('超過 7 天、或活動已經過了 → 不顯示，也沒有連到氣象署', () => {
+  const far = run('#下一場', { now: TPE(2026, 11, 8, 9) });          // 11/15 10:00 開賽，還有 7 天 1 小時
+  assert.ok(!/🌦️/.test(far.replies[0]) && /還有 7 天/.test(far.replies[0]));
+  assert.ok(!far.fetches.some((f) => f.url.includes('cwa.gov.tw')));
+  const past = run('#下一場', { now: TPE(2026, 11, 15, 14) });       // 開賽過了 4 小時
+  assert.ok(!past.fetches.some((f) => f.url.includes('cwa.gov.tw')));
+  const near = run('#下一場', { now: TPE(2026, 11, 8, 11) });         // 6 天 23 小時 → 查
+  assert.ok(near.fetches.some((f) => f.url.includes('cwa.gov.tw')));
+});
+
+test('36 小時內也用一週預報（有溫度、提醒），不再查「今明 36 小時」F-C0032-001', () => {
+  const r = run('#下一場', { now: TPE(2026, 11, 14, 20), weather: WEEK({ pop: '70' }) });
+  assert.deepStrictEqual(wBlock(r.replies[0]).slice(1), ['多雲短暫陣雨｜23～27°C｜降雨機率 70%', '💡 降雨機率高，請留意群組通知（可能延賽）']);
+  assert.ok(!r.fetches.some((f) => f.url.includes('F-C0032-001')));
+});
+
+test('時段：10:00 開賽取白天（06～18）；19:00 開賽取晚上（沒有紫外線資料也不出錯）', () => {
+  assert.strictEqual(W({})[0], '🌦️ 11/15（日）白天 新北市');
+  const night = SCHEDULE.map((x) => (x.date === '2026-11-15' ? { ...x, startTime: '19:00' } : x));
+  assert.deepStrictEqual(W({}, { data: { schedule: night } }), ['🌦️ 11/15（日）晚上 新北市', '陰天｜19～21°C｜降雨機率 80%', '💡 降雨機率高，請留意群組通知（可能延賽）', '💡 天氣偏涼，注意保暖、多做熱身']);
+});
+
+test('出錯：沒有金鑰、HTTP 錯誤、JSON 壞掉、找不到縣市、找不到時段、全部欄位都是「-」→ 天氣段不顯示，其他照常', () => {
+  const base = noWeather(one('#下一場', { now: TPE(2026, 11, 12, 20) }));
+  const noKey = run('#下一場', { now: TPE(2026, 11, 12, 20), props: { CWA_API_KEY: '' } });
+  assert.strictEqual(noKey.replies[0], base);
+  assert.ok(!noKey.fetches.some((f) => f.url.includes('cwa.gov.tw')));
+  assert.strictEqual(one('#下一場', { now: TPE(2026, 11, 12, 20), weather: null }), base);
+  assert.strictEqual(one('#下一場', { now: TPE(2026, 11, 12, 20), weather: '{"records": [' }), base);
+  const noCounty = { records: { Locations: [{ Location: [LOC('臺北市', SLOTS())] }] } };
+  assert.strictEqual(one('#下一場', { now: TPE(2026, 11, 12, 20), weather: noCounty }), base);
+  const noSlot = { records: { Locations: [{ Location: [LOC('新北市', SLOTS().slice(0, 1))] }] } };
+  assert.strictEqual(one('#下一場', { now: TPE(2026, 11, 12, 20), weather: noSlot }), base);
+  assert.strictEqual(one('#下一場', { now: TPE(2026, 11, 12, 20), weather: WEEK({ wx: '-', minT: '-', maxT: '-', minAT: '-', maxAT: '-', pop: '-', uv: '-' }) }), base);
+  assert.ok(/還有 3 天，大家加油！💪$/.test(base) && /⚠️ 球場無飲水機/.test(base));
+});
+
+test('網址：F-D0047-091，帶金鑰、球場所在縣市（大漢B球場 → 新北市）、只要 7 個欄位', () => {
+  const r = run('#下一場', { now: TPE(2026, 11, 12, 20) });
+  const w = r.fetches.filter((f) => f.url.includes('cwa.gov.tw'));
+  assert.strictEqual(w.length, 1);
+  assert.strictEqual(w[0].url, 'https://opendata.cwa.gov.tw/api/v1/rest/datastore/F-D0047-091?Authorization=cwa&LocationName=' + encodeURIComponent('新北市')
+    + '&ElementName=' + encodeURIComponent('天氣現象,最高溫度,最低溫度,最高體感溫度,最低體感溫度,12小時降雨機率,紫外線指數'));
+});
+
+test('基隆市（大武崙棒球場）＋#練球 也有天氣段', () => {
+  const sched = SCHEDULE.map((x) => (x.date === '2026-11-08' ? { ...x, date: '2026-11-15', venue: '基隆大武崙棒球場' } : x)).filter((x) => x.type === 'practice' || x.date !== '2026-11-15');
+  const r = run('#練球', { now: TPE(2026, 11, 12, 20), data: { schedule: sched } });
+  assert.deepStrictEqual(wBlock(r.replies[0]), ['🌦️ 11/15（日）白天 基隆市', '短暫陣雨｜18～20°C｜降雨機率 60%', '💡 可能下雨，記得帶雨具', '💡 天氣偏涼，注意保暖、多做熱身']);   // 最低體感 15
+  assert.ok(r.fetches.find((f) => f.url.includes('cwa.gov.tw')).url.includes('LocationName=' + encodeURIComponent('基隆市')));
 });
 
 test('#練球：下一次練球；地點空白 → 「地點未定，請留意公告」', () => {

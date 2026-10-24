@@ -90,7 +90,8 @@ function run(texts, { now = TPE(2026, 11, 12, 20), props = {}, data = {}, events
     const m = /\/data\/(.+)\.json$/.exec(url);
     if (m && m[1].startsWith('games/')) {
       const id = decodeURIComponent(m[1].slice(6));
-      return id === GAME_1101.id ? { code: 200, body: GAME_1101 } : { code: 404, body: '' };
+      const games = files.games || { [GAME_1101.id]: GAME_1101 };
+      return games[id] ? { code: 200, body: games[id] } : { code: 404, body: '' };
     }
     return m && files[m[1]] ? { code: 200, body: files[m[1]] } : { code: 404, body: '' };
   };
@@ -331,12 +332,87 @@ test('#戰績：還沒有任何標賽事的比賽 → 還沒有戰績', () => {
   assert.strictEqual(one('#戰績', { data: { schedule: SCHEDULE.map((x) => ({ ...x, league: undefined })) } }), '還沒有戰績，開季後就查得到囉！⚾');
 });
 
-test('#上一場：最近一場有賽事成績的比賽，比分和勝負，附賽事成績頁連結', () => {
-  assert.strictEqual(one('#上一場'), `⚾ 上一場：11/1（日）vs ZERO\n龍安 14：3 ZERO，勝 🎉\n👉 ${SITE}/game.html?id=2026-11-01_G1_ZERO`);
+test('#上一場（V01.16.01 起和「#成績」查最近一場一樣）：比分、勝負、賽事、亮點、賽事成績頁連結', () => {
+  assert.strictEqual(one('#上一場'), `⚾ 11/1（日）vs ZERO｜大漢聯盟\n龍安 14：3 ZERO，勝 🎉\n🔥 安打最多：陳奕瑋 2 支\n💪 打點最多：陳奕瑋 3 分\n👉 ${SITE}/game.html?id=2026-11-01_G1_ZERO`);
 });
 
 test('#上一場：從來沒有發布過賽事成績 → 提示', () => {
   assert.strictEqual(one('#上一場', { data: { schedule: [practice('2026-11-08')] } }), '還沒有發布過賽事成績 📋');
+});
+
+console.log('\n#成績（V01.16.01：最近 5 場、查單場）');
+
+const pub = (date, opp, us, them, o = {}) => game(date, opp, { league: '大漢聯盟', score: { longan: us, opponent: them }, resultUrl: 'game.html?id=' + encodeURIComponent(`${date}_G1_${opp}`), ...o });
+const RES_SCHED = [
+  pub('2026-09-27', 'E隊', 5, 0),
+  pub('2026-10-04', 'A隊', 3, 1, { league: undefined }),
+  pub('2026-10-11', 'B隊', 2, 6),
+  pub('2026-10-18', 'F隊', 0, 0, { cancelled: true }),
+  pub('2026-10-25', 'D隊', 4, 4),
+  SCHEDULE[0],                                   // 11/1 ZERO 14：3（成績檔 GAME_1101）
+  practice('2026-11-08'),
+  game('2026-11-15', 'RELOOC', { league: '大漢聯盟' }),   // 還沒發布
+];
+const GAME_1025 = { id: '2026-10-25_G1_D隊', date: '2026-10-25', opponent: 'D隊', score: { us: 4, opp: 4 },
+  batting: [bat('5', '陳奕瑋', { H: 2, RBI: 1 }), bat('18', '江佑霖', { H: 2, RBI: 1 }), bat('19', '林廷軒', { H: 1 }), bat('33', '王新人', { H: 2 }), bat('21', '李浩偉', { H: 2, RBI: 1 })], pitching: [] };
+const GAME_1011 = { id: '2026-10-11_G1_B隊', date: '2026-10-11', opponent: 'B隊', score: { us: 2, opp: 6 }, batting: [bat('5', '陳奕瑋', { H: 1 })], pitching: [] };
+const GAMES = { [GAME_1101.id]: GAME_1101, [GAME_1025.id]: GAME_1025, [GAME_1011.id]: GAME_1011 };   // 9/27、10/4 的成績檔讀不到
+const res = (text, o = {}) => one(text, { now: TPE(2026, 11, 12, 20), data: { schedule: RES_SCHED, games: GAMES }, ...o });
+
+test('#成績：最近 5 場（新的在前），沒發布的、取消的不列；比分從時程讀', () => {
+  assert.strictEqual(res('#成績'), [
+    '⚾ 最近 5 場比賽成績',
+    '11/1（日）vs ZERO　14：3 勝',
+    '10/25（日）vs D隊　4：4 和',
+    '10/11（日）vs B隊　2：6 敗',
+    '10/4（日）vs A隊　3：1 勝',
+    '9/27（日）vs E隊　5：0 勝',
+    '👉 想看某一場：打 #成績 11/15',
+  ].join('\n'));
+});
+
+test('#成績：超過 5 場只列 5 場；不到 5 場有幾場列幾場', () => {
+  const more = [pub('2026-09-20', 'G隊', 1, 2), ...RES_SCHED];
+  assert.ok(!res('#成績', { data: { schedule: more, games: GAMES } }).includes('9/20'));
+  const two = res('#成績', { data: { schedule: RES_SCHED.slice(4), games: GAMES } });
+  assert.strictEqual(two.split('\n').length, 4);
+  assert.ok(two.includes('11/1（日）vs ZERO') && two.includes('10/25（日）vs D隊'));
+});
+
+test('#成績 單場：比分、勝負、賽事、亮點（同分都列、最多 3 位加「等 N 人」；最多是 0 不顯示）、連結', () => {
+  assert.strictEqual(res('#成績 10/25'), [
+    '⚾ 10/25（日）vs D隊｜大漢聯盟',
+    '龍安 4：4 D隊，和',
+    '🔥 安打最多：陳奕瑋、江佑霖、王新人等 4 人 2 支',
+    '💪 打點最多：陳奕瑋、江佑霖、李浩偉 1 分',
+    `👉 ${SITE}/game.html?id=2026-10-25_G1_D%E9%9A%8A`,
+  ].join('\n'));
+  assert.strictEqual(res('#成績 10/11'), ['⚾ 10/11（日）vs B隊｜大漢聯盟', '龍安 2：6 B隊，敗，下一場再拚！💪', '🔥 安打最多：陳奕瑋 1 支',
+    `👉 ${SITE}/game.html?id=2026-10-11_G1_B%E9%9A%8A`].join('\n'));
+});
+
+test('#成績 日期寫法：11/1、11-1、2026-11-01、#比賽 11/1 都一樣', () => {
+  const t = res('#成績 11/1');
+  ['#成績 11-1', '#成績 2026-11-01', '#比賽 11/1', '#成績 11/01'].forEach((k) => assert.strictEqual(res(k), t, k));
+  assert.ok(t.startsWith('⚾ 11/1（日）vs ZERO'));
+});
+
+test('#成績 找不到：那天沒比賽 → 最近兩場日期；日期看不懂 → 提示寫法；從沒發布過 → 提示', () => {
+  assert.strictEqual(res('#成績 11/16'), '11/16 沒有比賽成績，最近的是 11/1、10/25');
+  assert.strictEqual(res('#成績 10/18'), '10/18 沒有比賽成績，最近的是 11/1、10/25');   // 取消的不算
+  assert.strictEqual(res('#成績 abc'), '看不懂日期「abc」，請打 #成績 11/15 這樣的格式');
+  assert.strictEqual(res('#成績', { data: { schedule: [practice('2026-11-08')] } }), '還沒有發布過賽事成績 📋');
+  assert.strictEqual(res('#成績 11/1', { data: { schedule: [practice('2026-11-08')] } }), '還沒有發布過賽事成績 📋');
+});
+
+test('#成績 單場的成績檔讀不到 → 照樣有比分（時程的）和連結，沒有亮點；賽事沒填就不寫', () => {
+  assert.strictEqual(res('#成績 10/4'), ['⚾ 10/4（日）vs A隊', '龍安 3：1 A隊，勝 🎉', `👉 ${SITE}/game.html?id=2026-10-04_G1_A%E9%9A%8A`].join('\n'));
+});
+
+test('#上一場 ＝ #成績 查最近一場；官網讀不到 → 資料暫時讀不到；#說明 列出 #成績', () => {
+  assert.strictEqual(res('#上一場'), res('#成績 11/1'));
+  assert.strictEqual(one('#成績', { siteDown: true }), '資料暫時讀不到，請稍後再試 🙏');
+  assert.ok(one('#說明').includes('#成績　最近 5 場比分（#成績 11/15 看單場）'));
 });
 
 console.log('\n#球員（名字、背號、暱稱）');

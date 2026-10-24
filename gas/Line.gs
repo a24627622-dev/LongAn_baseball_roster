@@ -20,6 +20,7 @@ var LINE_HELP = [
   '#公告　最新一則公告',
   '#戰績　本季戰績',
   '#上一場　上一場比賽的比分',
+  '#成績　最近 5 場比分（#成績 11/15 看單場）',
   '#陳奕瑋　球員本季成績（也可以打背號 #5 或暱稱）',
 ].join('\n');
 var LINE_DOWN = '資料暫時讀不到，請稍後再試 🙏';
@@ -68,7 +69,10 @@ function lineParse_(text) {
   if (!body) return null;
   var map = { '行程': 'week', '本週': 'week', '這週': 'week', '下一場': 'next', '練球': 'practice', '公告': 'news', '戰績': 'record', '上一場': 'last', '說明': 'help', 'help': 'help', '幫助': 'help' };
   var k = map[body] || map[body.toLowerCase()];
-  return k ? { type: k } : { type: 'player', q: body };
+  if (k) return { type: k };
+  var res = /^(成績|比賽)\s*(.*)$/.exec(body);   // #成績、#成績 11/15、#比賽 11/15（V01.16.01）
+  if (res) return { type: 'results', q: res[2].trim() };
+  return { type: 'player', q: body };
 }
 
 // 讀官網資料檔（同一次請求讀過就不再讀）；讀不到時丟 lineDown
@@ -112,7 +116,8 @@ function lineAnswer_(cmd, L, site) {
     var s = lineSeason_(gp, L);
     return '🏆 ' + gp.label + '\n' + s.record.played + ' 場 ' + s.record.win + ' 勝 ' + s.record.loss + ' 敗 ' + s.record.tie + ' 和\n👉 ' + site + '/standings.html';
   }
-  if (cmd.type === 'last') return lineLast_(L, today, site);
+  if (cmd.type === 'last') return lineResults_('', L, today, site, true);
+  if (cmd.type === 'results') return lineResults_(cmd.q, L, today, site, false);
   return linePlayer_(cmd.q, L, site);
 }
 
@@ -269,21 +274,58 @@ function lineWeather_(area, date, time) {
   return [];
 }
 
-// #上一場：最近一場有賽事成績（resultUrl）的比賽
-function lineLast_(L, today, site) {
+// #成績（V01.16.01）：最近 5 場有賽事成績（resultUrl）的比賽；#成績 11/15 查單場；#上一場 ＝ 最近一場的單場
+function lineResults_(q, L, today, site, latest) {
   var list = (L.json('schedule') || []).filter(function (x) {
     return x && x.type === 'game' && !x.cancelled && String(x.date) <= today && /^game\.html\?id=[^&#\s]+$/.test(String(x.resultUrl || ''));
   }).sort(function (a, b) { return String(b.date).localeCompare(String(a.date)); });
-  var it = list[0];
-  if (!it) return '還沒有發布過賽事成績 📋';
+  if (!list.length) return '還沒有發布過賽事成績 📋';
+  var md = function (d) { return lineMD_(d).replace(/（.）$/, ''); };
+  if (latest) return lineGameResult_(list[0], L, site);
+  if (!q) {
+    var rows = list.slice(0, 5).map(function (x) {
+      var sc = x.score && typeof x.score.longan === 'number' && typeof x.score.opponent === 'number' ? x.score : null;
+      return lineMD_(x.date) + 'vs ' + x.opponent + '　' + (sc ? sc.longan + '：' + sc.opponent + ' ' + (sc.longan > sc.opponent ? '勝' : sc.longan < sc.opponent ? '敗' : '和') : '比分未填');
+    });
+    return ['⚾ 最近 ' + rows.length + ' 場比賽成績'].concat(rows, ['👉 想看某一場：打 #成績 11/15']).join('\n');
+  }
+  var m = /^(?:(\d{4})[\/\-.])?(\d{1,2})[\/\-.](\d{1,2})$/.exec(q.replace(/\s/g, ''));
+  if (!m) return '看不懂日期「' + q + '」，請打 #成績 11/15 這樣的格式';
+  var mmdd = ('0' + Number(m[2])).slice(-2) + '-' + ('0' + Number(m[3])).slice(-2);
+  var hit = list.filter(function (x) { return String(x.date).slice(5) === mmdd && (!m[1] || String(x.date).slice(0, 4) === m[1]); })[0];   // 跨年同月日取最近的
+  if (!hit) return Number(m[2]) + '/' + Number(m[3]) + ' 沒有比賽成績，最近的是 ' + list.slice(0, 2).map(function (x) { return md(x.date); }).join('、');
+  return lineGameResult_(hit, L, site);
+}
+
+// 單場：比分、勝負、賽事、亮點（安打、打點最多；同分都列，最多 3 位）、賽事成績頁連結
+function lineGameResult_(it, L, site) {
   var g = L.game(decodeURIComponent(it.resultUrl.slice('game.html?id='.length)));
   var us = g && g.score ? g.score.us : (it.score && it.score.longan);
   var opp = g && g.score ? g.score.opp : (it.score && it.score.opponent);
-  var line = '';
+  var out = ['⚾ ' + lineMD_(it.date) + 'vs ' + it.opponent + (typeof it.league === 'string' && it.league.trim() ? '｜' + it.league.trim() : '')];
   if (typeof us === 'number' && typeof opp === 'number') {
-    line = '\n龍安 ' + us + '：' + opp + ' ' + it.opponent + '，' + (us > opp ? '勝 🎉' : us < opp ? '敗，下一場再拚！💪' : '和');
+    out.push('龍安 ' + us + '：' + opp + ' ' + it.opponent + '，' + (us > opp ? '勝 🎉' : us < opp ? '敗，下一場再拚！💪' : '和'));
   }
-  return '⚾ 上一場：' + lineMD_(it.date) + 'vs ' + it.opponent + line + '\n👉 ' + site + '/' + it.resultUrl;
+  if (g && g.batting instanceof Array) {
+    var by = {}, order = [];
+    g.batting.forEach(function (b) {
+      var k = String(b.number);
+      if (!by[k]) { by[k] = { name: b.name, H: 0, RBI: 0 }; order.push(k); }
+      by[k].H += Number(b.H) || 0;
+      by[k].RBI += Number(b.RBI) || 0;
+    });
+    var top = function (key, icon, label, unit) {
+      var max = 0;
+      order.forEach(function (k) { if (by[k][key] > max) max = by[k][key]; });
+      if (!max) return;
+      var names = order.filter(function (k) { return by[k][key] === max; }).map(function (k) { return by[k].name; });
+      out.push(icon + ' ' + label + '：' + names.slice(0, 3).join('、') + (names.length > 3 ? '等 ' + names.length + ' 人' : '') + ' ' + max + ' ' + unit);
+    };
+    top('H', '🔥', '安打最多', '支');
+    top('RBI', '💪', '打點最多', '分');
+  }
+  out.push('👉 ' + site + '/' + it.resultUrl);
+  return out.join('\n');
 }
 
 // #陳奕瑋、#5、#坦克：最新一季的成績

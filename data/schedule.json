@@ -69,7 +69,10 @@
     "startTime": "08:00",
     "venue": "大漢B球場",
     "opponent": "演練",
-    "score": null,
+    "score": {
+      "longan": 8,
+      "opponent": 2
+    },
     "resultUrl": "game.html?id=2026-11-01_G1_%E6%BC%94%E7%B7%B4",
     "cancelled": false,
     "note": "",

@@ -21,7 +21,7 @@
 
 | 要走 TDD（邏輯） | 不走 TDD（改完列出人工檢查項目） |
 |---|---|
-| `record-engine.js`、`game-core.js`、`data-check.js`、`gas/*.gs`、`tools/lineup.html` 的 `setup()` 邏輯、`tools/gate.js`、`season-stats.js`，以及之後新增的共用模組 | `docs/`、CSS 與版面、`data/*.json` 的內容、畫面外觀、試算表底色與粗體 |
+| `record-engine.js`、`game-core.js`、`data-check.js`、`gas/*.gs`、`tools/lineup.html` 的 `setup()` 邏輯、`tools/gate.js`、`season-stats.js`、`moved.js`，以及之後新增的共用模組 | `docs/`、CSS 與版面、`data/*.json` 的內容、畫面外觀、試算表底色與粗體 |
 
 - 測試清單（邊界值、分類、異常輸入、狀態順序、不變條件）**放進問完需求後的規格摘要**，使用者回「開工」＝規格和測試清單一起批准。
 - 修 bug：先寫重現它的測試並看它失敗，再修；測試名稱加 `【修正】` 前綴。
@@ -43,10 +43,11 @@ node tests/test_game_core.js           # 117 項：實況賽事紀錄的計算�
 node tests/test_gate.js               # 5 項：球隊管理密碼（tools/gate.js 通行證到期判斷）
 node tests/test_season_stats.js       # 10 項：戰績頁的整季加總（season-stats.js：分組、勝敗、打擊與比率、投手 IP／ER、讀不到的場次）
 node tests/test_line.js               # 26 項：LINE「龍安虛擬球隊經理」（gas/Line.gs：觸發、各關鍵字的回覆、球場資訊、天氣、出錯、不影響隊務）
+node tests/test_moved.js              # 5 項：舊網址轉址（moved.js：GitHub Pages → Cloudflare Pages 同一頁）
 node tests/check_data.js               # 不是測試：檢查 data/*.json 與 data/games/*.json
 ```
 
-基準（2026-10-25，V01.14.00 開發中）：68＋40＋26＋39＋62＋117＋5（gate）＋10（season_stats）＋26（line），`check_data` 沒有錯誤。測試數量有增減時，這裡、`tests/README.md`、`docs/測試報告_調度三情境.md` 一起更新。
+基準（2026-10-25，V01.14.00 開發中）：68＋40＋26＋39＋62＋117＋5（gate）＋10（season_stats）＋26（line）＋5（moved），`check_data` 沒有錯誤。測試數量有增減時，這裡、`tests/README.md`、`docs/測試報告_調度三情境.md` 一起更新。
 
 ### 測試放哪裡
 
@@ -83,7 +84,7 @@ node tests/check_data.js               # 不是測試：檢查 data/*.json 與 d
 
 ## 部署注意
 
-- `main` = GitHub Pages = 正式上線，push 後約一分鐘生效
+- `main` = 正式上線：**Cloudflare Pages** https://longan-baseball.pages.dev （2026-10-24 起），push 後約一兩分鐘生效；每個分支也有 Cloudflare 的預覽網址。舊 GitHub Pages 網址由 `moved.js` 自動轉到新網址，使用者決定何時關閉（repo 改私人）
 - 改了 `gas/*.gs`：使用者要貼進 Apps Script 並「建立新版本」才生效。**GAS 要先部署，再 merge `main`**
 - 這個 repo 是公開的：**不要 commit 密碼、金鑰、密碼提示**
 - 開 PR 後，告訴使用者照 `DEVELOPMENT.md` 第 11 節測試與 Merge；PR 說明要寫「上線步驟」（要測什麼、GAS 要不要動）

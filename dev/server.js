@@ -89,7 +89,7 @@ function saveSpreadsheet(ss) {
 }
 
 // 本機的對外連線：官網資料檔讀 repo 裡的檔案；LINE 回覆記下來；氣象署不連（不顯示降雨機率）
-const LINE_SITE = 'https://a24627622-dev.github.io/LongAn_baseball_roster';
+const LINE_SITE = 'https://longan-baseball.pages.dev';
 let lineOutbox = [];
 function devFetch(url, params) {
   if (url === 'https://api.line.me/v2/bot/message/reply') {

@@ -15,6 +15,29 @@
 
 ---
 
+## V01.14.01 — 2026-10-24（網站搬到 Cloudflare Pages：舊網址自動轉址）
+
+**狀態**：待使用者確認。GAS 程式有改一行預設網址（`Line.gs`），還沒部署 LINE 的話跟 V01.14.00 一起部署就好。
+
+### 修改（使用者 2026-10-24～25 決定 H1～H5：網址不要露出個人帳號）
+
+- 新網址 https://longan-baseball.pages.dev （Cloudflare Pages，使用者已建立）
+- **`moved.js`**（新）：每一頁（官網 5 頁、球隊管理 8 頁）最前面載入；在舊網址（`a24627622-dev.github.io/LongAn_baseball_roster/…`）打開，自動轉到新網址的同一頁，參數與 # 保留；新網址、預覽網址、本機開發不受影響。使用者決定關閉舊網址（repo 改私人）後可以拿掉
+- `gas/Line.gs`：LINE 機器人讀資料的預設網址改成新網址（GAS 指令碼屬性 `LINE_SITE_URL` 不用設）；`dev/server.js` 跟著改
+- 文件：網址、部署方式改成 Cloudflare Pages（`CLAUDE.md`、`DEVELOPMENT.md`、專案現況）
+
+### 測試（TDD）
+
+- 新增 `test_moved.js` 5 項；先看過失敗；突變 2 處（拿掉參數與 #、拿掉 repo 路徑判斷）都抓到。`test_line.js` 的期望網址改成新網址（規格改變）
+- 這個雲端環境連不到 `pages.dev`，新網址的實際畫面請使用者確認
+
+### 人工實測
+
+- 打開舊網址的首頁、`schedule.html`、`game.html?id=…`、`tools/lineup.html` → 都轉到新網址的同一頁
+- 新網址各頁正常，球隊管理要重新輸入一次隊務密碼（新網站）
+
+---
+
 ## V01.14.00 — 2026-10-25（LINE「龍安虛擬球隊經理」第一版）
 
 **狀態**：待使用者確認。**GAS 要更新**（新增 `Line.gs`、`SeasonStats`＝`season-stats.js`，更新 `Code.gs`），還要申請 LINE 官方帳號與設定金鑰（`DEVELOPMENT.md`「LINE 龍安虛擬球隊經理」）。

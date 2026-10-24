@@ -8,7 +8,7 @@
 // - GAS 讀不到 LINE 附在請求上的簽章：機器人只回答官網上本來就公開的資訊，假冒的請求也拿不到能回覆群組的 replyToken
 // 測試：tests/test_line.js
 // ==========================================
-var LINE_SITE_DEFAULT = 'https://a24627622-dev.github.io/LongAn_baseball_roster';
+var LINE_SITE_DEFAULT = 'https://longan-baseball.pages.dev';   // 2026-10-24 搬到 Cloudflare Pages
 var LINE_REPLY_URL = 'https://api.line.me/v2/bot/message/reply';
 var LINE_WEEKDAYS = ['日', '一', '二', '三', '四', '五', '六'];
 var LINE_INTRO = '大家好，我是龍安虛擬球隊經理 ⚾\n我可以回答比賽、練球、戰績、球員成績等問題，打「#說明」看用法。\n我只處理「#」開頭的訊息，其他聊天內容不會記錄。';

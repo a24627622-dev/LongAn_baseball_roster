@@ -10,7 +10,7 @@
 |---|---|---|---|
 | ① 本機（這份手冊的重點） | `http://localhost:8080` | 假試算表 `dev/data/sheets.json` | 只有你（和同 Wi-Fi 的手機） |
 | ② 雲端測試（可選，第 8 節） | `localhost` 網址後面加 `?api=測試GAS網址` | 「試算表副本」 | 只有你 |
-| ③ 正式 | `a24627622-dev.github.io/...` | 正式 Google 試算表 | 所有人 |
+| ③ 正式 | `longan-baseball.pages.dev`（2026-10-24 起；舊的 `a24627622-dev.github.io/...` 自動轉過來） | 正式 Google 試算表 | 所有人 |
 
 - **正式網站只有在你 `git push` 到 GitHub 的 main 分支後才會更新**，在本機怎麼改都不會影響正式網站。
 - **Apps Script 也一樣**：只有你把程式貼進正式 Apps Script，並按「部署 → 建立新版本」，後端才會變。
@@ -182,6 +182,7 @@ node tests/test_game_core.js
 node tests/test_gate.js
 node tests/test_season_stats.js
 node tests/test_line.js
+node tests/test_moved.js
 node tests/check_data.js
 ```
 
@@ -246,7 +247,7 @@ git commit -m "V01.02.00 本機測試版"   # 存成一個版本
 **⚠️ 特別注意：**
 
 - `stats.html`（舊的成績登記頁）已於 2026-09-20 移除。它送出的 `savePlayerStats` 在 `Code.gs` 沒有對應分支，會顯示「成功」但成績一個字都不會寫入，留著比移除危險。個人成績改由文字紀錄轉換工具接手（見 `文字記錄簡碼字典.md`）。
-- 在正式網站（github.io）上操作，永遠都是正式資料。
+- 在正式網站（longan-baseball.pages.dev）上操作，永遠都是正式資料。
 
 ---
 
@@ -255,7 +256,7 @@ git commit -m "V01.02.00 本機測試版"   # 存成一個版本
 確認本機（以及雲端測試環境）都沒問題後，再依照 `docs/CHANGELOG.md` 裡的「部署順序」進行：
 
 1. 更新正式 Apps Script，並建立新版本部署。
-2. 合併到 main 分支並 push，GitHub Pages 會自動更新。
+2. 合併到 main 分支並 push，Cloudflare Pages 會自動更新（約一兩分鐘）。
 
 上線那天可以再請 Claude 帶你一步一步做。
 
@@ -320,7 +321,7 @@ git pull origin main
 # 對外官網的維護（階段 C 起）
 
 對外三頁（`index.html`、`news.html`、`schedule.html`）讀的是 repo 裡的兩個靜態檔，
-**不打 GAS、不碰試算表**。改完推上 GitHub，約一分鐘後官網自動更新（GitHub Pages 會自動部署，
+**不打 GAS、不碰試算表**。改完推上 GitHub，約一兩分鐘後官網自動更新（Cloudflare Pages 會自動部署，
 沒有另外的「發布」按鈕）。
 
 | 檔案 | 內容 |
@@ -328,7 +329,7 @@ git pull origin main
 | `data/announcements.json` | 公告 |
 | `data/schedule.json` | 比賽與練球時程 |
 
-## 網站搬到 Cloudflare Pages（2026-10-25 定案，還沒搬）
+## 網站搬到 Cloudflare Pages（2026-10-24 新網址上線：https://longan-baseball.pages.dev）
 
 **為什麼**：GitHub Pages 的網址 `a24627622-dev.github.io` 會露出個人帳號。改用 Cloudflare Pages（免費）：網址 `longan-baseball.pages.dev`（被用走就用 `longan-baseball-tw`），之後 repo 改成私人。
 平常的工作方式不變：一樣在 GitHub 網頁改 `data/`、一樣 Merge PR，Cloudflare 會在一兩分鐘內自動更新網站。
@@ -344,7 +345,7 @@ git pull origin main
    - 按「儲存並部署」，一兩分鐘後打開 `https://longan-baseball.pages.dev/`
 3. **檢查新網址**：首頁、公告、賽事時程、戰績、賽事成績頁都正常；球隊管理要先輸入隊務密碼（新網址的瀏覽器要重新登入一次）；陣容調度能讀名單、上傳先發（GAS 照常，不用改）
 4. **LINE 機器人**：Apps Script「指令碼屬性」新增 `LINE_SITE_URL` ＝ `https://longan-baseball.pages.dev`（不用改程式）
-5. **舊網址轉址**：Claude 會做一個小版本——在舊網址（`github.io`）打開任何頁面，自動轉到新網址的同一頁（新網址不受影響）。重發新連結給隊員
+5. **舊網址轉址**（V01.14.01，`moved.js`，每一頁最前面載入）：在舊網址（`github.io`）打開任何頁面，自動轉到新網址的同一頁（新網址、本機不受影響）。重發新連結給隊員
 6. **使用者測試完、決定關閉舊網址時**：GitHub repo「Settings → General → Danger Zone → Change visibility → Private」。舊網址從此打不開，程式和修改紀錄也不再公開
 7. **改完私人之後**：GitHub 的自動資料檢查照常（私人 repo 每月有免費執行額度，這個檢查用量很小）；文件裡「main＝GitHub Pages」「repo 是公開的」的說明由 Claude 一起更新（金鑰照樣不放進 repo）
 
@@ -394,7 +395,7 @@ git pull origin main
 - **通過**：commit 旁邊出現綠色 ✓，什麼都不用做
 - **失敗**：commit 旁邊出現紅色 ✗，GitHub 會寄 email 給你。點 ✗ →「Details」看是哪個檔案、第幾筆、什麼問題。
   照訊息修正，或把訊息貼給 Claude 請它修
-- ⚠️ **檢查擋不住上線**：就算是紅的，GitHub Pages 還是會把壞掉的檔案放上官網。收到 email 請盡快修
+- ⚠️ **檢查擋不住上線**：就算是紅的，Cloudflare Pages 還是會把壞掉的檔案放上官網。收到 email 請盡快修
 
 | 等級 | 內容 | 會變紅嗎 |
 |---|---|---|

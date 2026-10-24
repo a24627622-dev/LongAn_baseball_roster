@@ -40,6 +40,7 @@ node tests/check_data.js                   # 檢查 data/*.json
 - `test_gate.js`（5 項）：球隊管理密碼 `tools/gate.js` 的通行證到期判斷（沒過期放行、過期與剛好到期擋、壞掉的通行證擋、base64url 讀得懂、GAS 實際發的通行證）。
 - `test_season_stats.js`（10 項）：戰績頁的整季加總（根目錄 `season-stats.js`，V01.13.02），期望值手算：依「年份＋賽事」分組（沒標賽事、沒連結、取消、練球不算）、勝敗和、打擊跨場相加（名字用最新的、依背號數字排序）、打擊率／上壘率／長打率與合計、打數 0 顯示「-」、投手 IP 用出局數相加、ER 有一場沒填顯示「-」、讀不到的場次。
 - `test_line.js`（26 項）：LINE「龍安虛擬球隊經理」（`gas/Line.gs`，V01.14.00）。用 `gas_mock.js` 的假對外連線（`UrlFetchApp`）模擬 LINE、官網資料檔、氣象署：# 觸發（半形／全形、空白、括號忽略、沒 # 不回）、#下一場（跳過已過與取消、台灣時間、今天／明天／倒數、球場資訊、地圖連結編碼、降雨機率只在 36 小時內、沒金鑰或讀不到不顯示）、#練球（地點未定、取消）、#公告、#戰績、#上一場、#球員（名字／背號／暱稱、同名、沒出賽、查無此人、手算的打擊與投手成績）、#說明、進群組自我介紹、資料讀不到、沒設 LINE 金鑰、不需要隊務登入也不寫流水簿、Webhook 驗證。
+- `test_moved.js`（5 項）：舊網址轉址（根目錄 `moved.js`，V01.14.01）：GitHub Pages 舊網址的首頁、子頁、球隊管理轉到 Cloudflare Pages 新網址的同一頁，參數與 # 保留；新網址、預覽網址、本機、別的 repo、壞掉的網址不轉。
 - `check_data.js`：不是測試，是檢查 `data/schedule.json`、`data/announcements.json` 的指令；
   GitHub 自動檢查（`.github/workflows/check-data.yml`）也是跑這兩支。
 - `test_scenarios.js`（26 項）：三大調度情境（A×6、B×5、C×7）、規則守門（G×3）、DH 規則引導（D×5），見下。

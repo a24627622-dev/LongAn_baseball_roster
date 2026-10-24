@@ -10,7 +10,7 @@ const test = (name, fn) => {
   catch (e) { console.log('  ❌ ' + name + '\n     ' + String(e.message).split('\n').slice(0, 4).join('\n     ')); process.exitCode = 1; }
 };
 
-const SITE = 'https://a24627622-dev.github.io/LongAn_baseball_roster';
+const SITE = 'https://longan-baseball.pages.dev';
 const FILES = ['gas/Code.gs', 'gas/Auth.gs', 'gas/Pitchers.gs', 'gas/Backup.gs', 'season-stats.js', 'gas/Line.gs'];
 const TPE = (y, m, d, hh = 0, mm = 0) => Date.UTC(y, m - 1, d, hh - 8, mm);   // 台灣時間 → 毫秒
 

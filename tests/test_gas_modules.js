@@ -774,4 +774,176 @@ console.log('\nCode.gs 投手表公式（IP 的 2.1＝2 又 1/3 局；ERA、K9�
   });
 }
 
+console.log('\nGitHub.gs 一鍵發布（V01.15.00：成績檔、時程、公告合成一次修改寫進 GitHub；ER 寫回試算表）');
+{
+  const { createFakeGitHub } = require('./github_fake');
+  const files = ['gas/Code.gs', 'gas/Auth.gs', 'gas/Pitchers.gs', 'gas/Backup.gs', 'data-check.js', 'publish-core.js', 'gas/GitHub.gs'];
+  const GC = require('../game-core');
+  const g = JSON.parse(fs.readFileSync(path.join(__dirname, 'fixtures', '2026-08-30_G4_雨人.events.json'), 'utf8'));
+  const gameInfo = { date: '2026-08-30', gameNum: 'G4', opponent: '雨人' };
+  const SHEET = '2026-08-30_G4_雨人';
+  const ID = '2026-08-30_G4_雨人';
+  const LINK = 'game.html?id=2026-08-30_G4_%E9%9B%A8%E4%BA%BA';
+  const GAME_PATH = 'data/games/2026-08-30_G4_雨人.json';
+  const fin = GC.sheetFinal(g.setup, g.events);
+  const GAME = JSON.parse(fs.readFileSync(path.join(__dirname, '..', 'data', 'games', '2026-08-30_G4_雨人.json'), 'utf8'));   // ER 沒填（舊比賽）
+  const SCHED = [
+    { type: 'game', date: '2026-08-30', gatherTime: '07:00', startTime: '08:00', venue: '大漢B球場', opponent: '雨人', score: null, resultUrl: null, cancelled: false, note: '', league: '大漢聯盟' },
+    { type: 'practice', date: '2026-09-06', startTime: '08:00', endTime: '12:00', venue: '', cancelled: false, note: '' },
+  ];
+  const ANN = [{ date: '2026-08-01', title: '暑假練球', body: '', pinned: false }];
+  const TOKEN = 'github_pat_test';
+  const json = (x) => JSON.stringify(x, null, 2) + '\n';
+  const make = (o = {}) => {
+    const gh = createFakeGitHub(o.repo || { 'data/schedule.json': json(SCHED), 'data/announcements.json': json(ANN) }, { token: TOKEN, ...o.gh });
+    const ss = new MockSpreadsheet();
+    const c = createGasContext({ files: o.files || files, spreadsheet: ss, fetch: gh.handler, props: { GITHUB_TOKEN: TOKEN, ...o.props }, now: () => Date.UTC(2026, 8, 1, 2, 0) });
+    return { ss, gh, ...c };
+  };
+  const post = (ctx, data) => out(ctx.doPost({ postData: { contents: JSON.stringify(data) } }));
+  const prepare = (ctx) => {   // 陣容調度上傳先發 → 實況賽事紀錄比賽完成（ER 建議值：#1 是 0，#56 是 0 且塗黃）
+    post(ctx, { action: 'saveStarters', gameInfo, lineup: fin.activeLineup.map((x) => x.starter), pitchers: [fin.pitchers[0]] });
+    post(ctx, { action: 'finishGame', gameInfo, requireSheet: true, ...fin });
+  };
+  const ER = [{ number: '1', ER: 0 }, { number: '56', ER: 4 }];
+  const publish = (ctx, extra = {}) => post(ctx, { action: 'publishGame', game: GAME, er: ER, announcement: { title: '8/30 龍安 vs 雨人 賽事戰報', body: '最終比數 7:6 龍安勝' }, ...extra });
+  const values = (ss) => ss.getSheetByName(SHEET).getDataRange().getValues();
+  const erCell = (ss, num) => {
+    const v = values(ss); const h = v.findIndex((r) => r[0] === '順序');
+    let r = -1; for (let i = h + 1; i < v.length; i++) if (String(v[i][2]) === num) { r = i + 1; break; }
+    const rng = ss.getSheetByName(SHEET).getRange(r, 9);
+    return { v: rng.getValues()[0][0], bg: rng.getBackgrounds()[0][0] };
+  };
+  const ghFile = (gh, p) => (p in gh.files() ? JSON.parse(gh.files()[p]) : undefined);
+  const ghCalls = (fetches) => fetches.filter((f) => f.url.indexOf('https://api.github.com/') === 0).length;
+
+  test('沒登入（強制登入模式）→ AUTH_REQUIRED，完全沒呼叫 GitHub', () => {
+    const { ctx, fetches } = make({ props: { TEAM_PASSCODE: 'abc', AUTH_ENFORCED: 'true' } });
+    assert.strictEqual(publish(ctx).code, 'AUTH_REQUIRED');
+    assert.strictEqual(post(ctx, { action: 'unpublishGame', gameId: ID }).code, 'AUTH_REQUIRED');
+    assert.strictEqual(fetches.length, 0);
+  });
+
+  test('沒設 GITHUB_TOKEN → 清楚的訊息（改用備用的手動發布），沒有送出；沒貼 GitHub.gs → 也是清楚的訊息', () => {
+    const a = make({ props: { GITHUB_TOKEN: '' } });
+    prepare(a.ctx);
+    const r = publish(a.ctx);
+    assert.deepStrictEqual([r.success, r.code], [false, 'NO_GITHUB_TOKEN']);
+    assert.match(r.message, /GITHUB_TOKEN/);
+    assert.strictEqual(a.fetches.length, 0);
+    const b = make({ files: ['gas/Code.gs', 'gas/Auth.gs', 'gas/Pitchers.gs', 'gas/Backup.gs'] });
+    prepare(b.ctx);
+    const r2 = publish(b.ctx);
+    assert.strictEqual(r2.success, false);
+    assert.match(r2.message, /GitHub\.gs/);
+  });
+
+  test('發布成功：剛好一次修改，內含成績檔＋時程＋公告；修改說明正確；不強制覆蓋', () => {
+    const { ctx, gh } = make();
+    prepare(ctx);
+    const r = publish(ctx);
+    assert.strictEqual(r.success, true, r.message);
+    assert.strictEqual(r.mode, 'new');
+    assert.deepStrictEqual(gh.commits, [{ message: '發布賽事成績：2026-08-30 vs 雨人 7:6', paths: ['data/announcements.json', GAME_PATH, 'data/schedule.json'].sort(), force: false }]);
+    assert.deepStrictEqual(ghFile(gh, GAME_PATH).pitching.map((p) => [p.number, p.ER]), [['1', 0], ['56', 4]]);
+    assert.deepStrictEqual(ghFile(gh, 'data/schedule.json'), [{ ...SCHED[0], score: { longan: 7, opponent: 6 }, resultUrl: LINK }, SCHED[1]]);
+    assert.deepStrictEqual(ghFile(gh, 'data/announcements.json'), [...ANN, { date: '2026-09-01', title: '8/30 龍安 vs 雨人 賽事戰報', body: '最終比數 7:6 龍安勝', pinned: false, link: LINK }]);
+  });
+
+  test('不發公告、選友誼賽 → 只有成績檔＋時程，時程拿掉賽事；再按一次（更新）→ 不重複發公告', () => {
+    const { ctx, gh } = make();
+    prepare(ctx);
+    assert.strictEqual(publish(ctx, { announcement: null, league: '' }).success, true);
+    assert.deepStrictEqual(gh.commits[0].paths, [GAME_PATH, 'data/schedule.json'].sort());
+    assert.ok(!('league' in ghFile(gh, 'data/schedule.json')[0]));
+    const r = publish(ctx, { league: '大漢聯盟' });
+    assert.deepStrictEqual([r.success, r.mode], [true, 'update']);
+    assert.match(gh.commits[1].message, /^更新賽事成績：/);
+    const again = publish(ctx);
+    assert.strictEqual(again.success, true);
+    assert.strictEqual(ghFile(gh, 'data/announcements.json').filter((a) => a.link === LINK).length, 1);
+  });
+
+  test('ER 先寫回試算表、黃底清掉，才送 GitHub（GitHub 失敗時試算表的 ER 照樣已更新）', () => {
+    const { ctx, ss } = make({ gh: { status: 500 } });
+    prepare(ctx);
+    assert.deepStrictEqual(erCell(ss, '56'), { v: 0, bg: '#fff2cc' });
+    const r = publish(ctx);
+    assert.strictEqual(r.success, false);
+    assert.deepStrictEqual(erCell(ss, '56'), { v: 4, bg: '#ffffff' });
+    assert.deepStrictEqual(erCell(ss, '1'), { v: 0, bg: '#ffffff' });
+  });
+
+  test('比賽分頁不存在、有投手沒填 ER、ER 大於失分 → 先報錯，不寫試算表、不送 GitHub', () => {
+    const a = make();
+    const r = publish(a.ctx);
+    assert.strictEqual(r.success, false);
+    assert.match(r.message, /找不到比賽分頁/);
+    assert.strictEqual(ghCalls(a.fetches), 0);
+    const b = make();
+    prepare(b.ctx);
+    const r2 = publish(b.ctx, { er: [{ number: '1', ER: 0 }] });
+    assert.match(r2.message, /#56 蘇垣華/);
+    const r3 = publish(b.ctx, { er: [{ number: '1', ER: 0 }, { number: '56', ER: 7 }] });
+    assert.match(r3.message, /ER 應為 0～6/);
+    assert.deepStrictEqual(erCell(b.ss, '56'), { v: 0, bg: '#fff2cc' });
+    assert.strictEqual(ghCalls(b.fetches), 0);
+  });
+
+  test('GitHub 回 401 → 「GitHub 金鑰無效或過期」', () => {
+    const { ctx, gh } = make({ props: { GITHUB_TOKEN: 'wrong' } });
+    prepare(ctx);
+    const r = publish(ctx);
+    assert.strictEqual(r.success, false);
+    assert.match(r.message, /GitHub 金鑰無效或過期/);
+    assert.strictEqual(gh.commits.length, 0);
+  });
+
+  test('剛好有人同時改（衝突）→ 重新讀最新的再送一次，別人的修改保留；連續衝突 → 報錯，GitHub 上什麼都沒改', () => {
+    const extra = { date: '2026-08-31', title: '別人剛發的公告', body: '', pinned: false };
+    const a = make({ gh: { conflicts: 1, onConflict: (x) => x.externalCommit('data/announcements.json', json([...ANN, extra])) } });
+    prepare(a.ctx);
+    assert.strictEqual(publish(a.ctx).success, true);
+    assert.strictEqual(a.gh.commits.length, 1);
+    assert.deepStrictEqual(ghFile(a.gh, 'data/announcements.json').map((x) => x.title), ['暑假練球', '別人剛發的公告', '8/30 龍安 vs 雨人 賽事戰報']);
+    const b = make({ gh: { conflicts: 5 } });
+    prepare(b.ctx);
+    const r = publish(b.ctx);
+    assert.strictEqual(r.success, false);
+    assert.match(r.message, /同時/);
+    assert.deepStrictEqual([b.gh.commits.length, GAME_PATH in b.gh.files()], [0, false]);
+  });
+
+  test('撤回：一次修改，刪成績檔、時程那場還原、刪公告；沒發布過的 → 不用改，回說明', () => {
+    const { ctx, gh } = make();
+    prepare(ctx);
+    publish(ctx);
+    const r = post(ctx, { action: 'unpublishGame', gameId: ID });
+    assert.strictEqual(r.success, true, r.message);
+    assert.deepStrictEqual(gh.commits[1], { message: '撤回賽事成績：2026-08-30_G4_雨人', paths: ['data/announcements.json', GAME_PATH, 'data/schedule.json'].sort(), force: false });
+    assert.deepStrictEqual([ghFile(gh, 'data/schedule.json'), ghFile(gh, 'data/announcements.json'), GAME_PATH in gh.files()], [SCHED, ANN, false]);
+    const again = post(ctx, { action: 'unpublishGame', gameId: ID });
+    assert.strictEqual(again.success, true);
+    assert.match(again.message, /沒有發布過/);
+    assert.strictEqual(gh.commits.length, 2);
+    assert.strictEqual(post(ctx, { action: 'unpublishGame', gameId: '../../x' }).success, false);
+  });
+
+  test('GitHub 上的時程檔壞掉（不是 JSON、資料檢查不過）→ 不送出', () => {
+    const a = make({ repo: { 'data/schedule.json': '[{', 'data/announcements.json': json(ANN) } });
+    prepare(a.ctx);
+    const r = publish(a.ctx);
+    assert.strictEqual(r.success, false);
+    assert.match(r.message, /schedule\.json/);
+    assert.strictEqual(a.gh.commits.length, 0);
+    const bad = [SCHED[0], { ...SCHED[1], type: '比賽' }];
+    const b = make({ repo: { 'data/schedule.json': json(bad), 'data/announcements.json': json(ANN) } });
+    prepare(b.ctx);
+    const r2 = publish(b.ctx);
+    assert.strictEqual(r2.success, false);
+    assert.match(r2.message, /資料檢查/);
+    assert.strictEqual(b.gh.commits.length, 0);
+  });
+}
+
 console.log(`\n共 ${passed} 項通過` + (process.exitCode ? '（有失敗）' : ''));

@@ -21,7 +21,7 @@
 
 | 要走 TDD（邏輯） | 不走 TDD（改完列出人工檢查項目） |
 |---|---|
-| `record-engine.js`、`game-core.js`、`data-check.js`、`gas/*.gs`、`tools/lineup.html` 的 `setup()` 邏輯、`tools/gate.js`、`season-stats.js`、`moved.js`，以及之後新增的共用模組 | `docs/`、CSS 與版面、`data/*.json` 的內容、畫面外觀、試算表底色與粗體 |
+| `record-engine.js`、`game-core.js`、`data-check.js`、`gas/*.gs`、`tools/lineup.html` 的 `setup()` 邏輯、`tools/gate.js`、`season-stats.js`、`moved.js`、`publish-core.js`，以及之後新增的共用模組 | `docs/`、CSS 與版面、`data/*.json` 的內容、畫面外觀、試算表底色與粗體 |
 
 - 測試清單（邊界值、分類、異常輸入、狀態順序、不變條件）**放進問完需求後的規格摘要**，使用者回「開工」＝規格和測試清單一起批准。
 - 修 bug：先寫重現它的測試並看它失敗，再修；測試名稱加 `【修正】` 前綴。
@@ -33,7 +33,7 @@
 開工前全部跑一次當基準線，有失敗先停下來回報；改完再全部重跑，全綠才 commit。
 
 ```
-node tests/test_gas_modules.js         # 68 項：Auth.gs、Pitchers.gs、Backup.gs（含發布工具的比賽清單）、finishGame 帶成績與 ER 建議值、getGameER、板凳名單、投手表公式
+node tests/test_gas_modules.js         # 78 項：Auth.gs、Pitchers.gs、Backup.gs（含發布工具的比賽清單）、finishGame 帶成績與 ER 建議值、getGameER、板凳名單、投手表公式、一鍵發布（GitHub.gs，用假的 GitHub）
 node tests/test_lineup_logic.js        # 40 項：點名→先發→開始比賽（串接實況賽事紀錄）→調度→上傳→回讀→結案、板凳名單
 node tests/test_scenarios.js           # 26 項：三大調度情境、規則守門、DH 引導
 node tests/test_scenarios.js --repeat 5
@@ -44,13 +44,15 @@ node tests/test_gate.js               # 5 項：球隊管理密碼（tools/gate.
 node tests/test_season_stats.js       # 10 項：戰績頁的整季加總（season-stats.js：分組、勝敗、打擊與比率、投手 IP／ER、讀不到的場次）
 node tests/test_line.js               # 26 項：LINE「龍安虛擬球隊經理」（gas/Line.gs：觸發、各關鍵字的回覆、球場資訊、天氣、出錯、不影響隊務）
 node tests/test_moved.js              # 5 項：舊網址轉址（moved.js：GitHub Pages → Cloudflare Pages 同一頁）
+node tests/test_publish.js            # 17 項：一鍵發布的計算核心（publish-core.js：時程比分與連結、賽事、公告草稿、撤回、要寫進 GitHub 的檔案）
 node tests/check_data.js               # 不是測試：檢查 data/*.json 與 data/games/*.json
 ```
 
-基準（2026-10-25，V01.14.00 開發中）：68＋40＋26＋39＋62＋117＋5（gate）＋10（season_stats）＋26（line）＋5（moved），`check_data` 沒有錯誤。測試數量有增減時，這裡、`tests/README.md`、`docs/測試報告_調度三情境.md` 一起更新。
+基準（2026-10-24，V01.15.00 開發中）：78＋40＋26＋39＋62＋117＋5（gate）＋10（season_stats）＋26（line）＋5（moved）＋17（publish），`check_data` 沒有錯誤。測試數量有增減時，這裡、`tests/README.md`、`docs/測試報告_調度三情境.md` 一起更新。
 
 ### 測試放哪裡
 
+- `tests/github_fake.js`：假的 GitHub（一鍵發布的 GAS 測試與本機伺服器用），不會碰到正式的 GitHub。
 - `tests/harness.js`：把 `tools/lineup.html` 的 `<script>` 抽出來用 Vue 替身執行 `setup()`，後端實際跑 `gas/*.gs`；`tests/gas_mock.js` 模擬試算表等 GAS 環境。lineup 與 GAS 的新測試加在既有檔案、沿用這兩個框架。
 - `tests/test_record_engine.js` 的標準答案是 `tests/fixtures/` 的 8/30 G4 雨人紀錄；字典文件第 6 節範例必須和 fixture 一字不差。
 - 各支測試的內容見 `tests/README.md`；調度情境的規則依據見 `docs/測試報告_調度三情境.md`。

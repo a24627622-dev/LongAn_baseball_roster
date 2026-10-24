@@ -1,0 +1,416 @@
+{
+  "id": "2026-11-01_G1_演練",
+  "date": "2026-11-01",
+  "gameNum": "G1",
+  "opponent": "演練",
+  "teamName": "龍安",
+  "generatedAt": "2026-10-24T14:24:01.054Z",
+  "score": {
+    "us": 0,
+    "opp": 0
+  },
+  "halves": [
+    {
+      "inning": 1,
+      "top": true,
+      "offense": "us",
+      "label": "一局上",
+      "runs": 0,
+      "items": [
+        {
+          "type": "pa",
+          "slot": 1,
+          "number": "14",
+          "name": "張容齊",
+          "kind": "2B",
+          "display": "二安",
+          "desc": "三壘方向二壘安打",
+          "runs": 0,
+          "voidedRuns": 0,
+          "rbi": 0,
+          "scorers": [],
+          "runnersOut": [],
+          "outsBefore": 0,
+          "outsAfter": 0,
+          "bases": [
+            null,
+            {
+              "number": "14",
+              "name": "張容齊"
+            },
+            null
+          ],
+          "score": {
+            "us": 0,
+            "opp": 0
+          }
+        },
+        {
+          "type": "pa",
+          "slot": 2,
+          "number": "31",
+          "name": "王上愷",
+          "kind": "K",
+          "display": "三振",
+          "desc": "三振出局",
+          "runs": 0,
+          "voidedRuns": 0,
+          "rbi": 0,
+          "scorers": [],
+          "runnersOut": [],
+          "outsBefore": 0,
+          "outsAfter": 1,
+          "bases": [
+            null,
+            {
+              "number": "14",
+              "name": "張容齊"
+            },
+            null
+          ],
+          "score": {
+            "us": 0,
+            "opp": 0
+          }
+        },
+        {
+          "type": "pa",
+          "slot": 3,
+          "number": "6",
+          "name": "黃宥憬",
+          "kind": "GROUND",
+          "display": "游滾",
+          "desc": "游擊滾地球出局",
+          "runs": 0,
+          "voidedRuns": 0,
+          "rbi": 0,
+          "scorers": [],
+          "runnersOut": [],
+          "outsBefore": 1,
+          "outsAfter": 2,
+          "bases": [
+            null,
+            {
+              "number": "14",
+              "name": "張容齊"
+            },
+            null
+          ],
+          "score": {
+            "us": 0,
+            "opp": 0
+          }
+        },
+        {
+          "type": "pa",
+          "slot": 4,
+          "number": "75",
+          "name": "陳育瑋",
+          "kind": "FLY",
+          "display": "中飛",
+          "desc": "中外野高飛球接殺",
+          "runs": 0,
+          "voidedRuns": 0,
+          "rbi": 0,
+          "scorers": [],
+          "runnersOut": [],
+          "outsBefore": 2,
+          "outsAfter": 3,
+          "bases": [
+            null,
+            null,
+            null
+          ],
+          "score": {
+            "us": 0,
+            "opp": 0
+          }
+        }
+      ]
+    },
+    {
+      "inning": 1,
+      "top": false,
+      "offense": "opp",
+      "label": "一局下",
+      "runs": 0,
+      "items": [
+        {
+          "type": "pa",
+          "slot": 1,
+          "number": null,
+          "name": "",
+          "kind": "K",
+          "display": "三振",
+          "desc": "三振出局",
+          "runs": 0,
+          "voidedRuns": 0,
+          "rbi": null,
+          "scorers": [],
+          "runnersOut": [],
+          "outsBefore": 0,
+          "outsAfter": 1,
+          "bases": [
+            null,
+            null,
+            null
+          ],
+          "score": {
+            "us": 0,
+            "opp": 0
+          }
+        },
+        {
+          "type": "pa",
+          "slot": 2,
+          "number": null,
+          "name": "",
+          "kind": "K",
+          "display": "三振",
+          "desc": "三振出局",
+          "runs": 0,
+          "voidedRuns": 0,
+          "rbi": null,
+          "scorers": [],
+          "runnersOut": [],
+          "outsBefore": 1,
+          "outsAfter": 2,
+          "bases": [
+            null,
+            null,
+            null
+          ],
+          "score": {
+            "us": 0,
+            "opp": 0
+          }
+        },
+        {
+          "type": "pa",
+          "slot": 3,
+          "number": null,
+          "name": "",
+          "kind": "GROUND",
+          "display": "中滾",
+          "desc": "中外野滾地球出局",
+          "runs": 0,
+          "voidedRuns": 0,
+          "rbi": null,
+          "scorers": [],
+          "runnersOut": [],
+          "outsBefore": 2,
+          "outsAfter": 3,
+          "bases": [
+            null,
+            null,
+            null
+          ],
+          "score": {
+            "us": 0,
+            "opp": 0
+          }
+        }
+      ]
+    }
+  ],
+  "batting": [
+    {
+      "slot": 1,
+      "number": "14",
+      "name": "張容齊",
+      "AB": 1,
+      "R": 0,
+      "H": 1,
+      "2B": 1,
+      "3B": 0,
+      "HR": 0,
+      "RBI": 0,
+      "BB": 0,
+      "IBB": 0,
+      "HBP": 0,
+      "K": 0,
+      "SB": 0,
+      "CS": 0,
+      "E": 0,
+      "appeared": true
+    },
+    {
+      "slot": 2,
+      "number": "31",
+      "name": "王上愷",
+      "AB": 1,
+      "R": 0,
+      "H": 0,
+      "2B": 0,
+      "3B": 0,
+      "HR": 0,
+      "RBI": 0,
+      "BB": 0,
+      "IBB": 0,
+      "HBP": 0,
+      "K": 1,
+      "SB": 0,
+      "CS": 0,
+      "E": 0,
+      "appeared": true
+    },
+    {
+      "slot": 3,
+      "number": "6",
+      "name": "黃宥憬",
+      "AB": 1,
+      "R": 0,
+      "H": 0,
+      "2B": 0,
+      "3B": 0,
+      "HR": 0,
+      "RBI": 0,
+      "BB": 0,
+      "IBB": 0,
+      "HBP": 0,
+      "K": 0,
+      "SB": 0,
+      "CS": 0,
+      "E": 0,
+      "appeared": true
+    },
+    {
+      "slot": 4,
+      "number": "75",
+      "name": "陳育瑋",
+      "AB": 1,
+      "R": 0,
+      "H": 0,
+      "2B": 0,
+      "3B": 0,
+      "HR": 0,
+      "RBI": 0,
+      "BB": 0,
+      "IBB": 0,
+      "HBP": 0,
+      "K": 0,
+      "SB": 0,
+      "CS": 0,
+      "E": 0,
+      "appeared": true
+    },
+    {
+      "slot": 5,
+      "number": "10",
+      "name": "張秋建",
+      "AB": 0,
+      "R": 0,
+      "H": 0,
+      "2B": 0,
+      "3B": 0,
+      "HR": 0,
+      "RBI": 0,
+      "BB": 0,
+      "IBB": 0,
+      "HBP": 0,
+      "K": 0,
+      "SB": 0,
+      "CS": 0,
+      "E": 0,
+      "appeared": true
+    },
+    {
+      "slot": 6,
+      "number": "7",
+      "name": "林俊豪",
+      "AB": 0,
+      "R": 0,
+      "H": 0,
+      "2B": 0,
+      "3B": 0,
+      "HR": 0,
+      "RBI": 0,
+      "BB": 0,
+      "IBB": 0,
+      "HBP": 0,
+      "K": 0,
+      "SB": 0,
+      "CS": 0,
+      "E": 0,
+      "appeared": true
+    },
+    {
+      "slot": 7,
+      "number": "56",
+      "name": "蘇垣華",
+      "AB": 0,
+      "R": 0,
+      "H": 0,
+      "2B": 0,
+      "3B": 0,
+      "HR": 0,
+      "RBI": 0,
+      "BB": 0,
+      "IBB": 0,
+      "HBP": 0,
+      "K": 0,
+      "SB": 0,
+      "CS": 0,
+      "E": 0,
+      "appeared": true
+    },
+    {
+      "slot": 8,
+      "number": "12",
+      "name": "陳佳瑋",
+      "AB": 0,
+      "R": 0,
+      "H": 0,
+      "2B": 0,
+      "3B": 0,
+      "HR": 0,
+      "RBI": 0,
+      "BB": 0,
+      "IBB": 0,
+      "HBP": 0,
+      "K": 0,
+      "SB": 0,
+      "CS": 0,
+      "E": 0,
+      "appeared": true
+    },
+    {
+      "slot": 9,
+      "number": "55",
+      "name": "葉展昆",
+      "AB": 0,
+      "R": 0,
+      "H": 0,
+      "2B": 0,
+      "3B": 0,
+      "HR": 0,
+      "RBI": 0,
+      "BB": 0,
+      "IBB": 0,
+      "HBP": 0,
+      "K": 0,
+      "SB": 0,
+      "CS": 0,
+      "E": 0,
+      "appeared": true
+    }
+  ],
+  "pitching": [
+    {
+      "number": "7",
+      "name": "林俊豪",
+      "outs": 3,
+      "H": 0,
+      "R": 0,
+      "BB": 0,
+      "HBP": 0,
+      "SO": 2,
+      "HR": 0,
+      "WP": 0,
+      "IP": "1.0",
+      "ER": 0
+    }
+  ],
+  "pitchingStatus": "complete",
+  "source": "game-record"
+}
